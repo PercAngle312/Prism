@@ -16,6 +16,7 @@ on:
       - 'tests/prism_metadata_test.c'
       - 'tests/prism_pack_test.c'
       - 'tools/prism_pack.py'
+      - 'tools/prism_cover.py'
       - 'tools/prism_builder.py'
       - 'tools/prism_preview.py'
       - 'tools/prism_layout.py'
@@ -64,6 +65,9 @@ jobs:
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library2.prism
           cmp /tmp/library.prism /tmp/library2.prism
       - name: Validate PRISM builder Python syntax
-        run: python3 -m py_compile tools/prism_pack.py tools/prism_builder.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
+        run: python3 -m py_compile tools/prism_pack.py tools/prism_cover.py tools/prism_builder.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
+      - name: Verify cover texture constants
+        run: |
+          python3 -c "from pathlib import Path; import sys; sys.path.insert(0, 'tools'); from prism_cover import WIDTH,HEIGHT,COVER_BYTES,validate_cover,MAGIC; assert (WIDTH,HEIGHT,COVER_BYTES)==(176,240,84492); assert validate_cover(MAGIC + WIDTH.to_bytes(2,'little') + HEIGHT.to_bytes(2,'little') + bytes(WIDTH*HEIGHT*2))"
       - name: Verify GameCube / desktop PRISM layout parity
         run: python3 tools/test_prism_layout.py
