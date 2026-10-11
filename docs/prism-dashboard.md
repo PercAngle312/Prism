@@ -164,3 +164,14 @@ It does **not** yet scan recursive game folders, recognize compressed images,
 or associate matches with library.prism artwork on screen. The existing
 catalog browser has not been switched over to this adapter. This staged
 integration is deliberate until full Swiss CI and real hardware testing.
+
+## Installed-game metadata join
+
+`prism_enrich_installed` now accepts a previously scanned game and looks up
+its actual six-character disc-header ID in the indexed PRISM pack through the
+Swiss device adapter. If a matching entry exists, its title and synopsis are
+used; otherwise the original disc-header title is preserved and the synopsis
+is blank. This read-only integration layer does not enumerate storage itself,
+decode cover bytes, change launch paths, or automatically activate the new
+scanner in the dashboard yet. The scanner's duplicate handle-close has also
+been corrected. This is staged pending checks and on-console testing.
