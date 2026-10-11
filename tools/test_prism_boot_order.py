@@ -14,4 +14,6 @@ assert init < dashboard < autoload < menu, (
 assert main.count("prism_dashboard_bootstrap();") == 1, (
     "Do not call PRISM twice during a single startup"
 )
-print("PRISM entry precedes Swiss autoload: OK")
+assert "if(!prism_opened && swissSettings.autoload[0])" in main
+assert "else if(!prism_opened && swissSettings.recent[0][0]" in main
+print("PRISM entry precedes autoload; Classic Swiss entry bypasses autoload: OK")
