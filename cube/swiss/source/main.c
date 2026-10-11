@@ -33,6 +33,7 @@
 #include "sram.h"
 #include "stub_bin.h"
 #include "gui/FrameBufferMagic.h"
+#include "gui/prism_pack_device.h"
 #include "gui/IPLFontWrite.h"
 #include "devices/deviceHandler.h"
 #include "devices/fat/ata.h"
@@ -225,8 +226,10 @@ static uiDrawObj_t *prism_draw_home(int selection)
 	DrawAddChild(panel, DrawSelectableButton(70, 277, 563, 315,
 		"Open Classic Swiss", selection == 0 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawSelectableButton(70, 326, 563, 364,
-		"About PRISM", selection == 1 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawStyledLabel(320, 400,
+		"Inspect offline pack", selection == 1 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawSelectableButton(70, 375, 563, 413,
+		"About PRISM", selection == 2 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawStyledLabel(320, 423,
 		"D-Pad: Select   A: Open   B/START: Classic Swiss", 0.8f, ALIGN_CENTER,
 		(GXColor){185, 200, 225, 255}));
 	return DrawPublish(panel);
@@ -246,12 +249,38 @@ static void prism_dashboard_bootstrap(void)
 		last = held;
 		if (pressed & (BUTTON_B | BUTTON_START)) break;
 		if (pressed & (BUTTON_UP | BUTTON_DOWN)) {
-			selection = 1 - selection;
+			selection = (selection + ((pressed & BUTTON_DOWN) ? 1 : 2)) % 3;
 			DrawDispose(screen);
 			screen = prism_draw_home(selection);
 		}
 		if (pressed & BUTTON_A) {
 			if (selection == 0) break;
+			if (selection == 1) {
+				DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CONFIG];
+				char path[PATHNAME_MAX];
+				char result[192];
+				u32 game_count = 0;
+				int found = 0;
+				if(device && device->initial &&
+				   snprintf(path, sizeof(path), "%sswiss/prism/library.prism",
+				            device->initial->name) < sizeof(path)) {
+					found = prism_pack_device_count(device, path, &game_count);
+				}
+				if(found)
+					snprintf(result, sizeof(result),
+					         "PRISM offline pack found!\\n%lu metadata records.\\nA/B: Return",
+					         (unsigned long)game_count);
+				else
+					snprintf(result, sizeof(result),
+					         "No readable PRISM pack on config storage.\\n"
+					         "Expected: swiss/prism/library.prism\\nA/B: Return");
+				uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO, result));
+				while(padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+				while(!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+				DrawDispose(info);
+				last = BUTTON_A | BUTTON_B;
+				continue;
+			}
 			uiDrawObj_t *about = DrawPublish(DrawMessageBox(D_INFO,
 				"PRISM Dashboard\n"
 				"An original GameCube frontend built on Swiss.\n"
