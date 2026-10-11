@@ -1,0 +1,21 @@
+name: Aurora navigation checks
+
+on:
+  push:
+    branches: [feature/aurora-dashboard]
+  pull_request:
+    paths:
+      - 'cube/swiss/source/gui/aurora_nav.*'
+      - 'tests/aurora_nav_test.c'
+      - '.github/workflows/aurora-nav.yml'
+  workflow_dispatch:
+
+jobs:
+  navigation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build navigation unit test
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o /tmp/aurora-nav-test tests/aurora_nav_test.c cube/swiss/source/gui/aurora_nav.c
+      - name: Run navigation unit test
+        run: /tmp/aurora-nav-test
