@@ -623,10 +623,10 @@ int main(int argc, char *argv[])
 	DrawAddChild(boot_mark, DrawEmptyColouredBox(55, 145, 585, 335,
 		(GXColor){18, 24, 42, 255}));
 	DrawAddChild(boot_mark, DrawStyledLabel(320, 200,
-		"PRISM TEST BUILD", 1.8f, ALIGN_CENTER,
+		"PRISM BOOT CHECK V2", 1.8f, ALIGN_CENTER,
 		(GXColor){225, 235, 255, 255}));
 	DrawAddChild(boot_mark, DrawStyledLabel(320, 265,
-		"DIAGNOSTIC: Press A to continue", 0.9f, ALIGN_CENTER,
+		"If you see this screen, press A", 0.9f, ALIGN_CENTER,
 		(GXColor){170, 194, 229, 255}));
 	boot_mark = DrawPublish(boot_mark);
 	/* A timed splash is too easy to miss on a display that resynchronizes
