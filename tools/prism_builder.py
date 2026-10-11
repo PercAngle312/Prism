@@ -57,8 +57,8 @@ def download_cover(url: str) -> bytes:
         raw = response.read(MAX_DOWNLOAD + 1)
         if len(raw) > MAX_DOWNLOAD:
             raise ValueError("Image exceeds 512 KiB import limit")
-        if not (raw.startswith(b"\\x89PNG\\r\\n\\x1a\\n") or
-                raw.startswith(b"\\xff\\xd8\\xff")):
+        if not (raw.startswith(b"\x89PNG\r\n\x1a\n") or
+                raw.startswith(b"\xff\xd8\xff")):
             raise ValueError("Invalid PNG or JPEG file signature")
         return raw
     finally:
@@ -125,7 +125,7 @@ class Builder:
                 image = download_cover(cover_url) if cover_url else self.local_path.read_bytes()
                 if len(image) > MAX_DOWNLOAD:
                     raise ValueError("Cover image too large (maximum 512 KiB)")
-                if not (image.startswith(b"\\x89PNG\\r\\n\\x1a\\n") or image.startswith(b"\\xff\\xd8\\xff")):
+                if not (image.startswith(b"\x89PNG\r\n\x1a\n") or image.startswith(b"\xff\xd8\xff")):
                     raise ValueError("Cover must be PNG or JPEG")
                 cover = self.workspace / f"{game_id}.img"
                 cover.write_bytes(image)
@@ -156,7 +156,7 @@ class Builder:
                                            indent=2, ensure_ascii=False), encoding="utf-8")
             build(manifest, Path(output))
             self.status.set(f"Built {output} ({len(self.entries)} games).")
-            messagebox.showinfo("Pack created", f"Saved {output}\\n\\nNote: GameCube cover decoding is not wired up yet.")
+            messagebox.showinfo("Pack created", f"Saved {output}\n\nNote: GameCube cover decoding is not wired up yet.")
         except (OSError, ValueError, KeyError) as exc:
             messagebox.showerror("Build failed", str(exc))
 
