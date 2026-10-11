@@ -6,7 +6,7 @@ source = Path("cube/swiss/source/main.c").read_text(encoding="utf-8")
 main = source[source.index("int main(int argc, char *argv[])"):]
 init = main.index("\tInitialise();")
 dashboard = main.index("\t\tprism_dashboard_bootstrap();")
-autoload = main.index("\tif(swissSettings.autoload[0]) {")
+autoload = main.index("\tif(!prism_opened && swissSettings.autoload[0]) {")
 menu = main.index("\t\tmenu_loop();")
 assert init < dashboard < autoload < menu, (
     "PRISM must open after video init, before Swiss autoload and menu loop"
