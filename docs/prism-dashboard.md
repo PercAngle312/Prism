@@ -123,7 +123,7 @@ The details preview now uses a fixed 640×480 Tk Canvas with a bounded cover are
 
 ## First Swiss storage connection (read-only)
 
-On the PRISM startup screen, select **Inspect offline pack**. If Swiss has a
+On the PRISM startup screen, select **Browse offline catalog**. If Swiss has a
 configuration device with a readable `swiss/prism/library.prism`, the panel
 reports its indexed record count. The pack is accessed through Swiss's own
 `statFile`, `seekFile`, `readFile`, and `closeFile` device callbacks;
@@ -136,3 +136,19 @@ browser. Pack data is not yet mapped to Swiss's actual game entries, covers
 are not rendered, and this GameCube path still needs CI and physical-hardware
 validation. The detection screen currently checks the Swiss configuration
 device rather than searching every possible device.
+
+## Offline catalog browsing (experimental)
+
+The PRISM startup screen now offers **Browse offline catalog**. When the Swiss
+configuration device exposes `swiss/prism/library.prism`, PRISM reads its
+bounded index, displays the selected record's game ID, title, and synopsis,
+and uses LEFT/RIGHT to move between records. B or START returns to the PRISM
+home screen, where Classic Swiss remains directly available. The cover area
+is intentionally a placeholder until a GameCube-compatible texture decoder
+is integrated. This browser lists **pack entries**, not yet the actual ISO
+collection discovered by Swiss, and does not launch games.
+
+The pack parser now supports indexed entry enumeration, and host regression
+tests check valid records and out-of-bounds positions. No physical GameCube
+test has been performed. Keep the proven Classic Swiss build available until
+CI and a controlled on-console test have passed.
