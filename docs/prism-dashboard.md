@@ -191,4 +191,8 @@ no existing launch/device initialization code is intentionally replaced.
 
 ## Default library visibility
 
-The PRISM home screen now starts with **Browse installed games** selected by default. It lists only GameCube images discovered in the active Swiss device's `/games` directory. The full offline metadata catalog remains an explicit secondary choice; it is **not** presented as the installed library. Classic Swiss is the second entry and can always be reached instantly by B/START. No games are automatically launched, and no Swiss compatibility or device logic is changed.
+The PRISM experience now tries to open **Browse installed games** automatically, and if it returns to the home screen that option is selected by default. It lists only GameCube images discovered in the active Swiss device's `/games` directory. The full offline metadata catalog remains an explicit secondary choice; it is **not** presented as the installed library. Classic Swiss is the second entry and can always be reached instantly by B/START. No games are automatically launched, and no Swiss compatibility or device logic is changed.
+
+## Direct-to-library startup
+
+After Swiss device initialization, PRISM now attempts to open its read-only installed-game library directly. If no active game device or no supported raw ISO/GCM entries are found in the device's `/games` directory, it falls back quietly to the PRISM home screen. B/START from the installed library returns to that home screen, where Classic Swiss is accessible; B/START on the home screen opens Classic Swiss. No game is auto-launched. This direct startup path is experimental, pending CI and physical GameCube validation.
