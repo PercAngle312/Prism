@@ -411,7 +411,7 @@ static int prism_installed_browser(int quiet_if_empty)
         DrawAddChild(panel, DrawEmptyColouredBox(65, 175, 225, 358,
             (GXColor){37, 52, 78, 255}));
         if (has_cover)
-            DrawAddChild(panel, DrawTexObj(&cover_texture, 65, 175, 160, 183,
+            DrawAddChild(panel, DrawTexObj(&cover_texture, 78, 175, 134, 183,
                                           0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
         else
             DrawAddChild(panel, DrawStyledLabel(145, 265, "NO COVER", 0.72f,
