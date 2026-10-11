@@ -479,6 +479,10 @@ static void prism_dashboard_bootstrap(void)
 	int selection = 0;
 	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN;
 	uiDrawObj_t *screen = prism_draw_home(selection);
+	/* Require a new button press after the diagnostic. Holding A/B/START
+	 * while the dashboard first appears must not immediately exit it. */
+	while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))
+		VIDEO_WaitVSync();
 	for (;;) {
 		u32 held = padsButtonsHeld();
 		u32 pressed = held & ~last;
