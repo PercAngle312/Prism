@@ -226,13 +226,99 @@ static uiDrawObj_t *prism_draw_home(int selection)
 	DrawAddChild(panel, DrawSelectableButton(70, 277, 563, 315,
 		"Open Classic Swiss", selection == 0 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawSelectableButton(70, 326, 563, 364,
-		"Inspect offline pack", selection == 1 ? B_SELECTED : B_NOSELECT));
+		"Browse offline catalog", selection == 1 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawSelectableButton(70, 375, 563, 413,
 		"About PRISM", selection == 2 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawStyledLabel(320, 423,
 		"D-Pad: Select   A: Open   B/START: Classic Swiss", 0.8f, ALIGN_CENTER,
 		(GXColor){185, 200, 225, 255}));
 	return DrawPublish(panel);
+}
+
+/* Read-only catalog browser. Game launching stays in Classic Swiss. */
+static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *path,
+                                  u32 count)
+{
+    u32 position = 0;
+    u32 last = BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
+    for (;;) {
+        PrismPackEntry entry;
+        char title[PRISM_PACK_TITLE_MAX + 1];
+        char synopsis[PRISM_PACK_SYNOPSIS_MAX + 1];
+        char heading[100];
+        char line[48];
+        const char *cursor;
+        uiDrawObj_t *panel;
+        u32 pressed, held;
+        int y, i;
+        if (!prism_pack_device_entry(device, path, position, &entry,
+                                     title, sizeof(title), synopsis, sizeof(synopsis))) {
+            uiDrawObj_t *error = DrawPublish(DrawMessageBox(D_WARN,
+                "Unable to read PRISM metadata entry.\nPress A/B to return."));
+            while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+            while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+            DrawDispose(error);
+            return;
+        }
+        panel = DrawContainer();
+        DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
+            (GXColor){18, 24, 42, 242}));
+        DrawAddChild(panel, DrawStyledLabel(65, 115, "PRISM  /  OFFLINE CATALOG",
+            1.15f, ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
+        snprintf(heading, sizeof(heading), "%s  |  %lu / %lu", entry.id,
+                 (unsigned long)(position + 1), (unsigned long)count);
+        DrawAddChild(panel, DrawStyledLabel(65, 151, heading, 0.85f,
+            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+        DrawAddChild(panel, DrawEmptyColouredBox(65, 175, 225, 358,
+            (GXColor){37, 52, 78, 255}));
+        DrawAddChild(panel, DrawStyledLabel(145, 265, "COVER PENDING", 0.72f,
+            ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+        if (strlen(title) > 42) title[42] = 0;
+        DrawAddChild(panel, DrawStyledLabel(246, 190, title, 0.92f,
+            ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
+        DrawAddChild(panel, DrawStyledLabel(246, 224, "SYNOPSIS", 0.75f,
+            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+        cursor = synopsis;
+        y = 251;
+        for (i = 0; i < 5 && *cursor; ++i) {
+            size_t n = strlen(cursor);
+            if (n > 43) {
+                size_t cut = 43;
+                while (cut > 15 && cursor[cut] != ' ') --cut;
+                n = cut > 15 ? cut : 43;
+            }
+            memcpy(line, cursor, n);
+            line[n] = 0;
+            DrawAddChild(panel, DrawStyledLabel(246, y, line, 0.68f,
+                ALIGN_LEFT, (GXColor){204, 218, 239, 255}));
+            cursor += n;
+            while (*cursor == ' ') ++cursor;
+            y += 22;
+        }
+        DrawAddChild(panel, DrawStyledLabel(320, 404,
+            "LEFT/RIGHT: Browse    B/START: Return", 0.8f, ALIGN_CENTER,
+            (GXColor){185, 200, 225, 255}));
+        panel = DrawPublish(panel);
+        for (;;) {
+            held = padsButtonsHeld();
+            pressed = held & ~last;
+            last = held;
+            if (pressed & (BUTTON_B | BUTTON_START)) {
+                DrawDispose(panel);
+                return;
+            }
+            if (pressed & BUTTON_RIGHT) {
+                position = (position + 1) % count;
+                break;
+            }
+            if (pressed & BUTTON_LEFT) {
+                position = (position + count - 1) % count;
+                break;
+            }
+            VIDEO_WaitVSync();
+        }
+        DrawDispose(panel);
+    }
 }
 
 /* Isolated boot UI: always allow direct access to Swiss's original menu.
@@ -266,10 +352,16 @@ static void prism_dashboard_bootstrap(void)
 				            device->initial->name) < sizeof(path)) {
 					found = prism_pack_device_count(device, path, &game_count);
 				}
-				if(found)
+				if (found && game_count) {
+					DrawDispose(screen);
+					prism_catalog_browser(device, path, game_count);
+					screen = prism_draw_home(selection);
+					last = BUTTON_A | BUTTON_B | BUTTON_START;
+					continue;
+				}
+				if (found)
 					snprintf(result, sizeof(result),
-					         "PRISM offline pack found!\\n%lu metadata records.\\nA/B: Return",
-					         (unsigned long)game_count);
+					         "PRISM offline catalog is empty.\\nPress A/B to return.");
 				else
 					snprintf(result, sizeof(result),
 					         "No readable PRISM pack on config storage.\\n"
