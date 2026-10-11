@@ -27,6 +27,9 @@ typedef struct {
 /* Read only header/index entries; never allocate or load the entire pack. */
 int prism_pack_count(PrismPackRead read, void *ctx, uint32_t file_size,
                      uint32_t *count);
+/* Enumerate the indexed catalog by zero-based position. */
+int prism_pack_entry_at(PrismPackRead read, void *ctx, uint32_t file_size,
+                        uint32_t position, PrismPackEntry *entry);
 int prism_pack_find(PrismPackRead read, void *ctx, uint32_t file_size,
                     const char *id, PrismPackEntry *entry);
 int prism_pack_read_text(PrismPackRead read, void *ctx, uint32_t file_size,
