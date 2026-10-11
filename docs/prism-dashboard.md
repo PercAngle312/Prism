@@ -17,8 +17,10 @@ for device drivers, game launching, configuration, cheats, or file browsing.
 - [x] Add bounded, independently testable PRISM library view model (titles, source indices, ordering, selection)
 - [ ] Connect real Swiss device/file enumeration to the PRISM library view model
 - [x] Add strict offline synopsis manifest parser with GameCube ID matching and regression tests
-- [ ] Load synopsis manifest from Swiss storage and render it alongside artwork
-- [ ] Load offline cover images through Swiss device APIs
+- [x] Implement versioned consolidated PRISM library pack reader and deterministic pack builder
+- [ ] Bundle a vetted, redistributable full GameCube catalog and licensed/original artwork
+- [ ] Connect Swiss file I/O to the PRISM pack reader and render metadata
+- [ ] Decode and render GameCube-compatible cover textures through Swiss graphics APIs
 - [ ] Route game-specific settings and cheats to existing Swiss handlers
 - [ ] Game launch via existing Swiss mechanisms
 - [ ] Performance validation, full CI validation, GameCube hardware test
@@ -55,3 +57,31 @@ malformed IDs, control characters, and oversized records. The current parser
 operates on buffers provided by the caller; **no storage loading is wired up**
 yet. This format is intended for an optional offline file on Swiss-supported
 storage, never a requirement for game launching.
+
+## Consolidated library pack (PRISMPK1)
+
+PRISM v1 uses a single `library.prism` file with an 8-byte magic signature,
+entry count, and a fixed-size, sorted index. Each 20-byte index record holds a
+6-character disc ID, record offset, UTF-8 title length, synopsis length, and
+optional cover-byte length. The title, synopsis, and cover payloads follow
+the index. All integers are little-endian. The reader performs binary search
+using a caller-provided seek/read callback, so it does not load the whole pack
+into RAM. It validates file bounds and rejects oversized records.
+
+The deterministic generator is `tools/prism_pack.py`. Run:
+
+```sh
+python3 tools/prism_pack.py assets/prism/catalog.example.json library.prism
+```
+
+The example manifest contains **two illustrative game entries**, not a complete
+GameCube catalog. It does not contain publisher artwork. This work establishes
+the format and its tests; **the pack is not yet connected to the UI or storage
+and no complete database is bundled**. Cover payload bytes are currently
+opaque and require a separate GameCube-compatible decoder/renderer.
+
+For a redistributable built-in catalog, use verifiably licensed datasets,
+factual disc IDs/titles, original synopses, and original or authorized cover
+art. Preserve provenance and applicable attribution/licenses. No game ISOs,
+ROMs, copyrighted publisher artwork without permission, or game binaries
+belong in this repository.
