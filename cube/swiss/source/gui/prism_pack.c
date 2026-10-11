@@ -131,3 +131,27 @@ int prism_pack_read_text(PrismPackRead read, void *ctx, uint32_t file_size,
     memcpy(synopsis, temp_synopsis, (size_t)entry->synopsis_length + 1);
     return 1;
 }
+
+int prism_pack_read_cover(PrismPackRead read, void *ctx, uint32_t file_size,
+                          const PrismPackEntry *entry, void *texture,
+                          size_t texture_capacity)
+{
+    unsigned char prefix[12];
+    uint32_t start;
+    if (!read || !entry || !texture ||
+        texture_capacity < PRISM_COVER_TEXTURE_SIZE ||
+        entry->cover_length != 12u + PRISM_COVER_TEXTURE_SIZE)
+        return 0;
+    if (entry->offset > UINT32_MAX - entry->title_length -
+                         entry->synopsis_length)
+        return 0;
+    start = entry->offset + entry->title_length + entry->synopsis_length;
+    if (!range_ok(start, entry->cover_length, file_size) ||
+        !read_at(read, ctx, start, prefix, sizeof(prefix)) ||
+        memcmp(prefix, "PRISMCV1", 8) != 0 ||
+        le16(prefix + 8) != PRISM_COVER_WIDTH ||
+        le16(prefix + 10) != PRISM_COVER_HEIGHT)
+        return 0;
+    return read_at(read, ctx, start + sizeof(prefix), texture,
+                   PRISM_COVER_TEXTURE_SIZE);
+}
