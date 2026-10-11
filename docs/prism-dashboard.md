@@ -16,7 +16,9 @@ for device drivers, game launching, configuration, cheats, or file browsing.
 - [ ] Replace the placeholder home screen with an actual artwork-driven library
 - [x] Add bounded, independently testable PRISM library view model (titles, source indices, ordering, selection)
 - [ ] Connect real Swiss device/file enumeration to the PRISM library view model
-- [ ] Read game IDs, load offline covers and synopsis metadata
+- [x] Add strict offline synopsis manifest parser with GameCube ID matching and regression tests
+- [ ] Load synopsis manifest from Swiss storage and render it alongside artwork
+- [ ] Load offline cover images through Swiss device APIs
 - [ ] Route game-specific settings and cheats to existing Swiss handlers
 - [ ] Game launch via existing Swiss mechanisms
 - [ ] Performance validation, full CI validation, GameCube hardware test
@@ -37,3 +39,19 @@ available as the richer dashboard is added.
 
 The navigation module is deliberately independent of Swiss's GX renderer and
 backend so it can be tested separately before the UI is wired into the main loop.
+
+## Offline synopsis manifest (proposed format)
+
+PRISM accepts a bounded ASCII manifest with one record per line:
+
+```text
+# game ID, tab, short synopsis
+GM8E01\tExplore the mysteries of Tallon IV.
+GZLE01\tSail across the Great Sea.
+```
+
+The separator must be a literal tab. The parser ignores comments and rejects
+malformed IDs, control characters, and oversized records. The current parser
+operates on buffers provided by the caller; **no storage loading is wired up**
+yet. This format is intended for an optional offline file on Swiss-supported
+storage, never a requirement for game launching.
