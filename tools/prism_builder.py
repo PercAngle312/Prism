@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 from http.client import HTTPSConnection
 
 from prism_pack import build, MAX_COVER
+from prism_preview import PrismPreview
 
 MAX_DOWNLOAD = min(MAX_COVER, 512 * 1024)
 
@@ -69,7 +70,7 @@ class Builder:
     def __init__(self, root):
         self.root = root
         root.title("PRISM Library Pack Builder")
-        root.geometry("710x510")
+        root.geometry("830x800")
         self.workspace = Path.cwd() / "prism-library-work"
         self.workspace.mkdir(exist_ok=True)
         self.entries = {}
@@ -101,7 +102,16 @@ class Builder:
         self.listbox.grid(row=8, column=0, columnspan=2, sticky="nsew", padx=12, pady=6)
         root.columnconfigure(1, weight=1)
         root.rowconfigure(8, weight=1)
+        self.preview = PrismPreview(root)
+        self.preview.grid(row=9, column=0, columnspan=2, padx=12, pady=(4, 12), sticky="nsew")
+        self.listbox.bind("<<ListboxSelect>>", self.preview_selection)
         self.local_path = None
+
+    def preview_selection(self, _event=None):
+        selected = self.listbox.curselection()
+        if selected:
+            key = sorted(self.entries)[selected[0]]
+            self.preview.show_game(self.entries[key], self.workspace)
 
     def local_cover(self):
         name = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
@@ -137,6 +147,7 @@ class Builder:
             for item in sorted(self.entries.values(), key=lambda x: x["id"]):
                 self.listbox.insert(tk.END, f'{item["id"]}  {item["title"]}')
             self.local_path = None
+            self.preview.show_game(game, self.workspace)
             self.status.set(f"Saved {game_id}. {len(self.entries)} game(s) in current pack.")
         except (OSError, ValueError, socket.error) as exc:
             messagebox.showerror("Import failed", str(exc))
