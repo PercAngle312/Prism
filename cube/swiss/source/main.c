@@ -203,15 +203,15 @@ void config_migration(char* text, int state, int percent) {
 }
 
 /*
- * Aurora dashboard bootstrap: temporary safe entry screen.
+ * Prism dashboard bootstrap: temporary safe entry screen.
  * The original Swiss menu is reached with A/START/B.
  * Keep all Swiss initialization and game-launch code unchanged.
  * This bootstrap will be replaced by the actual cover library renderer.
  */
-static void aurora_dashboard_bootstrap(void)
+static void prism_dashboard_bootstrap(void)
 {
 	uiDrawObj_t *screen = DrawPublish(DrawMessageBox(D_INFO,
-		"SWISS-CA  |  AURORA DASHBOARD\n"
+		"SWISS-CA  |  PRISM DASHBOARD\n"
 		"\n"
 		"Game library and cover artwork are under development.\n"
 		"\n"
@@ -454,8 +454,8 @@ int main(int argc, char *argv[])
 	if(swissSettings.cubebootInvoked) {
 		return 0;
 	}
-	/* Aurora is the first interactive screen; Classic Swiss remains available. */
-	aurora_dashboard_bootstrap();
+	/* Prism is the first interactive screen; Classic Swiss remains available. */
+	prism_dashboard_bootstrap();
 	while(1) {
 		menu_loop();
 	}
