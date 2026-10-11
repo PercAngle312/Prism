@@ -14,7 +14,8 @@ for device drivers, game launching, configuration, cheats, or file browsing.
 - [x] Entry states for library, game details, settings, cheats, info, and Classic Swiss
 - [x] Render a PRISM-branded home screen at startup with D-Pad/A/B/START navigation
 - [ ] Replace the placeholder home screen with an actual artwork-driven library
-- [ ] Library scan across the devices Swiss already supports
+- [x] Add bounded, independently testable PRISM library view model (titles, source indices, ordering, selection)
+- [ ] Connect real Swiss device/file enumeration to the PRISM library view model
 - [ ] Read game IDs, load offline covers and synopsis metadata
 - [ ] Route game-specific settings and cheats to existing Swiss handlers
 - [ ] Game launch via existing Swiss mechanisms
