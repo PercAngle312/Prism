@@ -9,10 +9,14 @@ on:
       - 'cube/swiss/source/gui/prism_game.*'
       - 'cube/swiss/source/gui/prism_library.*'
       - 'cube/swiss/source/gui/prism_metadata.*'
+      - 'cube/swiss/source/gui/prism_pack.*'
       - 'tests/prism_nav_test.c'
       - 'tests/prism_game_test.c'
       - 'tests/prism_library_test.c'
       - 'tests/prism_metadata_test.c'
+      - 'tests/prism_pack_test.c'
+      - 'tools/prism_pack.py'
+      - 'assets/prism/**'
       - '.github/workflows/prism-nav.yml'
   workflow_dispatch:
 
@@ -37,3 +41,12 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-metadata-test tests/prism_metadata_test.c cube/swiss/source/gui/prism_metadata.c
           /tmp/prism-metadata-test
+      - name: Build and run consolidated pack reader tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-pack-test tests/prism_pack_test.c cube/swiss/source/gui/prism_pack.c
+          /tmp/prism-pack-test
+      - name: Generate deterministic example offline pack
+        run: |
+          python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library.prism
+          python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library2.prism
+          cmp /tmp/library.prism /tmp/library2.prism
