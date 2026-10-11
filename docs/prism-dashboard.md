@@ -85,3 +85,20 @@ factual disc IDs/titles, original synopses, and original or authorized cover
 art. Preserve provenance and applicable attribution/licenses. No game ISOs,
 ROMs, copyrighted publisher artwork without permission, or game binaries
 belong in this repository.
+
+## PRISM Pack Builder (early GUI)
+
+Run `python3 tools/prism_builder.py` on a desktop computer with Python 3
+and Tkinter installed. The GUI accepts a six-character disc ID, title,
+synopsis, optional direct HTTPS PNG/JPEG cover image URL, and an information
+webpage URL for reference. Local PNG/JPEG imports are also supported.
+Select **Add / update game**, then **Build library.prism** to generate
+a compatible pack using `tools/prism_pack.py`.
+
+Current limitations: webpage URLs are saved only as references; they are
+not scraped for metadata. The importer follows no redirects, rejects local
+network destinations, and limits images to 512 KiB. Only use sources you are
+authorized to import. The GUI currently keeps entries in memory until the
+pack is generated, writes its working files to `prism-library-work/`,
+and is not mobile/browser-compatible. The packed cover payload is still
+opaque to the GameCube viewer until cover decoding/rendering is implemented.
