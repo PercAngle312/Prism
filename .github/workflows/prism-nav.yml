@@ -16,6 +16,7 @@ on:
       - 'tests/prism_metadata_test.c'
       - 'tests/prism_pack_test.c'
       - 'tools/prism_pack.py'
+      - 'tools/prism_builder.py'
       - 'assets/prism/**'
       - '.github/workflows/prism-nav.yml'
   workflow_dispatch:
@@ -50,3 +51,5 @@ jobs:
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library.prism
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library2.prism
           cmp /tmp/library.prism /tmp/library2.prism
+      - name: Validate PRISM builder Python syntax
+        run: python3 -m py_compile tools/prism_pack.py tools/prism_builder.py
