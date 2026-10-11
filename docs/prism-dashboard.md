@@ -175,3 +175,16 @@ is blank. This read-only integration layer does not enumerate storage itself,
 decode cover bytes, change launch paths, or automatically activate the new
 scanner in the dashboard yet. The scanner's duplicate handle-close has also
 been corrected. This is staged pending checks and on-console testing.
+
+## Experimental installed-game dashboard integration
+
+The home screen now offers **Browse installed games** in addition to the older
+**Browse offline catalog**. The installed view scans the active Swiss device's
+`/games` directory for raw .iso/.gcm files, reads disc IDs and titles,
+and looks up matching descriptions in the configuration device's
+`swiss/prism/library.prism`. If a record is missing, the disc title remains
+visible. A cover placeholder remains until a GameCube texture decoder is
+implemented. The scanner is limited to a single directory and the view has
+no game launch action: return to Classic Swiss to start games. This is a
+first-stage integration needing the full CI build and hardware verification;
+no existing launch/device initialization code is intentionally replaced.
