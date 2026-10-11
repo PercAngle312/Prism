@@ -23,6 +23,8 @@ on:
       - 'cube/swiss/source/gui/prism_layout.h'
       - 'cube/swiss/source/gui/prism_installed.c'
       - 'cube/swiss/source/gui/prism_installed.h'
+      - 'cube/swiss/source/gui/prism_match.*'
+      - 'tests/prism_match_test.c'
       - 'assets/prism/**'
       - '.github/workflows/prism-nav.yml'
   workflow_dispatch:
@@ -44,6 +46,10 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-library-test tests/prism_library_test.c cube/swiss/source/gui/prism_library.c
           /tmp/prism-library-test
+      - name: Build and run exact GameCube disc-ID matching tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-match-test tests/prism_match_test.c cube/swiss/source/gui/prism_match.c cube/swiss/source/gui/prism_library.c
+          /tmp/prism-match-test
       - name: Build and run offline synopsis metadata tests
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-metadata-test tests/prism_metadata_test.c cube/swiss/source/gui/prism_metadata.c
