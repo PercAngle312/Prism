@@ -10,6 +10,11 @@
  */
 int prism_pack_device_count(DEVICEHANDLER_INTERFACE *device,
                             const char *absolute_path, uint32_t *count);
+int prism_pack_device_entry(DEVICEHANDLER_INTERFACE *device,
+                            const char *absolute_path, uint32_t position,
+                            PrismPackEntry *entry,
+                            char *title, size_t title_capacity,
+                            char *synopsis, size_t synopsis_capacity);
 int prism_pack_device_text(DEVICEHANDLER_INTERFACE *device,
                            const char *absolute_path, const char *game_id,
                            char *title, size_t title_capacity,
