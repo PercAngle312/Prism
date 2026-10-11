@@ -70,7 +70,8 @@ class Builder:
     def __init__(self, root):
         self.root = root
         root.title("PRISM Library Pack Builder")
-        root.geometry("830x800")
+        root.geometry("900x1030")
+        root.minsize(710, 800)
         self.workspace = Path.cwd() / "prism-library-work"
         self.workspace.mkdir(exist_ok=True)
         self.entries = {}
@@ -98,7 +99,7 @@ class Builder:
         self.status = tk.StringVar(value="Add entries, then build the offline pack.")
         ttk.Label(root, textvariable=self.status, wraplength=660).grid(
             row=7, column=0, columnspan=2, sticky="w", padx=12)
-        self.listbox = tk.Listbox(root, height=10)
+        self.listbox = tk.Listbox(root, height=5)
         self.listbox.grid(row=8, column=0, columnspan=2, sticky="nsew", padx=12, pady=6)
         root.columnconfigure(1, weight=1)
         root.rowconfigure(8, weight=1)
