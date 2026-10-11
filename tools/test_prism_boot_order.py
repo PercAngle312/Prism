@@ -14,6 +14,12 @@ assert init < dashboard < autoload < menu, (
 assert main.count("prism_dashboard_bootstrap();") == 1, (
     "Do not call PRISM twice during a single startup"
 )
+auto_dol = main.index("load_auto_dol(argc, argv);")
+auto_dol_guard = main.rfind("if(swissSettings.cubebootInvoked &&", 0, auto_dol)
+assert auto_dol_guard != -1 and auto_dol - auto_dol_guard < 200, (
+    "Boot-device auto-DOL must be guarded so it cannot bypass PRISM"
+)
+assert auto_dol < dashboard, "Device auto-DOL must be checked before PRISM bootstrap"
 assert "if(!prism_opened && swissSettings.autoload[0])" in main
 assert "else if(!prism_opened && swissSettings.recent[0][0]" in main
 home = source[source.index("static void prism_dashboard_bootstrap(void)"):source.index("int main(int argc, char *argv[])")]
