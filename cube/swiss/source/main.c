@@ -777,7 +777,13 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	// Check for autoload entry
+	/* PRISM takes priority over Swiss's automatic game/DOL launch.
+	 * Otherwise a configured autoload can chainload away before the
+	 * PRISM menu is ever reached. Classic Swiss continues afterward. */
+	if (!swissSettings.cubebootInvoked)
+		prism_dashboard_bootstrap();
+
+	// Check for autoload entry only after leaving PRISM for Classic Swiss.
 	if(swissSettings.autoload[0]) {
 		// Check that the path in the autoload entry points at a device that has been detected
 		print_debug("Autoload entry detected [%s]\n", swissSettings.autoload);
@@ -790,8 +796,6 @@ int main(int argc, char *argv[])
 	if(swissSettings.cubebootInvoked) {
 		return 0;
 	}
-	/* Prism is the first interactive screen; Classic Swiss remains available. */
-	prism_dashboard_bootstrap();
 	while(1) {
 		menu_loop();
 	}
