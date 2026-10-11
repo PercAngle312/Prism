@@ -34,6 +34,8 @@
 #include "stub_bin.h"
 #include "gui/FrameBufferMagic.h"
 #include "gui/prism_pack_device.h"
+#include "gui/prism_installed.h"
+#include "gui/prism_enrich.h"
 #include "gui/IPLFontWrite.h"
 #include "devices/deviceHandler.h"
 #include "devices/fat/ata.h"
@@ -223,12 +225,14 @@ static uiDrawObj_t *prism_draw_home(int selection)
 	DrawAddChild(panel, DrawStyledLabel(65, 229,
 		"Cover artwork and library scanning coming next.", 0.8f, ALIGN_LEFT,
 		(GXColor){170, 194, 229, 255}));
-	DrawAddChild(panel, DrawSelectableButton(70, 277, 563, 315,
+	DrawAddChild(panel, DrawSelectableButton(70, 257, 563, 292,
 		"Open Classic Swiss", selection == 0 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawSelectableButton(70, 326, 563, 364,
-		"Browse offline catalog", selection == 1 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawSelectableButton(70, 375, 563, 413,
-		"About PRISM", selection == 2 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawSelectableButton(70, 298, 563, 333,
+		"Browse installed games", selection == 1 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawSelectableButton(70, 339, 563, 374,
+		"Browse offline catalog", selection == 2 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawSelectableButton(70, 380, 563, 415,
+		"About PRISM", selection == 3 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawStyledLabel(320, 423,
 		"D-Pad: Select   A: Open   B/START: Classic Swiss", 0.8f, ALIGN_CENTER,
 		(GXColor){185, 200, 225, 255}));
@@ -321,6 +325,123 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
     }
 }
 
+/* Read-only view of raw GameCube images discovered via Swiss on /games.
+ * The original Swiss menu remains the only launch path.
+ */
+static void prism_installed_browser(void)
+{
+    DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CUR];
+    DEVICEHANDLER_INTERFACE *metadata_device = devices[DEVICE_CONFIG];
+    PrismLibrary *library;
+    char folder[PATHNAME_MAX];
+    char pack_path[PATHNAME_MAX];
+    int has_pack = 0;
+    u32 last = BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
+    if (!device || !device->initial ||
+        snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
+        uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO,
+            "No active Swiss game storage. Use Classic Swiss."));
+        while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+        while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+        DrawDispose(info);
+        return;
+    }
+    library = malloc(sizeof(*library));
+    if (!library) return;
+    if (!prism_installed_scan(device, folder, library) || !library->count) {
+        uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO,
+            "No raw ISO/GCM files found in /games.\nUse Classic Swiss."));
+        while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+        while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+        DrawDispose(info);
+        free(library);
+        return;
+    }
+    if (metadata_device && metadata_device->initial &&
+        snprintf(pack_path, sizeof(pack_path), "%sswiss/prism/library.prism",
+                 metadata_device->initial->name) < (int)sizeof(pack_path)) {
+        u32 count = 0;
+        has_pack = prism_pack_device_count(metadata_device, pack_path, &count);
+    }
+    for (;;) {
+        const PrismLibraryGame *game = prism_library_selected(library);
+        char title[PRISM_PACK_TITLE_MAX + 1];
+        char synopsis[PRISM_PACK_SYNOPSIS_MAX + 1];
+        char heading[100];
+        char line[48];
+        const char *cursor;
+        uiDrawObj_t *panel;
+        u32 held, pressed;
+        int y, i;
+        if (!game) break;
+        if (!prism_enrich_installed(has_pack ? metadata_device : NULL,
+                                    has_pack ? pack_path : NULL, game,
+                                    title, sizeof(title), synopsis, sizeof(synopsis)))
+            break;
+        panel = DrawContainer();
+        DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
+            (GXColor){18, 24, 42, 242}));
+        DrawAddChild(panel, DrawStyledLabel(65, 115, "PRISM  /  INSTALLED GAMES",
+            1.15f, ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
+        snprintf(heading, sizeof(heading), "%s  |  %lu / %lu",
+            game->id, (unsigned long)(library->selected + 1),
+            (unsigned long)library->count);
+        DrawAddChild(panel, DrawStyledLabel(65, 151, heading, 0.85f,
+            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+        DrawAddChild(panel, DrawEmptyColouredBox(65, 175, 225, 358,
+            (GXColor){37, 52, 78, 255}));
+        DrawAddChild(panel, DrawStyledLabel(145, 265, "COVER PENDING", 0.72f,
+            ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+        if (strlen(title) > 42) title[42] = 0;
+        DrawAddChild(panel, DrawStyledLabel(246, 190, title, 0.92f,
+            ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
+        DrawAddChild(panel, DrawStyledLabel(246, 224, "SYNOPSIS", 0.75f,
+            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+        cursor = synopsis[0] ? synopsis : "Metadata not available for this disc.";
+        y = 251;
+        for (i = 0; i < 5 && *cursor; ++i) {
+            size_t n = strlen(cursor);
+            if (n > 43) {
+                size_t cut = 43;
+                while (cut > 15 && cursor[cut] != ' ') --cut;
+                n = cut > 15 ? cut : 43;
+            }
+            memcpy(line, cursor, n);
+            line[n] = 0;
+            DrawAddChild(panel, DrawStyledLabel(246, y, line, 0.68f,
+                ALIGN_LEFT, (GXColor){204, 218, 239, 255}));
+            cursor += n;
+            while (*cursor == ' ') ++cursor;
+            y += 22;
+        }
+        DrawAddChild(panel, DrawStyledLabel(320, 404,
+            "LEFT/RIGHT: Browse   B/START: Return", 0.8f,
+            ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
+        panel = DrawPublish(panel);
+        for (;;) {
+            held = padsButtonsHeld();
+            pressed = held & ~last;
+            last = held;
+            if (pressed & (BUTTON_B | BUTTON_START)) {
+                DrawDispose(panel);
+                free(library);
+                return;
+            }
+            if (pressed & BUTTON_RIGHT) {
+                prism_library_move(library, 1);
+                break;
+            }
+            if (pressed & BUTTON_LEFT) {
+                prism_library_move(library, -1);
+                break;
+            }
+            VIDEO_WaitVSync();
+        }
+        DrawDispose(panel);
+    }
+    free(library);
+}
+
 /* Isolated boot UI: always allow direct access to Swiss's original menu.
  * No changes are made to Swiss's device or launch subsystems.
  */
@@ -335,13 +456,20 @@ static void prism_dashboard_bootstrap(void)
 		last = held;
 		if (pressed & (BUTTON_B | BUTTON_START)) break;
 		if (pressed & (BUTTON_UP | BUTTON_DOWN)) {
-			selection = (selection + ((pressed & BUTTON_DOWN) ? 1 : 2)) % 3;
+			selection = (selection + ((pressed & BUTTON_DOWN) ? 1 : 3)) % 4;
 			DrawDispose(screen);
 			screen = prism_draw_home(selection);
 		}
 		if (pressed & BUTTON_A) {
 			if (selection == 0) break;
 			if (selection == 1) {
+				DrawDispose(screen);
+				prism_installed_browser();
+				screen = prism_draw_home(selection);
+				last = BUTTON_A | BUTTON_B | BUTTON_START;
+				continue;
+			}
+			if (selection == 2) {
 				DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CONFIG];
 				char path[PATHNAME_MAX];
 				char result[192];
