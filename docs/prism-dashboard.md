@@ -188,3 +188,7 @@ implemented. The scanner is limited to a single directory and the view has
 no game launch action: return to Classic Swiss to start games. This is a
 first-stage integration needing the full CI build and hardware verification;
 no existing launch/device initialization code is intentionally replaced.
+
+## Default library visibility
+
+The PRISM home screen now starts with **Browse installed games** selected by default. It lists only GameCube images discovered in the active Swiss device's `/games` directory. The full offline metadata catalog remains an explicit secondary choice; it is **not** presented as the installed library. Classic Swiss is the second entry and can always be reached instantly by B/START. No games are automatically launched, and no Swiss compatibility or device logic is changed.
