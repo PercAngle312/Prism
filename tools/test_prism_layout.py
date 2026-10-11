@@ -6,7 +6,7 @@ from prism_layout import load_layout
 repo = Path(__file__).resolve().parent.parent
 layout = load_layout()
 header = (repo / "cube/swiss/source/gui/prism_layout.h").read_text()
-macros = {key: int(value) for key, value in re.findall(r"^#define (PRISM_[A-Z0-9_]+) (\\d+)$", header, re.M)}
+macros = {key: int(value) for key, value in re.findall(r"^#define (PRISM_[A-Z0-9_]+) (\d+)$", header, re.M)}
 expected = {
     "PRISM_LAYOUT_VERSION": layout["version"],
     "PRISM_SCREEN_WIDTH": layout["screen"]["width"],
