@@ -152,3 +152,15 @@ The pack parser now supports indexed entry enumeration, and host regression
 tests check valid records and out-of-bounds positions. No physical GameCube
 test has been performed. Keep the proven Classic Swiss build available until
 CI and a controlled on-console test have passed.
+
+## Swiss game discovery adapter (not yet connected to on-screen browser)
+
+`prism_installed_scan` is a new read-only, bounded prototype that enumerates
+one chosen Swiss directory through the device's existing `readDir` callback.
+It opens the first 128 raw `.iso`/`.gcm` candidates, validates their
+GameCube disc-header IDs, extracts titles, and fills PRISM's sorted view
+model. It closes opened handles and does not attempt to launch or modify games.
+It does **not** yet scan recursive game folders, recognize compressed images,
+or associate matches with library.prism artwork on screen. The existing
+catalog browser has not been switched over to this adapter. This staged
+integration is deliberate until full Swiss CI and real hardware testing.
