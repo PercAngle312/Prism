@@ -671,7 +671,12 @@ int main(int argc, char *argv[])
 	if(devices[DEVICE_CUR] != NULL) {
 		print_debug("Detected %s\n", devices[DEVICE_CUR]->deviceName);
 		if(!devices[DEVICE_CUR]->init(devices[DEVICE_CUR]->initial)) {
-			if((devices[DEVICE_CUR]->features & FEAT_AUTOLOAD_DOL) && getenv("WIILOAD") == NULL) {
+			/* PRISM owns normal startup: a boot-device autoload can
+			 * chainload an older Swiss DOL before PRISM appears.
+			 * Keep Swiss auto-DOL behavior for explicit cubeboot only. */
+			if(swissSettings.cubebootInvoked &&
+			   (devices[DEVICE_CUR]->features & FEAT_AUTOLOAD_DOL) &&
+			   getenv("WIILOAD") == NULL) {
 				load_auto_dol(argc, argv);
 			}
 			memcpy(&curDir, devices[DEVICE_CUR]->initial, sizeof(file_handle));
