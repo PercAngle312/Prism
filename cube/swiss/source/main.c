@@ -202,6 +202,30 @@ void config_migration(char* text, int state, int percent) {
 	}
 }
 
+/*
+ * Aurora dashboard bootstrap: temporary safe entry screen.
+ * The original Swiss menu is reached with A/START/B.
+ * Keep all Swiss initialization and game-launch code unchanged.
+ * This bootstrap will be replaced by the actual cover library renderer.
+ */
+static void aurora_dashboard_bootstrap(void)
+{
+	uiDrawObj_t *screen = DrawPublish(DrawMessageBox(D_INFO,
+		"SWISS-CA  |  AURORA DASHBOARD\\n"
+		"\\n"
+		"Game library and cover artwork are under development.\\n"
+		"\\n"
+		"System Menu  >  Classic Swiss\\n"
+		"\\n"
+		"Press A, START or B to open Classic Swiss."));
+	/* Do not allow a held boot-time button to cause an immediate exit. */
+	while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))
+		VIDEO_WaitVSync();
+	while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START)))
+		VIDEO_WaitVSync();
+	DrawDispose(screen);
+}
+
 /****************************************************************************
 * Main
 ****************************************************************************/
@@ -430,6 +454,8 @@ int main(int argc, char *argv[])
 	if(swissSettings.cubebootInvoked) {
 		return 0;
 	}
+	/* Aurora is the first interactive screen; Classic Swiss remains available. */
+	aurora_dashboard_bootstrap();
 	while(1) {
 		menu_loop();
 	}
