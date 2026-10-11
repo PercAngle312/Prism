@@ -113,3 +113,5 @@ The screen is a **desktop layout approximation**, not a pixel-perfect GameCube
 capture; the GameCube cover decoder, font metrics, and details renderer are
 still pending. URL importing occurs when an entry is added, not on every
 keystroke, to avoid unnecessary network activity.
+
+The details preview now uses a fixed 640×480 Tk Canvas with a bounded cover area, synopsis panel, and A/B control hints. It is a layout mockup at GameCube display dimensions, not a capture of GX output or an exact hardware color/font simulation. The existing Swiss build and boot path remain unchanged.
