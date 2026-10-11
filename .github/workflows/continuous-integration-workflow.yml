@@ -20,12 +20,39 @@ jobs:
       uses: actions/checkout@main
       with:
         path: swiss
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
         fetch-depth: 0
         submodules: true
 
     - name: Build Swiss artifacts
       run: make
       working-directory: swiss
+
+    - name: Prepare single PRISM hardware DOL
+      if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
+      id: prism
+      shell: bash
+      working-directory: swiss
+      run: |
+        commit=$(git rev-parse --short=12 HEAD)
+        mkdir -p prism-hardware
+        # Use the uncompressed DOL linked from this build's Swiss ELF.
+        test -s cube/swiss/swiss.elf
+        test -s cube/swiss/swiss.dol
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.elf | grep -F "PRISM BOOT CHECK V3"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "PRISM BOOT CHECK V3"
+        cp cube/swiss/swiss.dol "prism-hardware/PRISM-BOOT-V3-${commit}.dol"
+        cmp cube/swiss/swiss.dol "prism-hardware/PRISM-BOOT-V3-${commit}.dol"
+        sha256sum "prism-hardware/PRISM-BOOT-V3-${commit}.dol"
+        echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload single PRISM hardware DOL
+      if: steps.prism.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: PRISM-BOOT-V3-${{ steps.prism.outputs.commit }}
+        path: swiss/prism-hardware/*.dol
+        if-no-files-found: error
 
     - name: Upload Swiss artifacts
       uses: actions/upload-artifact@main

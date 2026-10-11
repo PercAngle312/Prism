@@ -27,9 +27,16 @@ assert "prism_installed_browser(1);" not in home, "Startup must not auto-scan ga
 release_gate = "while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))"
 assert release_gate in home, "Dashboard must wait for release of entry buttons"
 assert home.index("prism_draw_home(selection)") < home.index(release_gate), "Release gate must follow home rendering"
-assert "\"PRISM BOOT CHECK V2\"" in main
-marker = main.index("\"PRISM BOOT CHECK V2\"")
+assert "\"PRISM BOOT CHECK V3\"" in main
+marker = main.index("\"PRISM BOOT CHECK V3\"")
 assert init < marker < main.index("populateDeviceAvailability();")
 assert marker < main.index("config_init(&config_migration)")
-assert "while (!(padsButtonsHeld() & BUTTON_A)) VIDEO_WaitVSync();" in main
+assert 'unsetenv("CUBEBOOT");' in main
+assert main.index("swissSettings.cubebootInvoked = 0;") < auto_dol
+assert main.index("int prism_opened = !swissSettings.cubebootInvoked;") < auto_dol
+assert 'if(!prism_opened && strverscmp(swissSettings.gcloaderTopVersion, "2.0.1")' in main
+assert 'if(!prism_opened && strverscmp(swissSettings.gcloaderTopVersion, "1.0.1")' in main
+assert main.index("DrawDispose(startup);") < dashboard
+assert "boot_pressed & BUTTON_A" in main
+assert "BUTTON_X : 0" in main
 print("PRISM entry and persistent pre-storage marker: OK")

@@ -207,7 +207,7 @@ void config_migration(char* text, int state, int percent) {
 
 /*
  * Prism dashboard bootstrap: temporary safe entry screen.
- * The original Swiss menu is reached with A/START/B.
+ * B/START or the Classic Swiss tile returns to the original menu.
  * Keep all Swiss initialization and game-launch code unchanged.
  * This bootstrap will be replaced by the actual cover library renderer.
  */
@@ -218,7 +218,7 @@ static uiDrawObj_t *prism_draw_home(int selection)
 		(GXColor){18, 24, 42, 242}));
 	DrawAddChild(panel, DrawStyledLabel(65, 116, "PRISM", 1.9f, ALIGN_LEFT,
 		(GXColor){225, 235, 255, 255}));
-	DrawAddChild(panel, DrawStyledLabel(65, 151, "Hardware diagnostic | Swiss-CA PRISM", 0.85f, ALIGN_LEFT,
+	DrawAddChild(panel, DrawStyledLabel(65, 151, "Boot check V3 | " GIT_COMMIT, 0.85f, ALIGN_LEFT,
 		(GXColor){170, 194, 229, 255}));
 	DrawAddChild(panel, DrawStyledLabel(65, 199, "Game library", 1.2f, ALIGN_LEFT,
 		(GXColor){225, 235, 255, 255}));
@@ -237,6 +237,23 @@ static uiDrawObj_t *prism_draw_home(int selection)
 		"D-Pad: Select   A: Open   B/START: Classic Swiss", 0.8f, ALIGN_CENTER,
 		(GXColor){185, 200, 225, 255}));
 	return DrawPublish(panel);
+}
+
+/* Keep a visible checkpoint while Swiss initializes storage and settings. */
+static uiDrawObj_t *prism_startup_stage(uiDrawObj_t *previous, const char *stage)
+{
+	uiDrawObj_t *panel = DrawContainer();
+	DrawAddChild(panel, DrawEmptyColouredBox(55, 145, 585, 335,
+		(GXColor){18, 24, 42, 255}));
+	DrawAddChild(panel, DrawStyledLabel(320, 195,
+		"PRISM STARTUP V3", 1.5f, ALIGN_CENTER,
+		(GXColor){225, 235, 255, 255}));
+	DrawAddChild(panel, DrawStyledLabel(320, 245, stage, 0.9f, ALIGN_CENTER,
+		(GXColor){170, 194, 229, 255}));
+	DrawAddChild(panel, DrawStyledLabel(320, 295,
+		"Build " GIT_COMMIT, 0.8f, ALIGN_CENTER,
+		(GXColor){170, 194, 229, 255}));
+	return DrawRepublish(previous, panel);
 }
 
 /* Read-only catalog browser. Game launching stays in Classic Swiss. */
@@ -627,18 +644,33 @@ int main(int argc, char *argv[])
 	DrawAddChild(boot_mark, DrawEmptyColouredBox(55, 145, 585, 335,
 		(GXColor){18, 24, 42, 255}));
 	DrawAddChild(boot_mark, DrawStyledLabel(320, 200,
-		"PRISM BOOT CHECK V2", 1.8f, ALIGN_CENTER,
+		"PRISM BOOT CHECK V3", 1.8f, ALIGN_CENTER,
 		(GXColor){225, 235, 255, 255}));
 	DrawAddChild(boot_mark, DrawStyledLabel(320, 265,
-		"If you see this screen, press A", 0.9f, ALIGN_CENTER,
+		swissSettings.cubebootInvoked ?
+		"A: PRISM    X: Continue cubeboot" : "Press A to enter PRISM", 0.9f, ALIGN_CENTER,
+		(GXColor){170, 194, 229, 255}));
+	DrawAddChild(boot_mark, DrawStyledLabel(320, 310,
+		"Build " GIT_COMMIT, 0.8f, ALIGN_CENTER,
 		(GXColor){170, 194, 229, 255}));
 	boot_mark = DrawPublish(boot_mark);
 	/* A timed splash is too easy to miss on a display that resynchronizes
 	 * video as a DOL starts. Require a fresh A press to proceed instead. */
-	while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
-	while (!(padsButtonsHeld() & BUTTON_A)) VIDEO_WaitVSync();
+	u32 boot_buttons = BUTTON_A | (swissSettings.cubebootInvoked ? BUTTON_X : 0);
+	while (padsButtonsHeld() & boot_buttons) VIDEO_WaitVSync();
+	u32 boot_pressed;
+	while (!((boot_pressed = padsButtonsHeld()) & boot_buttons)) VIDEO_WaitVSync();
+	/* A explicitly requests PRISM even if the launching loader supplied
+	 * CUBEBOOT=1. X retains the special Swiss cubeboot path. */
+	if (boot_pressed & BUTTON_A) {
+		swissSettings.cubebootInvoked = 0;
+		unsetenv("CUBEBOOT");
+	}
+	int prism_opened = !swissSettings.cubebootInvoked;
 	DrawDispose(boot_mark);
-	while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+	while (padsButtonsHeld() & boot_buttons) VIDEO_WaitVSync();
+	uiDrawObj_t *startup = prism_opened ?
+		prism_startup_stage(NULL, "1/4 Detecting boot storage") : NULL;
 	/* Scan only after showing the marker. A missing device will return
 	 * to the PRISM home menu rather than bypassing straight to Swiss. */
 	needsDeviceChange = 1;
@@ -686,8 +718,12 @@ int main(int argc, char *argv[])
 	}
 
 	// Scan here since some devices would already be initialised (faster)
+	if (prism_opened)
+		startup = prism_startup_stage(startup, "2/4 Detecting devices");
 	populateDeviceAvailability();
 
+	if (prism_opened)
+		startup = prism_startup_stage(startup, "3/4 Reading Swiss settings");
 	// Read Swiss settings
 	if(!config_init(&config_migration)) {
 		swissSettings.configDeviceId = DEVICE_ID_UNK;
@@ -719,6 +755,8 @@ int main(int argc, char *argv[])
 	config_parse_args(argc, argv);
 	config_update_environ();
 	
+	if (prism_opened)
+		startup = prism_startup_stage(startup, "4/4 Applying video settings");
 	// Swiss video mode force
 	GXRModeObj *forcedMode = getVideoModeFromSwissSetting(swissSettings.uiVMode);
 	DrawVideoMode(forcedMode);
@@ -770,7 +808,7 @@ int main(int argc, char *argv[])
 			}
 			switch(gcloaderHwVersion) {
 				case 1:
-					if(strverscmp(swissSettings.gcloaderTopVersion, "2.0.1") < 0) {
+					if(!prism_opened && strverscmp(swissSettings.gcloaderTopVersion, "2.0.1") < 0) {
 						find_existing_entry("gcldr:/GCLoader_Updater_2.0.1*.dol", true);
 						uiDrawObj_t *msgBox = DrawPublish(DrawMessageBox(D_INFO, "A firmware update is available.\ngc-loader.com/firmware-updates"));
 						wait_press_A();
@@ -778,7 +816,7 @@ int main(int argc, char *argv[])
 					}
 					break;
 				case 2:
-					if(strverscmp(swissSettings.gcloaderTopVersion, "1.0.1") < 0) {
+					if(!prism_opened && strverscmp(swissSettings.gcloaderTopVersion, "1.0.1") < 0) {
 						find_existing_entry("gcldr:/GC_LOADER_HW2_UPDATER_1.0.1.dol", true);
 						find_existing_entry("gcldr:/GC_LOADER_HW2_UPDATER_1.1.0*.dol", true);
 						uiDrawObj_t *msgBox = DrawPublish(DrawMessageBox(D_INFO, "A firmware update is available.\ngc-loader.com/firmware-updates-hw2"));
@@ -793,9 +831,10 @@ int main(int argc, char *argv[])
 	/* PRISM takes priority over Swiss's automatic game/DOL launch.
 	 * Otherwise a configured autoload can chainload away before the
 	 * PRISM menu is ever reached. Classic Swiss continues afterward. */
-	int prism_opened = !swissSettings.cubebootInvoked;
-	if (prism_opened)
+	if (prism_opened) {
+		DrawDispose(startup);
 		prism_dashboard_bootstrap();
+	}
 
 	/* Leaving PRISM for Classic Swiss must show its menu, not launch
 	 * a saved automatic DOL/game. Original autoload is retained for
