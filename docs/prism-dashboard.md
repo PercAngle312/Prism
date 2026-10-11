@@ -102,3 +102,14 @@ authorized to import. The GUI currently keeps entries in memory until the
 pack is generated, writes its working files to `prism-library-work/`,
 and is not mobile/browser-compatible. The packed cover payload is still
 opaque to the GameCube viewer until cover decoding/rendering is implemented.
+
+## Game-details preview in the pack builder
+
+The Python desktop builder now includes a PRISM-styled preview of the selected
+entry's cover, title, GameCube ID, and synopsis. Preview updates after adding
+an entry or selecting it in the list. Tkinter handles PNG preview without
+extra packages; install `Pillow` for JPEG preview and smoother image scaling.
+The screen is a **desktop layout approximation**, not a pixel-perfect GameCube
+capture; the GameCube cover decoder, font metrics, and details renderer are
+still pending. URL importing occurs when an entry is added, not on every
+keystroke, to avoid unnecessary network activity.
