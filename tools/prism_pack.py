@@ -4,14 +4,14 @@
 Input JSON: {"games":[{"id":"GM8E01","title":"Metroid Prime",
 "synopsis":"Original, redistributable description."}]}
 Optional "cover" is a relative path to already-prepared artwork bytes.
-The GameCube cover decoder is not implemented yet; don't assume arbitrary PNG
-or JPEG bytes can be displayed by PRISM.
+Source PNG/JPEG art is converted to tiled RGB565 at build time via Pillow.
 """
 import argparse
 import json
 import re
 import struct
 from pathlib import Path
+from prism_cover import convert_cover, validate_cover
 
 MAGIC = b"PRISMPK1"
 ENTRY = struct.Struct("<6sH I H H I")
@@ -41,6 +41,8 @@ def build(manifest: Path, output: Path) -> None:
         if "cover" in game:
             cover_path = manifest.parent / game["cover"]
             cover = cover_path.read_bytes()
+            if not validate_cover(cover):
+                cover = convert_cover(cover_path)
             if len(cover) > MAX_COVER:
                 raise ValueError(f"cover too large: {game_id}")
         records.append((game_id.encode("ascii"), title, synopsis, cover))
