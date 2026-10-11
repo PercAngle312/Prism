@@ -277,3 +277,30 @@ folders, the 512-entry bound, closing directory handles, and resolving
 the last retained entry. Nested discovery and the updated layout still
 require a hardware test. Deliverable: `PRISM-LIBRARY-<commit>.dol`.
 
+
+## PRISM interface layer (October 11, 2026)
+
+The home, installed-games and optional catalog screens now share an opaque
+PRISM panel/header using the existing layout coordinates. Disposing the
+PRISM container reveals the normal Swiss frame for game info or Classic
+fallback. Startup, button handling, path resolution and the Swiss launch
+handoff are unchanged from the preceding library build.
+
+The installed-game cover is displayed at 176x240, the exact dimensions of the
+validated RGB565 texture, using the same single aligned buffer. Layout
+dimension macros now have a distinct prefix to avoid colliding with the
+pack's texture constants. The JSON preview layout and C header agree.
+
+A portable measured-text helper wraps two title rows and six synopsis rows
+at fixed readable scales, consuming whitespace/newlines and splitting long
+words. An ellipsis marks content exceeding the allocated rows. Native
+measurement uses Swiss's actual font helper. Host tests exercise wrapping,
+newlines, long words, buffer bounds and ellipsis. Host checks and compilation
+do not verify visual appearance on GameCube hardware.
+
+The preceding folder build `a976a4b` is still awaiting a hardware result.
+This interface build includes that scanner and does not claim that nested
+discovery has been physically verified. The pack format is unchanged:
+keep the existing `swiss/prism/library.prism`; diagnostic covers remain
+diagnostic artwork. Deliverable: `PRISM-UI-<commit>.dol`.
+

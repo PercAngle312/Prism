@@ -17,8 +17,8 @@ expected = {
     "PRISM_PANEL_BOTTOM": layout["panel"]["bottom"],
     "PRISM_COVER_X": layout["cover"]["x"],
     "PRISM_COVER_Y": layout["cover"]["y"],
-    "PRISM_COVER_WIDTH": layout["cover"]["width"],
-    "PRISM_COVER_HEIGHT": layout["cover"]["height"],
+    "PRISM_LAYOUT_COVER_WIDTH": layout["cover"]["width"],
+    "PRISM_LAYOUT_COVER_HEIGHT": layout["cover"]["height"],
     "PRISM_TEXT_X": layout["text"]["x"],
     "PRISM_TEXT_WIDTH": layout["text"]["width"],
     "PRISM_TITLE_Y": layout["text"]["title_y"],
@@ -32,3 +32,4 @@ expected = {
 }
 assert macros == expected, (macros, expected)
 print("PRISM desktop/GameCube layout coordinates agree")
+

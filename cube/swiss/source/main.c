@@ -36,6 +36,8 @@
 #include "gui/prism_pack_device.h"
 #include "gui/prism_installed.h"
 #include "gui/prism_enrich.h"
+#include "gui/prism_layout.h"
+#include "gui/prism_text.h"
 #include "gui/IPLFontWrite.h"
 #include "devices/deviceHandler.h"
 #include "devices/fat/ata.h"
@@ -211,32 +213,65 @@ void config_migration(char* text, int state, int percent) {
  * Keep all Swiss initialization and game-launch code unchanged.
  * This bootstrap will be replaced by the actual cover library renderer.
  */
+/* Disposing PRISM's opaque layer reveals the original Swiss frame. */
+static uiDrawObj_t *prism_draw_panel(const char *subtitle)
+{
+    uiDrawObj_t *panel = DrawContainer();
+    DrawAddChild(panel, DrawEmptyColouredBox(10, 10, 630, 470,
+        (GXColor){9, 14, 27, 255}));
+    DrawAddChild(panel, DrawEmptyColouredBox(PRISM_PANEL_X, PRISM_PANEL_Y,
+        PRISM_PANEL_RIGHT, PRISM_PANEL_BOTTOM, (GXColor){18, 24, 42, 255}));
+    DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_LOGO_Y, "PRISM",
+        1.5f, ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
+    DrawAddChild(panel, DrawStyledLabel(585, PRISM_LOGO_Y + 8,
+        "Build " GIT_COMMIT, 0.65f, ALIGN_RIGHT, (GXColor){170, 194, 229, 255}));
+    DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_SUBTITLE_Y,
+        subtitle, 0.8f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+    return panel;
+}
+
+typedef struct { int width; float scale; } PrismTextMeasure;
+
+static int prism_text_fits(const char *text, void *context)
+{
+    PrismTextMeasure *measure = context;
+    return GetTextScaleToFitInWidth(text, measure->width) >= measure->scale;
+}
+
+static void prism_draw_wrapped(uiDrawObj_t *panel, const char *text,
+                                int x, int y, int width, float scale,
+                                int rows, int line_height, GXColor colour)
+{
+    PrismTextMeasure measure = {width, scale};
+    const char *cursor = text;
+    char line[128];
+    for (int row = 0; row < rows &&
+         prism_text_next(&cursor, line, sizeof(line), prism_text_fits, &measure); ++row) {
+        if (row + 1 == rows && *cursor)
+            prism_text_elide(line, sizeof(line), prism_text_fits, &measure);
+        DrawAddChild(panel, DrawStyledLabel(x, y + row * line_height, line,
+            scale, ALIGN_LEFT, colour));
+    }
+}
+
 static uiDrawObj_t *prism_draw_home(int selection)
 {
-	uiDrawObj_t *panel = DrawContainer();
-	DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
-		(GXColor){18, 24, 42, 242}));
-	DrawAddChild(panel, DrawStyledLabel(65, 116, "PRISM", 1.9f, ALIGN_LEFT,
-		(GXColor){225, 235, 255, 255}));
-	DrawAddChild(panel, DrawStyledLabel(65, 151, "Boot check V3 | " GIT_COMMIT, 0.85f, ALIGN_LEFT,
-		(GXColor){170, 194, 229, 255}));
-	DrawAddChild(panel, DrawStyledLabel(65, 199, "Game library", 1.2f, ALIGN_LEFT,
-		(GXColor){225, 235, 255, 255}));
-	DrawAddChild(panel, DrawStyledLabel(65, 229,
-		"Your installed games first. Full catalog is optional.", 0.8f, ALIGN_LEFT,
-		(GXColor){170, 194, 229, 255}));
-	DrawAddChild(panel, DrawSelectableButton(70, 257, 563, 292,
-		"Browse installed games", selection == 0 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawSelectableButton(70, 298, 563, 333,
-		"Open Classic Swiss", selection == 1 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawSelectableButton(70, 339, 563, 374,
-		"Browse offline catalog", selection == 2 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawSelectableButton(70, 380, 563, 415,
-		"About PRISM", selection == 3 ? B_SELECTED : B_NOSELECT));
-	DrawAddChild(panel, DrawStyledLabel(320, 423,
-		"D-Pad: Select   A: Open   B/START: Classic Swiss", 0.8f, ALIGN_CENTER,
-		(GXColor){185, 200, 225, 255}));
-	return DrawPublish(panel);
+    uiDrawObj_t *panel = prism_draw_panel("YOUR GAME LIBRARY");
+    DrawAddChild(panel, DrawStyledLabel(58, 150,
+        "Your installed games first. Full catalog is optional.", 0.78f,
+        ALIGN_LEFT, (GXColor){204, 218, 239, 255}));
+    DrawAddChild(panel, DrawSelectableButton(58, 196, 582, 234,
+        "Browse installed games", selection == 0 ? B_SELECTED : B_NOSELECT));
+    DrawAddChild(panel, DrawSelectableButton(58, 247, 582, 285,
+        "Open Classic Swiss", selection == 1 ? B_SELECTED : B_NOSELECT));
+    DrawAddChild(panel, DrawSelectableButton(58, 298, 582, 336,
+        "Browse offline catalog", selection == 2 ? B_SELECTED : B_NOSELECT));
+    DrawAddChild(panel, DrawSelectableButton(58, 349, 582, 387,
+        "About PRISM", selection == 3 ? B_SELECTED : B_NOSELECT));
+    DrawAddChild(panel, DrawStyledLabel(320, PRISM_FOOTER_LABELS_Y,
+        "D-Pad: Select   A: Open   B/START: Classic Swiss", 0.72f, ALIGN_CENTER,
+        (GXColor){185, 200, 225, 255}));
+    return DrawPublish(panel);
 }
 
 /* Keep a visible checkpoint while Swiss initializes storage and settings. */
@@ -267,11 +302,8 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         char title[PRISM_PACK_TITLE_MAX + 1];
         char synopsis[PRISM_PACK_SYNOPSIS_MAX + 1];
         char heading[100];
-        char line[48];
-        const char *cursor;
         uiDrawObj_t *panel;
         u32 pressed, held;
-        int y, i;
         if (!prism_pack_device_entry(device, path, position, &entry,
                                      title, sizeof(title), synopsis, sizeof(synopsis))) {
             uiDrawObj_t *error = DrawPublish(DrawMessageBox(D_WARN,
@@ -281,43 +313,28 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
             DrawDispose(error);
             return;
         }
-        panel = DrawContainer();
-        DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
-            (GXColor){18, 24, 42, 242}));
-        DrawAddChild(panel, DrawStyledLabel(65, 115, "PRISM  /  OFFLINE CATALOG",
-            1.15f, ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
-        snprintf(heading, sizeof(heading), "%s  |  %lu / %lu", entry.id,
-                 (unsigned long)(position + 1), (unsigned long)count);
-        DrawAddChild(panel, DrawStyledLabel(65, 151, heading, 0.85f,
-            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-        DrawAddChild(panel, DrawEmptyColouredBox(65, 175, 225, 358,
+        snprintf(heading, sizeof(heading), "OFFLINE CATALOG  |  %lu / %lu",
+            (unsigned long)(position + 1),
+            (unsigned long)count);
+        panel = prism_draw_panel(heading);
+        DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y,
+            entry.id, 0.72f, ALIGN_RIGHT, (GXColor){170, 194, 229, 255}));
+        DrawAddChild(panel, DrawEmptyColouredBox(PRISM_COVER_X, PRISM_COVER_Y,
+            PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH, PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT,
             (GXColor){37, 52, 78, 255}));
-        DrawAddChild(panel, DrawStyledLabel(145, 265, "COVER PENDING", 0.72f,
-            ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
-        if (strlen(title) > 42) title[42] = 0;
-        DrawAddChild(panel, DrawStyledLabel(246, 190, title, 0.92f,
-            ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
-        DrawAddChild(panel, DrawStyledLabel(246, 224, "SYNOPSIS", 0.75f,
-            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-        cursor = synopsis;
-        y = 251;
-        for (i = 0; i < 5 && *cursor; ++i) {
-            size_t n = strlen(cursor);
-            if (n > 43) {
-                size_t cut = 43;
-                while (cut > 15 && cursor[cut] != ' ') --cut;
-                n = cut > 15 ? cut : 43;
-            }
-            memcpy(line, cursor, n);
-            line[n] = 0;
-            DrawAddChild(panel, DrawStyledLabel(246, y, line, 0.68f,
-                ALIGN_LEFT, (GXColor){204, 218, 239, 255}));
-            cursor += n;
-            while (*cursor == ' ') ++cursor;
-            y += 22;
-        }
-        DrawAddChild(panel, DrawStyledLabel(320, 404,
-            "LEFT/RIGHT: Browse    B/START: Return", 0.8f, ALIGN_CENTER,
+            DrawAddChild(panel, DrawStyledLabel(PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH / 2,
+                PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT / 2, "COVER PENDING", 0.72f,
+                ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+        prism_draw_wrapped(panel, title, PRISM_TEXT_X, PRISM_TITLE_Y,
+            PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
+        DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
+            "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+        prism_draw_wrapped(panel,
+            synopsis[0] ? synopsis : "Metadata not available for this disc.",
+            PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
+            6, 22, (GXColor){204, 218, 239, 255});
+        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FOOTER_LABELS_Y,
+            "LEFT/RIGHT: Browse    B/START: Return", 0.75f, ALIGN_CENTER,
             (GXColor){185, 200, 225, 255}));
         panel = DrawPublish(panel);
         for (;;) {
@@ -401,11 +418,8 @@ static int prism_installed_browser(int quiet_if_empty)
         char title[PRISM_PACK_TITLE_MAX + 1];
         char synopsis[PRISM_PACK_SYNOPSIS_MAX + 1];
         char heading[100];
-        char line[48];
-        const char *cursor;
         uiDrawObj_t *panel;
         u32 held, pressed;
-        int y, i;
         if (!game) break;
         if (!prism_enrich_installed(has_pack ? metadata_device : NULL,
                                     has_pack ? pack_path : NULL, game,
@@ -423,50 +437,31 @@ static int prism_installed_browser(int quiet_if_empty)
                              GX_ANISO_1);
             has_cover = 1;
         }
-        panel = DrawContainer();
-        DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
-            (GXColor){18, 24, 42, 242}));
-        DrawAddChild(panel, DrawStyledLabel(65, 115, "PRISM  /  INSTALLED GAMES",
-            1.15f, ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
-        snprintf(heading, sizeof(heading), "%s  |  %lu / %lu",
-            game->id, (unsigned long)(library->selected + 1),
+        snprintf(heading, sizeof(heading), "INSTALLED GAMES  |  %lu / %lu",
+            (unsigned long)(library->selected + 1),
             (unsigned long)library->count);
-        DrawAddChild(panel, DrawStyledLabel(65, 151, heading, 0.85f,
-            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-        DrawAddChild(panel, DrawEmptyColouredBox(65, 175, 225, 358,
+        panel = prism_draw_panel(heading);
+        DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y,
+            game->id, 0.72f, ALIGN_RIGHT, (GXColor){170, 194, 229, 255}));
+        DrawAddChild(panel, DrawEmptyColouredBox(PRISM_COVER_X, PRISM_COVER_Y,
+            PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH, PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT,
             (GXColor){37, 52, 78, 255}));
         if (has_cover)
-            DrawAddChild(panel, DrawTexObj(&cover_texture, 78, 175, 134, 183,
-                                          0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
+            DrawAddChild(panel, DrawTexObj(&cover_texture,
+                PRISM_COVER_X, PRISM_COVER_Y, PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT,
+                0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
         else
-            DrawAddChild(panel, DrawStyledLabel(145, 265, "NO COVER", 0.72f,
+            DrawAddChild(panel, DrawStyledLabel(PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH / 2,
+                PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT / 2, "NO COVER", 0.72f,
                 ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
-        if (strlen(title) > 42) title[42] = 0;
-        float title_scale = GetTextScaleToFitInWidth(title, 325);
-        if (title_scale > 0.92f) title_scale = 0.92f;
-        DrawAddChild(panel, DrawStyledLabel(246, 190, title, title_scale,
-            ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
-        DrawAddChild(panel, DrawStyledLabel(246, 224, "SYNOPSIS", 0.75f,
-            ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-        cursor = synopsis[0] ? synopsis : "Metadata not available for this disc.";
-        y = 251;
-        for (i = 0; i < 5 && *cursor; ++i) {
-            size_t n = strlen(cursor);
-            if (n > 43) {
-                size_t cut = 43;
-                while (cut > 15 && cursor[cut] != ' ') --cut;
-                n = cut > 15 ? cut : 43;
-            }
-            memcpy(line, cursor, n);
-            line[n] = 0;
-            float line_scale = GetTextScaleToFitInWidth(line, 325);
-            if (line_scale > 0.68f) line_scale = 0.68f;
-            DrawAddChild(panel, DrawStyledLabel(246, y, line, line_scale,
-                ALIGN_LEFT, (GXColor){204, 218, 239, 255}));
-            cursor += n;
-            while (*cursor == ' ') ++cursor;
-            y += 22;
-        }
+        prism_draw_wrapped(panel, title, PRISM_TEXT_X, PRISM_TITLE_Y,
+            PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
+        DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
+            "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+        prism_draw_wrapped(panel,
+            synopsis[0] ? synopsis : "Metadata not available for this disc.",
+            PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
+            6, 22, (GXColor){204, 218, 239, 255});
         char scan_status[100];
         if (paths->truncated)
             snprintf(scan_status, sizeof(scan_status),
@@ -481,9 +476,9 @@ static int prism_installed_browser(int quiet_if_empty)
                 "%s | /games + game folders", device->deviceName);
         float status_scale = GetTextScaleToFitInWidth(scan_status, 500);
         if (status_scale > 0.65f) status_scale = 0.65f;
-        DrawAddChild(panel, DrawStyledLabel(320, 378, scan_status, status_scale,
+        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FOOTER_LINE_Y, scan_status, status_scale,
             ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
-        DrawAddChild(panel, DrawStyledLabel(320, 404,
+        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FOOTER_LABELS_Y,
             "LEFT/RIGHT: Browse   A: Game info   B: Return", 0.72f,
             ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
         panel = DrawPublish(panel);
@@ -963,5 +958,6 @@ void refreshDeviceCode(bool subdevice) {
 			break;
 	}
 }
+
 
 
