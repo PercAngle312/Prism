@@ -8,9 +8,11 @@ on:
       - 'cube/swiss/source/gui/prism_nav.*'
       - 'cube/swiss/source/gui/prism_game.*'
       - 'cube/swiss/source/gui/prism_library.*'
+      - 'cube/swiss/source/gui/prism_metadata.*'
       - 'tests/prism_nav_test.c'
       - 'tests/prism_game_test.c'
       - 'tests/prism_library_test.c'
+      - 'tests/prism_metadata_test.c'
       - '.github/workflows/prism-nav.yml'
   workflow_dispatch:
 
@@ -31,3 +33,7 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-library-test tests/prism_library_test.c cube/swiss/source/gui/prism_library.c
           /tmp/prism-library-test
+      - name: Build and run offline synopsis metadata tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-metadata-test tests/prism_metadata_test.c cube/swiss/source/gui/prism_metadata.c
+          /tmp/prism-metadata-test
