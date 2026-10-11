@@ -21,6 +21,8 @@ on:
       - 'tools/prism_layout.py'
       - 'tools/test_prism_layout.py'
       - 'cube/swiss/source/gui/prism_layout.h'
+      - 'cube/swiss/source/gui/prism_installed.c'
+      - 'cube/swiss/source/gui/prism_installed.h'
       - 'assets/prism/**'
       - '.github/workflows/prism-nav.yml'
   workflow_dispatch:
