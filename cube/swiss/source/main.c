@@ -336,6 +336,8 @@ static int prism_installed_browser(int quiet_if_empty)
     char folder[PATHNAME_MAX];
     char pack_path[PATHNAME_MAX];
     int has_pack = 0;
+    void *cover_buffer = NULL;
+    GXTexObj cover_texture;
     u32 last = BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
@@ -365,7 +367,11 @@ static int prism_installed_browser(int quiet_if_empty)
         u32 count = 0;
         has_pack = prism_pack_device_count(metadata_device, pack_path, &count);
     }
+    /* GX textures need 32-byte aligned memory; reuse one cover buffer.
+     * Do not tie image storage to temporary directory-entry buffers. */
+    cover_buffer = memalign(32, PRISM_COVER_TEXTURE_SIZE);
     for (;;) {
+        int has_cover = 0;
         const PrismLibraryGame *game = prism_library_selected(library);
         char title[PRISM_PACK_TITLE_MAX + 1];
         char synopsis[PRISM_PACK_SYNOPSIS_MAX + 1];
@@ -380,6 +386,18 @@ static int prism_installed_browser(int quiet_if_empty)
                                     has_pack ? pack_path : NULL, game,
                                     title, sizeof(title), synopsis, sizeof(synopsis)))
             break;
+        if (cover_buffer && has_pack &&
+            prism_pack_device_cover(metadata_device, pack_path, game->id,
+                                    cover_buffer, PRISM_COVER_TEXTURE_SIZE)) {
+            DCFlushRange(cover_buffer, PRISM_COVER_TEXTURE_SIZE);
+            GX_InitTexObj(&cover_texture, cover_buffer, PRISM_COVER_WIDTH,
+                          PRISM_COVER_HEIGHT, GX_TF_RGB565,
+                          GX_CLAMP, GX_CLAMP, GX_FALSE);
+            GX_InitTexObjLOD(&cover_texture, GX_LINEAR, GX_LINEAR,
+                             0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE,
+                             GX_ANISO_1);
+            has_cover = 1;
+        }
         panel = DrawContainer();
         DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
             (GXColor){18, 24, 42, 242}));
@@ -392,8 +410,12 @@ static int prism_installed_browser(int quiet_if_empty)
             ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
         DrawAddChild(panel, DrawEmptyColouredBox(65, 175, 225, 358,
             (GXColor){37, 52, 78, 255}));
-        DrawAddChild(panel, DrawStyledLabel(145, 265, "COVER PENDING", 0.72f,
-            ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+        if (has_cover)
+            DrawAddChild(panel, DrawTexObj(&cover_texture, 65, 175, 160, 183,
+                                          0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
+        else
+            DrawAddChild(panel, DrawStyledLabel(145, 265, "NO COVER", 0.72f,
+                ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
         if (strlen(title) > 42) title[42] = 0;
         DrawAddChild(panel, DrawStyledLabel(246, 190, title, 0.92f,
             ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
@@ -426,6 +448,7 @@ static int prism_installed_browser(int quiet_if_empty)
             last = held;
             if (pressed & (BUTTON_B | BUTTON_START)) {
                 DrawDispose(panel);
+                free(cover_buffer);
                 free(library);
                 return 1;
             }
@@ -441,6 +464,7 @@ static int prism_installed_browser(int quiet_if_empty)
         }
         DrawDispose(panel);
     }
+    free(cover_buffer);
     free(library);
     return 1;
 }
