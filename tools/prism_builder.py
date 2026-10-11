@@ -168,7 +168,7 @@ class Builder:
                                            indent=2, ensure_ascii=False), encoding="utf-8")
             build(manifest, Path(output))
             self.status.set(f"Built {output} ({len(self.entries)} games).")
-            messagebox.showinfo("Pack created", f"Saved {output}\n\nNote: GameCube cover decoding is not wired up yet.")
+            messagebox.showinfo("Pack created", f"Saved {output}\n\nCovers are converted to GameCube RGB565 during build (Pillow required). Rendering on console remains pending.")
         except (OSError, ValueError, KeyError) as exc:
             messagebox.showerror("Build failed", str(exc))
 
