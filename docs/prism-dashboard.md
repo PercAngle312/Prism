@@ -211,3 +211,15 @@ magic, dimensions, and entry identity before reading the texture bytes on
 demand via Swiss file I/O. Actual GX texture upload, cache flush, and screen
 drawing are **not yet integrated**. Until then the console shows a cover
 placeholder; no claim is made of hardware-tested artwork rendering.
+
+## Experimental on-console GX artwork drawing
+
+The installed-game view now requests its selected game's already-converted RGB565
+cover by disc ID. One 32-byte-aligned texture buffer is reused across screen
+changes, flushed for GX, and bound with a 176×240 GX RGB565 texture object.
+Swiss's existing `DrawTexObj` rendering helper displays the image in the
+reserved cover panel. Unmatched covers produce a `NO COVER` placeholder.
+The original Swiss launch path remains unchanged. This milestone still
+requires a successful Swiss CI build and a controlled physical GameCube test;
+no artwork display has been observed on actual hardware. The offline
+catalog view still has its existing placeholder.
