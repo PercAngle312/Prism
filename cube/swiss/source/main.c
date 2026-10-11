@@ -371,10 +371,14 @@ static int prism_installed_browser(int quiet_if_empty)
     if (!library) return 0;
     paths = malloc(sizeof(*paths));
     if (!paths) { free(library); return 0; }
-    if (!prism_installed_scan(device, folder, library, paths) || !library->count) {
+    uiDrawObj_t *scan_progress = DrawPublish(DrawProgressBar(true, 0,
+        "Scanning installed games"));
+    int scanned = prism_installed_scan(device, folder, library, paths);
+    DrawDispose(scan_progress);
+    if (!scanned || !library->count) {
         if (quiet_if_empty) { free(paths); free(library); return 0; }
         uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO,
-            "No raw ISO/GCM files found in /games.\nUse Classic Swiss."));
+            "No ISO/GCM files found in /games\nor its game folders. Use Classic Swiss."));
         while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
         while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
         DrawDispose(info);
@@ -438,7 +442,9 @@ static int prism_installed_browser(int quiet_if_empty)
             DrawAddChild(panel, DrawStyledLabel(145, 265, "NO COVER", 0.72f,
                 ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
         if (strlen(title) > 42) title[42] = 0;
-        DrawAddChild(panel, DrawStyledLabel(246, 190, title, 0.92f,
+        float title_scale = GetTextScaleToFitInWidth(title, 325);
+        if (title_scale > 0.92f) title_scale = 0.92f;
+        DrawAddChild(panel, DrawStyledLabel(246, 190, title, title_scale,
             ALIGN_LEFT, (GXColor){225, 235, 255, 255}));
         DrawAddChild(panel, DrawStyledLabel(246, 224, "SYNOPSIS", 0.75f,
             ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
@@ -453,12 +459,30 @@ static int prism_installed_browser(int quiet_if_empty)
             }
             memcpy(line, cursor, n);
             line[n] = 0;
-            DrawAddChild(panel, DrawStyledLabel(246, y, line, 0.68f,
+            float line_scale = GetTextScaleToFitInWidth(line, 325);
+            if (line_scale > 0.68f) line_scale = 0.68f;
+            DrawAddChild(panel, DrawStyledLabel(246, y, line, line_scale,
                 ALIGN_LEFT, (GXColor){204, 218, 239, 255}));
             cursor += n;
             while (*cursor == ' ') ++cursor;
             y += 22;
         }
+        char scan_status[100];
+        if (paths->truncated)
+            snprintf(scan_status, sizeof(scan_status),
+                "%u-game limit reached; scan stopped",
+                (unsigned)PRISM_LIBRARY_MAX_GAMES);
+        else if (paths->unreadable_folders)
+            snprintf(scan_status, sizeof(scan_status),
+                "Partial scan: %u game folders unreadable",
+                paths->unreadable_folders);
+        else
+            snprintf(scan_status, sizeof(scan_status),
+                "%s | /games + game folders", device->deviceName);
+        float status_scale = GetTextScaleToFitInWidth(scan_status, 500);
+        if (status_scale > 0.65f) status_scale = 0.65f;
+        DrawAddChild(panel, DrawStyledLabel(320, 378, scan_status, status_scale,
+            ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
         DrawAddChild(panel, DrawStyledLabel(320, 404,
             "LEFT/RIGHT: Browse   A: Game info   B: Return", 0.72f,
             ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
@@ -939,4 +963,5 @@ void refreshDeviceCode(bool subdevice) {
 			break;
 	}
 }
+
 

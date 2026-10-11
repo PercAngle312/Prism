@@ -6,11 +6,14 @@
 typedef struct {
     char names[PRISM_LIBRARY_MAX_GAMES][PATHNAME_MAX];
     size_t count;
+    int truncated;
+    unsigned unreadable_folders;
 } PrismInstalledPaths;
 
-/* Read-only, single-directory scan of /games, limited to supported raw GCM/ISO
- * files. Nested layouts, RVZ/NKit and multi-disc handling are not yet supported.
- * The caller chooses an already initialized Swiss device.
+/* Read-only scan of /games plus one direct child-folder level, bounded by
+ * PRISM_LIBRARY_MAX_GAMES. RVZ is not supported. Swiss handles disc pairing
+ * and image compatibility when launching. The device must be initialized.
+ * truncated means capacity was reached; unreadable child folders are reported.
  */
 int prism_installed_scan(DEVICEHANDLER_INTERFACE *device,
                          const char *folder, PrismLibrary *library,
@@ -22,4 +25,5 @@ int prism_installed_resolve(DEVICEHANDLER_INTERFACE *device,
                             const PrismLibraryGame *game,
                             char *path, size_t capacity);
 #endif
+
 

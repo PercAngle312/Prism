@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#define PRISM_LIBRARY_MAX_GAMES 128
+#define PRISM_LIBRARY_MAX_GAMES 512
 #define PRISM_LIBRARY_ID_CAP 7
 #define PRISM_LIBRARY_TITLE_CAP 97
 
@@ -29,3 +29,4 @@ void prism_library_move(PrismLibrary *library, int direction);
 const PrismLibraryGame *prism_library_selected(const PrismLibrary *library);
 
 #endif
+

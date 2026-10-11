@@ -251,3 +251,29 @@ SD2SP2 root through the existing Swiss. Select a known working ISO/GCM,
 press A for Swiss game info, test B cancellation, then enter again and
 press A to boot. Game launching from PRISM remains hardware-unverified.
 
+
+## Launch-verified baseline and game folders (October 11, 2026)
+
+The user confirmed build `9f981c9` opens Swiss game info and boots a game
+on the real GameCube. This verifies the PRISM-to-Swiss launch integration.
+Cancellation from game info was not explicitly reported in that confirmation.
+
+The next library build scans raw ISO/GCM files in `/games` and one direct
+game-folder level, including `/games/Game Title/game.iso`. Dot entries,
+parent links and paths outside the requested tree are skipped; traversal
+does not recurse into deeper folders. The library limit is now 512 games.
+Images in the root folder are collected before game folders. If capacity
+is reached the UI says the scan stopped; unreadable game folders produce
+a partial-scan warning. Root read failure still returns the existing error.
+
+Exact per-entry launch paths and the disc-ID recheck remain unchanged.
+Titles and each synopsis line are measured with Swiss's font helper to fit
+the right column. A scan progress indicator and storage/scan-status line
+make discovery visible. The V3 startup remains unchanged.
+
+Host tests cover nested images, uppercase GCM extensions, duplicate IDs,
+ignored dot/parent/outside paths, ignored deeper directories, unreadable
+folders, the 512-entry bound, closing directory handles, and resolving
+the last retained entry. Nested discovery and the updated layout still
+require a hardware test. Deliverable: `PRISM-LIBRARY-<commit>.dol`.
+
