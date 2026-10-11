@@ -2263,19 +2263,26 @@ void DrawDispose(uiDrawObj_t *evt)
 	LWP_MutexUnlock(_videomutex);
 }
 
+/* Restore the normal Swiss frame after an explicit PRISM override of
+ * cubeboot's initially black UI. The video thread is already running. */
+void DrawClassicUI(void) {
+	uiDrawObj_t *container = DrawContainer();
+	DrawAddChild(container, DrawImage(TEX_BACKDROP, 0, 0, 640, 480, 0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
+	DrawAddChild(container, DrawTitleBar());
+	buttonPanel = DrawMenuButtons(MENU_NOSELECT);
+	DrawAddChild(container, buttonPanel);
+	DrawPublish(container);
+}
+
 void DrawInit(GXRModeObj *videoMode, bool black) {
 	setVideoMode(videoMode);
 	padsInit();
 	init_font();
 	init_textures();
-	uiDrawObj_t *container = DrawContainer();
-	if(!black) {
-		DrawAddChild(container, DrawImage(TEX_BACKDROP, 0, 0, 640, 480, 0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
-		DrawAddChild(container, DrawTitleBar());
-		buttonPanel = DrawMenuButtons(MENU_NOSELECT);
-		DrawAddChild(container, buttonPanel);
-	}
-	DrawPublish(container);
+	if (!black)
+		DrawClassicUI();
+	else
+		DrawPublish(DrawContainer());
 	LWP_MutexInit(&_videomutex, false);
 	LWP_CreateThread(&video_thread, videoUpdate, videoEventQueue, video_thread_stack, VIDEO_STACK_SIZE, VIDEO_PRIORITY);
 }

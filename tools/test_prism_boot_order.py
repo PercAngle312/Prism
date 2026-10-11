@@ -31,6 +31,7 @@ assert "\"PRISM BOOT CHECK V3\"" in main
 marker = main.index("\"PRISM BOOT CHECK V3\"")
 assert init < marker < main.index("populateDeviceAvailability();")
 assert marker < main.index("config_init(&config_migration)")
+assert main.index("DrawClassicUI();") < main.index("swissSettings.cubebootInvoked = 0;")
 assert 'unsetenv("CUBEBOOT");' in main
 assert main.index("swissSettings.cubebootInvoked = 0;") < auto_dol
 assert main.index("int prism_opened = !swissSettings.cubebootInvoked;") < auto_dol

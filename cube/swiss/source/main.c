@@ -663,6 +663,8 @@ int main(int argc, char *argv[])
 	/* A explicitly requests PRISM even if the launching loader supplied
 	 * CUBEBOOT=1. X retains the special Swiss cubeboot path. */
 	if (boot_pressed & BUTTON_A) {
+		if (swissSettings.cubebootInvoked)
+			DrawClassicUI();
 		swissSettings.cubebootInvoked = 0;
 		unsetenv("CUBEBOOT");
 	}
