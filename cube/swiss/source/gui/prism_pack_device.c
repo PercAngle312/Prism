@@ -35,7 +35,7 @@ static int stream_open(PrismDeviceStream *stream, DEVICEHANDLER_INTERFACE *devic
     stream->device = device;
     memcpy(stream->file.name, absolute_path, length + 1);
     stream->file.device = device;
-    if (device->statFile(&stream->file) < 0)
+    if (device->statFile(&stream->file) != 0)
         return 0;
     if (stream->file.fileType == IS_DIR)
         return 0;
