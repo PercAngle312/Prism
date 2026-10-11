@@ -196,3 +196,18 @@ The PRISM experience now tries to open **Browse installed games** automatically,
 ## Direct-to-library startup
 
 After Swiss device initialization, PRISM now attempts to open its read-only installed-game library directly. If no active game device or no supported raw ISO/GCM entries are found in the device's `/games` directory, it falls back quietly to the PRISM home screen. B/START from the installed library returns to that home screen, where Classic Swiss is accessible; B/START on the home screen opens Classic Swiss. No game is auto-launched. This direct startup path is experimental, pending CI and physical GameCube validation.
+
+## GameCube cover texture pipeline (stage 1)
+
+The pack builder now converts authorized PNG/JPEG cover art to PRISMCV1
+before packaging. This representation stores an 8-byte magic, little-endian
+176×240 dimensions, and GX-compatible 4×4-tiled RGB565 pixel data in big-endian
+pixel order (84,492 bytes including the header). Conversion uses Pillow on
+the *build machine*, not the GameCube. Original aspect ratio is center-cropped
+to fit the dedicated GameCube cover area; this is lossy texture conversion.
+The indexed pack's original binary layout stays PRISMPK1. The new
+`prism_pack_read_cover` and `prism_pack_device_cover` validate bounds,
+magic, dimensions, and entry identity before reading the texture bytes on
+demand via Swiss file I/O. Actual GX texture upload, cache flush, and screen
+drawing are **not yet integrated**. Until then the console shows a cover
+placeholder; no claim is made of hardware-tested artwork rendering.
