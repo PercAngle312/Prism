@@ -253,8 +253,8 @@ static void prism_dashboard_bootstrap(void)
 		if (pressed & BUTTON_A) {
 			if (selection == 0) break;
 			uiDrawObj_t *about = DrawPublish(DrawMessageBox(D_INFO,
-				"PRISM Dashboard\\n"
-				"An original GameCube frontend built on Swiss.\\n"
+				"PRISM Dashboard\n"
+				"An original GameCube frontend built on Swiss.\n"
 				"Press A or B to return."));
 			/* Ignore the A press that opened this dialog. */
 			while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
