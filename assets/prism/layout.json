@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "screen": {
+    "width": 640,
+    "height": 480
+  },
+  "panel": {
+    "x": 22,
+    "y": 34,
+    "right": 618,
+    "bottom": 446
+  },
+  "cover": {
+    "x": 58,
+    "y": 140,
+    "width": 172,
+    "height": 236
+  },
+  "text": {
+    "x": 255,
+    "width": 330,
+    "title_y": 144,
+    "synopsis_heading_y": 208,
+    "synopsis_y": 236
+  },
+  "footer": {
+    "line_y": 391,
+    "labels_y": 410
+  },
+  "header": {
+    "logo_x": 58,
+    "logo_y": 62,
+    "subtitle_y": 102
+  }
+}
