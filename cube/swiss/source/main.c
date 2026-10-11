@@ -211,12 +211,12 @@ void config_migration(char* text, int state, int percent) {
 static void aurora_dashboard_bootstrap(void)
 {
 	uiDrawObj_t *screen = DrawPublish(DrawMessageBox(D_INFO,
-		"SWISS-CA  |  AURORA DASHBOARD\\n"
-		"\\n"
-		"Game library and cover artwork are under development.\\n"
-		"\\n"
-		"System Menu  >  Classic Swiss\\n"
-		"\\n"
+		"SWISS-CA  |  AURORA DASHBOARD\n"
+		"\n"
+		"Game library and cover artwork are under development.\n"
+		"\n"
+		"System Menu  >  Classic Swiss\n"
+		"\n"
 		"Press A, START or B to open Classic Swiss."));
 	/* Do not allow a held boot-time button to cause an immediate exit. */
 	while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))
