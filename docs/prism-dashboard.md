@@ -115,3 +115,7 @@ still pending. URL importing occurs when an entry is added, not on every
 keystroke, to avoid unnecessary network activity.
 
 The details preview now uses a fixed 640×480 Tk Canvas with a bounded cover area, synopsis panel, and A/B control hints. It is a layout mockup at GameCube display dimensions, not a capture of GX output or an exact hardware color/font simulation. The existing Swiss build and boot path remain unchanged.
+
+## Shared preview layout contract
+
+`assets/prism/layout.json` is the v1 640×480 layout definition for PRISM's game details view. The desktop builder reads it via `tools/prism_layout.py`; the GameCube-side constants are kept in `cube/swiss/source/gui/prism_layout.h`. `tools/test_prism_layout.py` checks that both descriptions agree in CI. This synchronizes coordinates, **not** font rendering, cover decoding, or the on-console UI. The current Swiss dashboard remains the safe bootstrap and Classic Swiss fallback.
