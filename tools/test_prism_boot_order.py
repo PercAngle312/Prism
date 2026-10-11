@@ -16,6 +16,9 @@ assert main.count("prism_dashboard_bootstrap();") == 1, (
 )
 assert "if(!prism_opened && swissSettings.autoload[0])" in main
 assert "else if(!prism_opened && swissSettings.recent[0][0]" in main
+assert "prism_installed_browser(1);" not in main, "Startup must not auto-scan games"
+assert "while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))" in main, "Dashboard must wait for release of entry buttons"
+assert main.index("prism_draw_home(selection)") < main.index("while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))"), "Release gate must follow home rendering"
 assert "\"PRISM BOOT CHECK V2\"" in main
 marker = main.index("\"PRISM BOOT CHECK V2\"")
 assert init < marker < main.index("populateDeviceAvailability();")
