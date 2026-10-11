@@ -5,16 +5,19 @@ Pillow provides JPEG support; PNG also works with Tk's built-in decoder.
 """
 import tkinter as tk
 from pathlib import Path
+from prism_layout import load_layout
+
+LAYOUT = load_layout()
 
 try:
     from PIL import Image, ImageTk
 except ImportError:
     Image = ImageTk = None
 
-WIDTH, HEIGHT = 640, 480
-COVER_X, COVER_Y = 58, 140
-COVER_W, COVER_H = 172, 236
-TEXT_X, TEXT_W = 255, 330
+WIDTH, HEIGHT = LAYOUT["screen"]["width"], LAYOUT["screen"]["height"]
+COVER_X, COVER_Y = LAYOUT["cover"]["x"], LAYOUT["cover"]["y"]
+COVER_W, COVER_H = LAYOUT["cover"]["width"], LAYOUT["cover"]["height"]
+TEXT_X, TEXT_W = LAYOUT["text"]["x"], LAYOUT["text"]["width"]
 BG = "#101a2e"
 PANEL = "#19263d"
 PALE = "#edf3ff"
@@ -53,10 +56,10 @@ class PrismPreview(tk.Frame):
     def render(self, game):
         c = self.canvas
         c.delete("all")
-        c.create_rectangle(22, 34, 618, 446, fill=PANEL, outline="#344660", width=2)
-        c.create_text(58, 62, text="PRISM", fill=PALE,
+        c.create_rectangle(LAYOUT['panel']['x'], LAYOUT['panel']['y'], LAYOUT['panel']['right'], LAYOUT['panel']['bottom'], fill=PANEL, outline="#344660", width=2)
+        c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['logo_y'], text="PRISM", fill=PALE,
                       font=("Arial", 23, "bold"), anchor="nw")
-        c.create_text(58, 102, text="GAME DETAILS   /   " + game.get("id", "------"),
+        c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['subtitle_y'], text="GAME DETAILS   /   " + game.get("id", "------"),
                       fill="#92b3df", font=("Arial", 10, "bold"), anchor="nw")
         c.create_rectangle(COVER_X - 1, COVER_Y - 1,
                            COVER_X + COVER_W + 1, COVER_Y + COVER_H + 1,
@@ -66,20 +69,20 @@ class PrismPreview(tk.Frame):
         title = game.get("title") or "Untitled"
         if len(title) > 44:
             title = title[:41] + "..."
-        c.create_text(TEXT_X, 144, text=title, fill=PALE,
+        c.create_text(TEXT_X, LAYOUT['text']['title_y'], text=title, fill=PALE,
                       font=("Arial", 17, "bold"), anchor="nw",
                       width=TEXT_W)
-        c.create_text(TEXT_X, 208, text="SYNOPSIS", fill="#92b3df",
+        c.create_text(TEXT_X, LAYOUT['text']['synopsis_heading_y'], text="SYNOPSIS", fill="#92b3df",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(TEXT_X, 236, text=synopsis_lines(game.get("synopsis", "")),
+        c.create_text(TEXT_X, LAYOUT['text']['synopsis_y'], text=synopsis_lines(game.get("synopsis", "")),
                       fill="#d1def0", font=("Arial", 10), anchor="nw",
                       width=TEXT_W)
-        c.create_line(58, 391, 582, 391, fill="#3a526f")
-        c.create_text(58, 410, text="A  SELECT", fill="#d8e8fa",
+        c.create_line(58, LAYOUT['footer']['line_y'], 582, LAYOUT['footer']['line_y'], fill="#3a526f")
+        c.create_text(58, LAYOUT['footer']['labels_y'], text="A  SELECT", fill="#d8e8fa",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(193, 410, text="B  BACK", fill="#d8e8fa",
+        c.create_text(193, LAYOUT['footer']['labels_y'], text="B  BACK", fill="#d8e8fa",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(385, 410, text="PRISM  /  CLASSIC SWISS",
+        c.create_text(385, LAYOUT['footer']['labels_y'], text="PRISM  /  CLASSIC SWISS",
                       fill="#91a7c6", font=("Arial", 9), anchor="nw")
 
     def show_game(self, game, workspace):
