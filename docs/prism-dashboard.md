@@ -2,8 +2,9 @@
 
 ## Product behavior
 
-The Prism-inspired library is the **desired default boot UI**. The original
-Swiss interface remains accessible through **System Menu > Classic Swiss**.
+PRISM is intended to become the default game library UI. The current build
+shows a **PRISM home screen** first, with **Open Classic Swiss** and a
+B/START shortcut into the original interface. A nested System Menu will follow.
 This is a presentation/navigation layer on top of Swiss, **not a replacement**
 for device drivers, game launching, configuration, cheats, or file browsing.
 
@@ -11,15 +12,17 @@ for device drivers, game launching, configuration, cheats, or file browsing.
 
 - [x] Private feature branch and isolated navigation-state module
 - [x] Entry states for library, game details, settings, cheats, info, and Classic Swiss
-- [ ] Connect to Swiss startup and render the actual dashboard
+- [x] Render a PRISM-branded home screen at startup with D-Pad/A/B/START navigation
+- [ ] Replace the placeholder home screen with an actual artwork-driven library
 - [ ] Library scan across the devices Swiss already supports
 - [ ] Read game IDs, load offline covers and synopsis metadata
 - [ ] Route game-specific settings and cheats to existing Swiss handlers
 - [ ] Game launch via existing Swiss mechanisms
-- [ ] Controller navigation, performance, CI validation, hardware test
+- [ ] Performance validation, full CI validation, GameCube hardware test
 
-Do not enable dashboard-by-default at startup until the dashboard can display
-a working library and can always reach the original Swiss browser.
+The temporary PRISM home screen runs before Swiss's classic menu, but does not
+launch games or load cover artwork. Its direct Classic Swiss escape must remain
+available as the richer dashboard is added.
 
 ## Design constraints
 
