@@ -54,6 +54,27 @@ int prism_pack_device_count(DEVICEHANDLER_INTERFACE *device,
     return ok;
 }
 
+int prism_pack_device_entry(DEVICEHANDLER_INTERFACE *device,
+                            const char *absolute_path, uint32_t position,
+                            PrismPackEntry *entry,
+                            char *title, size_t title_capacity,
+                            char *synopsis, size_t synopsis_capacity)
+{
+    PrismDeviceStream stream;
+    int ok;
+    if (!entry || !title || !synopsis ||
+        !stream_open(&stream, device, absolute_path))
+        return 0;
+    ok = prism_pack_entry_at(device_read, &stream, stream.file.size,
+                             position, entry);
+    if (ok)
+        ok = prism_pack_read_text(device_read, &stream, stream.file.size,
+                                  entry, title, title_capacity,
+                                  synopsis, synopsis_capacity);
+    device->closeFile(&stream.file);
+    return ok;
+}
+
 int prism_pack_device_text(DEVICEHANDLER_INTERFACE *device,
                            const char *absolute_path, const char *game_id,
                            char *title, size_t title_capacity,
