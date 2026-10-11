@@ -16,6 +16,9 @@ assert main.count("prism_dashboard_bootstrap();") == 1, (
 )
 assert "if(!prism_opened && swissSettings.autoload[0])" in main
 assert "else if(!prism_opened && swissSettings.recent[0][0]" in main
-assert "\"DIAGNOSTIC: Press A to continue\"" in main
+assert "\"PRISM BOOT CHECK V2\"" in main
+marker = main.index("\"PRISM BOOT CHECK V2\"")
+assert init < marker < main.index("populateDeviceAvailability();")
+assert marker < main.index("config_init(&config_migration)")
 assert "while (!(padsButtonsHeld() & BUTTON_A)) VIDEO_WaitVSync();" in main
 print("PRISM entry and persistent pre-storage marker: OK")
