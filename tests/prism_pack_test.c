@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include "../cube/swiss/source/gui/prism_pack.h"
 
 /* Two sorted records: GALE01 -> "Melee", GM8E01 -> "Prime".
@@ -55,6 +56,44 @@ int main(void)
     assert(!prism_pack_find(read_bytes, &memory, memory.length, "GZLE01", &entry));
     assert(!prism_pack_find(read_bytes, &memory, memory.length, "BAD", &entry));
     assert(!prism_pack_count(read_bytes, &memory, 8, &count));
+    /* Positive cover read, plus bad magic and short-buffer rejection. */
+    {
+        const uint32_t cover_size = 12u + PRISM_COVER_TEXTURE_SIZE;
+        const uint32_t total = 61u + cover_size;
+        unsigned char *bytes = calloc(total, 1);
+        unsigned char *texture = malloc(PRISM_COVER_TEXTURE_SIZE);
+        Memory cover_memory;
+        assert(bytes && texture);
+        memcpy(bytes, pack, 61);
+        memcpy(bytes + 36, "GM8E01", 6);
+        bytes[52] = (unsigned char)(cover_size & 255);
+        bytes[53] = (unsigned char)((cover_size >> 8) & 255);
+        bytes[54] = (unsigned char)((cover_size >> 16) & 255);
+        bytes[55] = (unsigned char)((cover_size >> 24) & 255);
+        memcpy(bytes + 61, "PRISMCV1", 8);
+        bytes[69] = (unsigned char)PRISM_COVER_WIDTH;
+        bytes[70] = (unsigned char)(PRISM_COVER_WIDTH >> 8);
+        bytes[71] = (unsigned char)PRISM_COVER_HEIGHT;
+        bytes[72] = (unsigned char)(PRISM_COVER_HEIGHT >> 8);
+        bytes[73] = 0x12;
+        bytes[74] = 0x34;
+        cover_memory = (Memory){bytes, total, 0};
+        /* Standalone synthetic entry points to our cover prefix. */
+        entry.offset = 61;
+        entry.title_length = 0;
+        entry.synopsis_length = 0;
+        entry.cover_length = cover_size;
+        assert(prism_pack_read_cover(read_bytes, &cover_memory, total, &entry,
+                                     texture, PRISM_COVER_TEXTURE_SIZE));
+        assert(texture[0] == 0x12 && texture[1] == 0x34);
+        assert(!prism_pack_read_cover(read_bytes, &cover_memory, total, &entry,
+                                      texture, PRISM_COVER_TEXTURE_SIZE - 1));
+        bytes[61] = 'X';
+        assert(!prism_pack_read_cover(read_bytes, &cover_memory, total, &entry,
+                                      texture, PRISM_COVER_TEXTURE_SIZE));
+        free(texture);
+        free(bytes);
+    }
     assert(memory.calls < 40); /* No full-pack scan needed. */
     return 0;
 }
