@@ -45,6 +45,12 @@ int main(void)
     assert(prism_pack_read_text(read_bytes, &memory, memory.length, &entry,
                                 title, sizeof(title), synopsis, sizeof(synopsis)));
     assert(!strcmp(title, "Prime"));
+    /* No cover present, so even with enough output memory the reader refuses. */
+    {
+        unsigned char texture[PRISM_COVER_TEXTURE_SIZE];
+        assert(!prism_pack_read_cover(read_bytes, &memory, memory.length,
+                                      &entry, texture, sizeof(texture)));
+    }
     assert(!strcmp(synopsis, "Game"));
     assert(!prism_pack_find(read_bytes, &memory, memory.length, "GZLE01", &entry));
     assert(!prism_pack_find(read_bytes, &memory, memory.length, "BAD", &entry));
