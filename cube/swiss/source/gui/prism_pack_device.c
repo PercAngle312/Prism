@@ -37,7 +37,7 @@ static int stream_open(PrismDeviceStream *stream, DEVICEHANDLER_INTERFACE *devic
     stream->file.device = device;
     if (device->statFile(&stream->file) != 0)
         return 0;
-    if (stream->file.fileType == IS_DIR)
+    if ((stream->file.fileAttrib & ATTRIB_DIRECTORY) != 0)
         return 0;
     return 1;
 }
