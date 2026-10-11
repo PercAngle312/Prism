@@ -1,0 +1,14 @@
+{
+  "games": [
+    {
+      "id": "GALE01",
+      "title": "Super Smash Bros. Melee",
+      "synopsis": "A crossover fighting game featuring Nintendo characters."
+    },
+    {
+      "id": "GM8E01",
+      "title": "Metroid Prime",
+      "synopsis": "A first-person adventure set on an alien planet."
+    }
+  ]
+}
