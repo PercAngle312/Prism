@@ -13,6 +13,9 @@
 #define PRISM_PACK_TITLE_MAX 96u
 #define PRISM_PACK_SYNOPSIS_MAX 191u
 #define PRISM_PACK_COVER_MAX (2u * 1024u * 1024u)
+#define PRISM_COVER_WIDTH 176u
+#define PRISM_COVER_HEIGHT 240u
+#define PRISM_COVER_TEXTURE_SIZE (PRISM_COVER_WIDTH * PRISM_COVER_HEIGHT * 2u)
 
 typedef int (*PrismPackRead)(void *ctx, uint32_t offset, void *dest, size_t size);
 
@@ -32,6 +35,12 @@ int prism_pack_entry_at(PrismPackRead read, void *ctx, uint32_t file_size,
                         uint32_t position, PrismPackEntry *entry);
 int prism_pack_find(PrismPackRead read, void *ctx, uint32_t file_size,
                     const char *id, PrismPackEntry *entry);
+/* Read/validate a PRISMCV1 RGB565 texture into caller-owned aligned memory.
+ * Texture bytes are already tiled for GX; do not pass to GX until cache flushed.
+ */
+int prism_pack_read_cover(PrismPackRead read, void *ctx, uint32_t file_size,
+                          const PrismPackEntry *entry, void *texture,
+                          size_t texture_capacity);
 int prism_pack_read_text(PrismPackRead read, void *ctx, uint32_t file_size,
                          const PrismPackEntry *entry,
                          char *title, size_t title_capacity,
