@@ -45,9 +45,8 @@ int prism_installed_scan(DEVICEHANDLER_INTERFACE *device,
             prism_game_parse_header(header, sizeof(header), &info)) {
             prism_library_add(library, info.disc_id, info.title, (unsigned)i);
         }
-        device->closeFile(file);
     }
-    /* Swiss owns the directory entry buffers, but not their lifetime here. */
+    /* Close all directory-entry handles once, including candidates. */
     for (i = 0; i < count; ++i)
         device->closeFile(&items[i]);
     free(items);
