@@ -42,6 +42,24 @@ static int stream_open(PrismDeviceStream *stream, DEVICEHANDLER_INTERFACE *devic
     return 1;
 }
 
+int prism_pack_device_cover(DEVICEHANDLER_INTERFACE *device,
+                            const char *absolute_path, const char *game_id,
+                            void *texture, size_t texture_capacity)
+{
+    PrismDeviceStream stream;
+    PrismPackEntry entry;
+    int ok;
+    if (!game_id || !texture ||
+        !stream_open(&stream, device, absolute_path))
+        return 0;
+    ok = prism_pack_find(device_read, &stream, stream.file.size, game_id, &entry);
+    if (ok)
+        ok = prism_pack_read_cover(device_read, &stream, stream.file.size,
+                                   &entry, texture, texture_capacity);
+    device->closeFile(&stream.file);
+    return ok;
+}
+
 int prism_pack_device_count(DEVICEHANDLER_INTERFACE *device,
                             const char *absolute_path, uint32_t *count)
 {
