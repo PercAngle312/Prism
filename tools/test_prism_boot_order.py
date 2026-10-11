@@ -16,4 +16,6 @@ assert main.count("prism_dashboard_bootstrap();") == 1, (
 )
 assert "if(!prism_opened && swissSettings.autoload[0])" in main
 assert "else if(!prism_opened && swissSettings.recent[0][0]" in main
-print("PRISM entry precedes autoload; Classic Swiss entry bypasses autoload: OK")
+assert "\"DIAGNOSTIC: Press A to continue\"" in main
+assert "while (!(padsButtonsHeld() & BUTTON_A)) VIDEO_WaitVSync();" in main
+print("PRISM entry and persistent pre-storage marker: OK")
