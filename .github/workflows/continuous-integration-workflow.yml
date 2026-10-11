@@ -41,16 +41,17 @@ jobs:
         test -s cube/swiss/swiss.dol
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.elf | grep -F "PRISM BOOT CHECK V3"
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "PRISM BOOT CHECK V3"
-        cp cube/swiss/swiss.dol "prism-hardware/PRISM-BOOT-V3-${commit}.dol"
-        cmp cube/swiss/swiss.dol "prism-hardware/PRISM-BOOT-V3-${commit}.dol"
-        sha256sum "prism-hardware/PRISM-BOOT-V3-${commit}.dol"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "A: Game info"
+        cp cube/swiss/swiss.dol "prism-hardware/PRISM-LAUNCH-${commit}.dol"
+        cmp cube/swiss/swiss.dol "prism-hardware/PRISM-LAUNCH-${commit}.dol"
+        sha256sum "prism-hardware/PRISM-LAUNCH-${commit}.dol"
         echo "commit=${commit}" >> "$GITHUB_OUTPUT"
 
     - name: Upload single PRISM hardware DOL
       if: steps.prism.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: PRISM-BOOT-V3-${{ steps.prism.outputs.commit }}
+        name: PRISM-LAUNCH-${{ steps.prism.outputs.commit }}
         path: swiss/prism-hardware/*.dol
         if-no-files-found: error
 
@@ -59,3 +60,4 @@ jobs:
       with:
         name: swiss-gc
         path: swiss/swiss_r*/*
+

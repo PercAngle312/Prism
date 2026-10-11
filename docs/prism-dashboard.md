@@ -223,3 +223,31 @@ The original Swiss launch path remains unchanged. This milestone still
 requires a successful Swiss CI build and a controlled physical GameCube test;
 no artwork display has been observed on actual hardware. The offline
 catalog view still has its existing placeholder.
+
+## Hardware-verified baseline and launch integration (October 11, 2026)
+
+Build `2936eaf0` was tested by the user on a real GameCube using SD2SP2.
+The PRISM dashboard appeared, the installed-games browser showed 128 entries
+(the current scan limit), and Metroid Prime `GM8E01` displayed matching
+diagnostic metadata and a checkerboard test texture. The user confirmed
+browsing and return navigation worked. These observations supersede earlier
+sections describing artwork display as untested. The checkerboard is test
+artwork. Game launching was not tested in that build.
+
+The next build connects **A: Game info** to Swiss's existing entry preparation
+and launch flow. PRISM retains exact paths independently of sorted library
+entries and rechecks the disc ID before handoff. Swiss's exact-path wrapper
+prepares directory metadata and second-disc discovery using its existing
+backend, without treating brackets as filename globs. Legacy callers retain
+glob matching. The scanner remains limited to one directory and 128 games.
+
+The entry A is released before Swiss game info, and saved AutoBoot is
+temporarily disabled for this explicit interaction. Cancellation or a launch
+error redraws the selected PRISM entry and restores the prior AutoBoot setting.
+The hardware-verified dashboard startup and V3 screens remain unchanged.
+
+Next hardware test: launch the single `PRISM-LAUNCH-<commit>.dol` from the
+SD2SP2 root through the existing Swiss. Select a known working ISO/GCM,
+press A for Swiss game info, test B cancellation, then enter again and
+press A to boot. Game launching from PRISM remains hardware-unverified.
+

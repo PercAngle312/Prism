@@ -342,20 +342,21 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
     }
 }
 
-/* Read-only view of raw GameCube images discovered via Swiss on /games.
- * The original Swiss menu remains the only launch path.
+/* Raw GameCube images discovered via Swiss on /games.
+ * Launch through Swiss's existing file preparation and game-info flow.
  */
 static int prism_installed_browser(int quiet_if_empty)
 {
     DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CUR];
     DEVICEHANDLER_INTERFACE *metadata_device = devices[DEVICE_CONFIG];
     PrismLibrary *library;
+    PrismInstalledPaths *paths;
     char folder[PATHNAME_MAX];
     char pack_path[PATHNAME_MAX];
     int has_pack = 0;
     void *cover_buffer = NULL;
     GXTexObj cover_texture;
-    u32 last = BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
+    u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
         if (quiet_if_empty) return 0;
@@ -368,13 +369,16 @@ static int prism_installed_browser(int quiet_if_empty)
     }
     library = malloc(sizeof(*library));
     if (!library) return 0;
-    if (!prism_installed_scan(device, folder, library) || !library->count) {
-        if (quiet_if_empty) { free(library); return 0; }
+    paths = malloc(sizeof(*paths));
+    if (!paths) { free(library); return 0; }
+    if (!prism_installed_scan(device, folder, library, paths) || !library->count) {
+        if (quiet_if_empty) { free(paths); free(library); return 0; }
         uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO,
             "No raw ISO/GCM files found in /games.\nUse Classic Swiss."));
         while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
         while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
         DrawDispose(info);
+        free(paths);
         free(library);
         return 0;
     }
@@ -456,7 +460,7 @@ static int prism_installed_browser(int quiet_if_empty)
             y += 22;
         }
         DrawAddChild(panel, DrawStyledLabel(320, 404,
-            "LEFT/RIGHT: Browse   B/START: Return", 0.8f,
+            "LEFT/RIGHT: Browse   A: Game info   B: Return", 0.72f,
             ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
         panel = DrawPublish(panel);
         for (;;) {
@@ -466,8 +470,42 @@ static int prism_installed_browser(int quiet_if_empty)
             if (pressed & (BUTTON_B | BUTTON_START)) {
                 DrawDispose(panel);
                 free(cover_buffer);
+                free(paths);
                 free(library);
                 return 1;
+            }
+            if (pressed & BUTTON_A) {
+                char launch_path[PATHNAME_MAX];
+                /* Recheck identity before entering Swiss, and require a fresh
+                 * A press on its game-info screen (even with saved AutoBoot). */
+                if (!prism_installed_resolve(device, paths, game,
+                                              launch_path, sizeof(launch_path))) {
+                    uiDrawObj_t *error = DrawPublish(DrawMessageBox(D_WARN,
+                        "Game file changed or could not be read.\n"
+                        "Press A/B to return."));
+                    while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+                    while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+                    DrawDispose(error);
+                    last = BUTTON_A | BUTTON_B | BUTTON_START;
+                    continue;
+                }
+                DrawDispose(panel);
+                panel = NULL;
+                while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+                int auto_boot = swissSettings.autoBoot;
+                swissSettings.autoBoot = 0;
+                int result = find_existing_entry_exact(launch_path, true);
+                swissSettings.autoBoot = auto_boot;
+                if (result != 0) {
+                    uiDrawObj_t *error = DrawPublish(DrawMessageBox(D_WARN,
+                        "Swiss could not locate the selected game.\n"
+                        "Press A/B to return."));
+                    while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+                    while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+                    DrawDispose(error);
+                }
+                last = BUTTON_A | BUTTON_B | BUTTON_START;
+                break; /* Cancellation/errors redraw the same PRISM selection. */
             }
             if (pressed & BUTTON_RIGHT) {
                 prism_library_move(library, 1);
@@ -479,9 +517,10 @@ static int prism_installed_browser(int quiet_if_empty)
             }
             VIDEO_WaitVSync();
         }
-        DrawDispose(panel);
+        if (panel) DrawDispose(panel);
     }
     free(cover_buffer);
+    free(paths);
     free(library);
     return 1;
 }
@@ -900,3 +939,4 @@ void refreshDeviceCode(bool subdevice) {
 			break;
 	}
 }
+
