@@ -328,7 +328,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
 /* Read-only view of raw GameCube images discovered via Swiss on /games.
  * The original Swiss menu remains the only launch path.
  */
-static void prism_installed_browser(void)
+static int prism_installed_browser(int quiet_if_empty)
 {
     DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CUR];
     DEVICEHANDLER_INTERFACE *metadata_device = devices[DEVICE_CONFIG];
@@ -339,23 +339,25 @@ static void prism_installed_browser(void)
     u32 last = BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
+        if (quiet_if_empty) return 0;
         uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO,
             "No active Swiss game storage. Use Classic Swiss."));
         while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
         while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
         DrawDispose(info);
-        return;
+        return 0;
     }
     library = malloc(sizeof(*library));
-    if (!library) return;
+    if (!library) return 0;
     if (!prism_installed_scan(device, folder, library) || !library->count) {
+        if (quiet_if_empty) { free(library); return 0; }
         uiDrawObj_t *info = DrawPublish(DrawMessageBox(D_INFO,
             "No raw ISO/GCM files found in /games.\nUse Classic Swiss."));
         while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
         while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
         DrawDispose(info);
         free(library);
-        return;
+        return 0;
     }
     if (metadata_device && metadata_device->initial &&
         snprintf(pack_path, sizeof(pack_path), "%sswiss/prism/library.prism",
@@ -425,7 +427,7 @@ static void prism_installed_browser(void)
             if (pressed & (BUTTON_B | BUTTON_START)) {
                 DrawDispose(panel);
                 free(library);
-                return;
+                return 1;
             }
             if (pressed & BUTTON_RIGHT) {
                 prism_library_move(library, 1);
@@ -440,6 +442,7 @@ static void prism_installed_browser(void)
         DrawDispose(panel);
     }
     free(library);
+    return 1;
 }
 
 /* Isolated boot UI: always allow direct access to Swiss's original menu.
@@ -447,6 +450,10 @@ static void prism_installed_browser(void)
  */
 static void prism_dashboard_bootstrap(void)
 {
+	/* Launch straight into installed games when the active Swiss storage
+	 * contains supported raw images. Missing/unavailable storage falls back
+	 * to the home screen without a blocking boot-time dialog. */
+	prism_installed_browser(1);
 	int selection = 0;
 	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN;
 	uiDrawObj_t *screen = prism_draw_home(selection);
@@ -464,7 +471,7 @@ static void prism_dashboard_bootstrap(void)
 			if (selection == 1) break;
 			if (selection == 0) {
 				DrawDispose(screen);
-				prism_installed_browser();
+				prism_installed_browser(0);
 				screen = prism_draw_home(selection);
 				last = BUTTON_A | BUTTON_B | BUTTON_START;
 				continue;
