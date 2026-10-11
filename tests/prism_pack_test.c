@@ -35,6 +35,11 @@ int main(void)
     char title[97], synopsis[192];
     assert(prism_pack_count(read_bytes, &memory, memory.length, &count));
     assert(count == 2);
+    assert(prism_pack_entry_at(read_bytes, &memory, memory.length, 0, &entry));
+    assert(!strcmp(entry.id, "GALE01"));
+    assert(prism_pack_entry_at(read_bytes, &memory, memory.length, 1, &entry));
+    assert(!strcmp(entry.id, "GM8E01"));
+    assert(!prism_pack_entry_at(read_bytes, &memory, memory.length, 2, &entry));
     assert(prism_pack_find(read_bytes, &memory, memory.length, "GM8E01", &entry));
     assert(entry.offset == 61);
     assert(prism_pack_read_text(read_bytes, &memory, memory.length, &entry,
@@ -44,6 +49,6 @@ int main(void)
     assert(!prism_pack_find(read_bytes, &memory, memory.length, "GZLE01", &entry));
     assert(!prism_pack_find(read_bytes, &memory, memory.length, "BAD", &entry));
     assert(!prism_pack_count(read_bytes, &memory, 8, &count));
-    assert(memory.calls < 30); /* No full-pack scan needed. */
+    assert(memory.calls < 40); /* No full-pack scan needed. */
     return 0;
 }
