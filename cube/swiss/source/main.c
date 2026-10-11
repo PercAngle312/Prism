@@ -208,21 +208,62 @@ void config_migration(char* text, int state, int percent) {
  * Keep all Swiss initialization and game-launch code unchanged.
  * This bootstrap will be replaced by the actual cover library renderer.
  */
+static uiDrawObj_t *prism_draw_home(int selection)
+{
+	uiDrawObj_t *panel = DrawContainer();
+	DrawAddChild(panel, DrawEmptyColouredBox(38, 78, 602, 430,
+		(GXColor){18, 24, 42, 242}));
+	DrawAddChild(panel, DrawStyledLabel(65, 116, "PRISM", 1.9f, ALIGN_LEFT,
+		(GXColor){225, 235, 255, 255}));
+	DrawAddChild(panel, DrawStyledLabel(65, 151, "GameCube dashboard | Swiss-CA", 0.85f, ALIGN_LEFT,
+		(GXColor){170, 194, 229, 255}));
+	DrawAddChild(panel, DrawStyledLabel(65, 199, "Game library", 1.2f, ALIGN_LEFT,
+		(GXColor){225, 235, 255, 255}));
+	DrawAddChild(panel, DrawStyledLabel(65, 229,
+		"Cover artwork and library scanning coming next.", 0.8f, ALIGN_LEFT,
+		(GXColor){170, 194, 229, 255}));
+	DrawAddChild(panel, DrawSelectableButton(70, 277, 563, 315,
+		"Open Classic Swiss", selection == 0 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawSelectableButton(70, 326, 563, 364,
+		"About PRISM", selection == 1 ? B_SELECTED : B_NOSELECT));
+	DrawAddChild(panel, DrawStyledLabel(320, 400,
+		"D-Pad: Select   A: Open   B/START: Classic Swiss", 0.8f, ALIGN_CENTER,
+		(GXColor){185, 200, 225, 255}));
+	return DrawPublish(panel);
+}
+
+/* Isolated boot UI: always allow direct access to Swiss's original menu.
+ * No changes are made to Swiss's device or launch subsystems.
+ */
 static void prism_dashboard_bootstrap(void)
 {
-	uiDrawObj_t *screen = DrawPublish(DrawMessageBox(D_INFO,
-		"SWISS-CA  |  PRISM DASHBOARD\n"
-		"\n"
-		"Game library and cover artwork are under development.\n"
-		"\n"
-		"System Menu  >  Classic Swiss\n"
-		"\n"
-		"Press A, START or B to open Classic Swiss."));
-	/* Do not allow a held boot-time button to cause an immediate exit. */
-	while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))
+	int selection = 0;
+	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN;
+	uiDrawObj_t *screen = prism_draw_home(selection);
+	for (;;) {
+		u32 held = padsButtonsHeld();
+		u32 pressed = held & ~last;
+		last = held;
+		if (pressed & (BUTTON_B | BUTTON_START)) break;
+		if (pressed & (BUTTON_UP | BUTTON_DOWN)) {
+			selection = 1 - selection;
+			DrawDispose(screen);
+			screen = prism_draw_home(selection);
+		}
+		if (pressed & BUTTON_A) {
+			if (selection == 0) break;
+			uiDrawObj_t *about = DrawPublish(DrawMessageBox(D_INFO,
+				"PRISM Dashboard\\n"
+				"An original GameCube frontend built on Swiss.\\n"
+				"Press A or B to return."));
+			/* Ignore the A press that opened this dialog. */
+			while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
+			while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
+			DrawDispose(about);
+			last = BUTTON_A | BUTTON_B;
+		}
 		VIDEO_WaitVSync();
-	while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START)))
-		VIDEO_WaitVSync();
+	}
 	DrawDispose(screen);
 }
 
