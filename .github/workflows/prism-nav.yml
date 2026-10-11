@@ -1,0 +1,27 @@
+name: Prism navigation checks
+
+on:
+  push:
+    branches: [feature/prism-dashboard]
+  pull_request:
+    paths:
+      - 'cube/swiss/source/gui/prism_nav.*'
+      - 'cube/swiss/source/gui/prism_game.*'
+      - 'tests/prism_nav_test.c'
+      - 'tests/prism_game_test.c'
+      - '.github/workflows/prism-nav.yml'
+  workflow_dispatch:
+
+jobs:
+  navigation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build navigation unit test
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o /tmp/prism-nav-test tests/prism_nav_test.c cube/swiss/source/gui/prism_nav.c
+      - name: Run navigation unit test
+        run: /tmp/prism-nav-test
+      - name: Build and run disc header parser tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-game-test tests/prism_game_test.c cube/swiss/source/gui/prism_game.c
+          /tmp/prism-game-test
