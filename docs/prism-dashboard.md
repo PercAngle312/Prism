@@ -19,7 +19,8 @@ for device drivers, game launching, configuration, cheats, or file browsing.
 - [x] Add strict offline synopsis manifest parser with GameCube ID matching and regression tests
 - [x] Implement versioned consolidated PRISM library pack reader and deterministic pack builder
 - [ ] Bundle a vetted, redistributable full GameCube catalog and licensed/original artwork
-- [ ] Connect Swiss file I/O to the PRISM pack reader and render metadata
+- [x] Add a read-only Swiss device adapter for the consolidated pack and a manual detection screen
+- [ ] Display per-game metadata in PRISM UI and connect it to real Swiss game discovery
 - [ ] Decode and render GameCube-compatible cover textures through Swiss graphics APIs
 - [ ] Route game-specific settings and cheats to existing Swiss handlers
 - [ ] Game launch via existing Swiss mechanisms
@@ -119,3 +120,19 @@ The details preview now uses a fixed 640×480 Tk Canvas with a bounded cover are
 ## Shared preview layout contract
 
 `assets/prism/layout.json` is the v1 640×480 layout definition for PRISM's game details view. The desktop builder reads it via `tools/prism_layout.py`; the GameCube-side constants are kept in `cube/swiss/source/gui/prism_layout.h`. `tools/test_prism_layout.py` checks that both descriptions agree in CI. This synchronizes coordinates, **not** font rendering, cover decoding, or the on-console UI. The current Swiss dashboard remains the safe bootstrap and Classic Swiss fallback.
+
+## First Swiss storage connection (read-only)
+
+On the PRISM startup screen, select **Inspect offline pack**. If Swiss has a
+configuration device with a readable `swiss/prism/library.prism`, the panel
+reports its indexed record count. The pack is accessed through Swiss's own
+`statFile`, `seekFile`, `readFile`, and `closeFile` device callbacks;
+PRISM does not mount or initialize storage itself. The underlying adapter can
+also look up an ID and read its title and synopsis. Missing/unreadable packs
+display a friendly message and Classic Swiss remains available via B/START.
+
+This is an opt-in **pack-detection diagnostic**, not a complete game library
+browser. Pack data is not yet mapped to Swiss's actual game entries, covers
+are not rendered, and this GameCube path still needs CI and physical-hardware
+validation. The detection screen currently checks the Swiss configuration
+device rather than searching every possible device.
