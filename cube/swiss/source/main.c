@@ -626,11 +626,15 @@ int main(int argc, char *argv[])
 		"PRISM TEST BUILD", 1.8f, ALIGN_CENTER,
 		(GXColor){225, 235, 255, 255}));
 	DrawAddChild(boot_mark, DrawStyledLabel(320, 265,
-		"Initializing installed game library...", 0.9f, ALIGN_CENTER,
+		"DIAGNOSTIC: Press A to continue", 0.9f, ALIGN_CENTER,
 		(GXColor){170, 194, 229, 255}));
 	boot_mark = DrawPublish(boot_mark);
-	for (int frame = 0; frame < 90; ++frame) VIDEO_WaitVSync();
+	/* A timed splash is too easy to miss on a display that resynchronizes
+	 * video as a DOL starts. Require a fresh A press to proceed instead. */
+	while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+	while (!(padsButtonsHeld() & BUTTON_A)) VIDEO_WaitVSync();
 	DrawDispose(boot_mark);
+	while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
 	/* Scan only after showing the marker. A missing device will return
 	 * to the PRISM home menu rather than bypassing straight to Swiss. */
 	needsDeviceChange = 1;
