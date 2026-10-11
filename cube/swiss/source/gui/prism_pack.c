@@ -43,6 +43,39 @@ int prism_pack_count(PrismPackRead read, void *ctx, uint32_t file_size,
     uint32_t offset;
     return header(read, ctx, file_size, count, &offset);
 }
+static int decode_entry(const unsigned char *buf, uint32_t file_size,
+                        PrismPackEntry *entry)
+{
+    uint32_t length;
+    if (!entry) return 0;
+    memcpy(entry->id, buf, 6);
+    entry->id[6] = 0;
+    entry->offset = le32(buf + 8);
+    entry->title_length = le16(buf + 12);
+    entry->synopsis_length = le16(buf + 14);
+    entry->cover_length = le32(buf + 16);
+    length = (uint32_t)entry->title_length + (uint32_t)entry->synopsis_length;
+    if (!entry->title_length ||
+        entry->title_length > PRISM_PACK_TITLE_MAX ||
+        entry->synopsis_length > PRISM_PACK_SYNOPSIS_MAX ||
+        entry->cover_length > PRISM_PACK_COVER_MAX ||
+        length > UINT32_MAX - entry->cover_length ||
+        !range_ok(entry->offset, length + entry->cover_length, file_size))
+        return 0;
+    return 1;
+}
+int prism_pack_entry_at(PrismPackRead read, void *ctx, uint32_t file_size,
+                        uint32_t position, PrismPackEntry *entry)
+{
+    uint32_t count, index;
+    unsigned char buf[PRISM_PACK_INDEX_BYTES];
+    if (!entry || !header(read, ctx, file_size, &count, &index) ||
+        position >= count ||
+        !read_at(read, ctx, index + position * PRISM_PACK_INDEX_BYTES,
+                 buf, sizeof(buf)))
+        return 0;
+    return decode_entry(buf, file_size, entry);
+}
 int prism_pack_find(PrismPackRead read, void *ctx, uint32_t file_size,
                     const char *id, PrismPackEntry *entry)
 {
@@ -63,21 +96,7 @@ int prism_pack_find(PrismPackRead read, void *ctx, uint32_t file_size,
         if (comparison < 0) hi = mid;
         else if (comparison > 0) lo = mid + 1;
         else {
-            uint32_t length;
-            memcpy(candidate.id, buf, 6);
-            candidate.id[6] = 0;
-            candidate.offset = le32(buf + 8);
-            candidate.title_length = le16(buf + 12);
-            candidate.synopsis_length = le16(buf + 14);
-            candidate.cover_length = le32(buf + 16);
-            length = (uint32_t)candidate.title_length +
-                     (uint32_t)candidate.synopsis_length;
-            if (!candidate.title_length ||
-                candidate.title_length > PRISM_PACK_TITLE_MAX ||
-                candidate.synopsis_length > PRISM_PACK_SYNOPSIS_MAX ||
-                candidate.cover_length > PRISM_PACK_COVER_MAX ||
-                length > UINT32_MAX - candidate.cover_length ||
-                !range_ok(candidate.offset, length + candidate.cover_length, file_size))
+            if (!decode_entry(buf, file_size, &candidate))
                 return 0;
             *entry = candidate;
             return 1;
