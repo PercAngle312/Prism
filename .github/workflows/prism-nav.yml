@@ -7,8 +7,10 @@ on:
     paths:
       - 'cube/swiss/source/gui/prism_nav.*'
       - 'cube/swiss/source/gui/prism_game.*'
+      - 'cube/swiss/source/gui/prism_library.*'
       - 'tests/prism_nav_test.c'
       - 'tests/prism_game_test.c'
+      - 'tests/prism_library_test.c'
       - '.github/workflows/prism-nav.yml'
   workflow_dispatch:
 
@@ -25,3 +27,7 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-game-test tests/prism_game_test.c cube/swiss/source/gui/prism_game.c
           /tmp/prism-game-test
+      - name: Build and run PRISM library tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-library-test tests/prism_library_test.c cube/swiss/source/gui/prism_library.c
+          /tmp/prism-library-test
