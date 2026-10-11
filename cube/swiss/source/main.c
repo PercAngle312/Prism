@@ -223,12 +223,12 @@ static uiDrawObj_t *prism_draw_home(int selection)
 	DrawAddChild(panel, DrawStyledLabel(65, 199, "Game library", 1.2f, ALIGN_LEFT,
 		(GXColor){225, 235, 255, 255}));
 	DrawAddChild(panel, DrawStyledLabel(65, 229,
-		"Cover artwork and library scanning coming next.", 0.8f, ALIGN_LEFT,
+		"Your installed games first. Full catalog is optional.", 0.8f, ALIGN_LEFT,
 		(GXColor){170, 194, 229, 255}));
 	DrawAddChild(panel, DrawSelectableButton(70, 257, 563, 292,
-		"Open Classic Swiss", selection == 0 ? B_SELECTED : B_NOSELECT));
+		"Browse installed games", selection == 0 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawSelectableButton(70, 298, 563, 333,
-		"Browse installed games", selection == 1 ? B_SELECTED : B_NOSELECT));
+		"Open Classic Swiss", selection == 1 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawSelectableButton(70, 339, 563, 374,
 		"Browse offline catalog", selection == 2 ? B_SELECTED : B_NOSELECT));
 	DrawAddChild(panel, DrawSelectableButton(70, 380, 563, 415,
@@ -461,8 +461,8 @@ static void prism_dashboard_bootstrap(void)
 			screen = prism_draw_home(selection);
 		}
 		if (pressed & BUTTON_A) {
-			if (selection == 0) break;
-			if (selection == 1) {
+			if (selection == 1) break;
+			if (selection == 0) {
 				DrawDispose(screen);
 				prism_installed_browser();
 				screen = prism_draw_home(selection);
