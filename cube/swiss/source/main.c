@@ -474,8 +474,8 @@ static int prism_installed_browser(int quiet_if_empty)
  */
 static void prism_dashboard_bootstrap(void)
 {
-	/* On successful startup, open the installed games library. */
-	prism_installed_browser(1);
+	/* Hardware isolation: render PRISM home first. Installed-game scanning
+	 * remains available through the Games tile, after the UI is proven. */
 	int selection = 0;
 	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN;
 	uiDrawObj_t *screen = prism_draw_home(selection);
