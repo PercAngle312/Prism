@@ -218,7 +218,7 @@ static uiDrawObj_t *prism_draw_home(int selection)
 		(GXColor){18, 24, 42, 242}));
 	DrawAddChild(panel, DrawStyledLabel(65, 116, "PRISM", 1.9f, ALIGN_LEFT,
 		(GXColor){225, 235, 255, 255}));
-	DrawAddChild(panel, DrawStyledLabel(65, 151, "GameCube dashboard | Swiss-CA", 0.85f, ALIGN_LEFT,
+	DrawAddChild(panel, DrawStyledLabel(65, 151, "Hardware diagnostic | Swiss-CA PRISM", 0.85f, ALIGN_LEFT,
 		(GXColor){170, 194, 229, 255}));
 	DrawAddChild(panel, DrawStyledLabel(65, 199, "Game library", 1.2f, ALIGN_LEFT,
 		(GXColor){225, 235, 255, 255}));
@@ -474,9 +474,22 @@ static int prism_installed_browser(int quiet_if_empty)
  */
 static void prism_dashboard_bootstrap(void)
 {
-	/* Launch straight into installed games when the active Swiss storage
-	 * contains supported raw images. Missing/unavailable storage falls back
-	 * to the home screen without a blocking boot-time dialog. */
+	/* Show an unmistakable first-frame diagnostic before any storage
+	 * scan: distinguishes PRISM startup from the original Swiss menu. */
+	uiDrawObj_t *boot_mark = DrawContainer();
+	DrawAddChild(boot_mark, DrawEmptyColouredBox(55, 145, 585, 335,
+		(GXColor){18, 24, 42, 255}));
+	DrawAddChild(boot_mark, DrawStyledLabel(320, 200,
+		"PRISM TEST BUILD", 1.8f, ALIGN_CENTER,
+		(GXColor){225, 235, 255, 255}));
+	DrawAddChild(boot_mark, DrawStyledLabel(320, 265,
+		"Initializing installed game library...", 0.9f, ALIGN_CENTER,
+		(GXColor){170, 194, 229, 255}));
+	boot_mark = DrawPublish(boot_mark);
+	for (int frame = 0; frame < 90; ++frame) VIDEO_WaitVSync();
+	DrawDispose(boot_mark);
+	/* Scan only after showing the marker. A missing device will return
+	 * to the PRISM home menu rather than bypassing straight to Swiss. */
 	prism_installed_browser(1);
 	int selection = 0;
 	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN;
