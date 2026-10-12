@@ -31,7 +31,7 @@ def run(dol, output, boot_only=False, dsp_hle=False, symbols=None):
         probe.bind(('127.0.0.1', 0))
         gdb_port = probe.getsockname()[1]
     core_settings = '''[Core]
-CPUCore = 1
+CPUCore = 0
 DualCore = False
 MMU = True
 DSPHLE = False
@@ -88,7 +88,7 @@ ShowFPS = False
 [Enhancements]
 ForceFiltering = False
 ''')
-    (config/'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 4\n[Logs]\nBOOT = True\nCORE = True\nCOMMON = True\nVideo = True\nAudio = True\nDSPHLE = False\nMEMMAP = True\nPOWERPC = True\nCI = True\n')
+    (config/'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 4\n[Logs]\nBOOT = True\nCORE = True\nCOMMON = True\nVideo = True\nAudio = True\nDSPHLE = False\nMEMMAP = True\nPOWERPC = True\nCI = True\nGDB_STUB = True\n')
     log = (output/'dolphin.log').open('w')
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
     emulator = ['flatpak', 'run', f'--filesystem={output.parent}', f'--filesystem={dol.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
@@ -210,7 +210,7 @@ ForceFiltering = False
                 fields = line.split()
                 if len(fields) == 3:
                     mapping[fields[2]] = int(fields[0],16)
-            targets = {mapping[name]:name for name in ['__InitSystem','SYS_Init','__SYS_PreInit','__dsp_bootstrap','main','Initialise'] if name in mapping}
+            targets = {mapping[name]:name for name in ['__InitBATS','__InitHardware','__InitPS','__InitFPRS','__InitCache','__InitSystem','SYS_Init','__SYS_PreInit','__dsp_bootstrap','main','Initialise'] if name in mapping}
             for address in targets:
                 packet(f'Z1,{address:x},4')
                 assert reply() == 'OK'
