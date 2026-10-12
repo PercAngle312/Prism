@@ -18,6 +18,9 @@ on:
       - 'cube/swiss/source/gui/prism_text.*'
       - 'tests/prism_text_test.c'
       - 'assets/prism/layout.json'
+      - 'cube/swiss/source/gui/prism_cover_cache.*'
+      - 'tests/prism_cover_cache_test.c'
+      - 'tools/test_prism_cache_runtime.py'
       - 'tests/prism_nav_test.c'
       - 'tests/prism_game_test.c'
       - 'tests/prism_library_test.c'
@@ -69,6 +72,12 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-pack-test tests/prism_pack_test.c cube/swiss/source/gui/prism_pack.c
           /tmp/prism-pack-test
+      - name: Build and run pinned cover-cache tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -o /tmp/prism-cache-test tests/prism_cover_cache_test.c cube/swiss/source/gui/prism_cover_cache.c
+          /tmp/prism-cache-test
+      - name: Verify native cover-cache adapter and frame guards
+        run: python3 tools/test_prism_cache_runtime.py
       - name: Build and run measured text layout tests
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -o /tmp/prism-text-test tests/prism_text_test.c cube/swiss/source/gui/prism_text.c
@@ -93,5 +102,6 @@ jobs:
           python3 -c "from pathlib import Path; import sys; sys.path.insert(0, 'tools'); from prism_cover import WIDTH,HEIGHT,COVER_BYTES,validate_cover,MAGIC; assert (WIDTH,HEIGHT,COVER_BYTES)==(176,240,84492); assert validate_cover(MAGIC + WIDTH.to_bytes(2,'little') + HEIGHT.to_bytes(2,'little') + bytes(WIDTH*HEIGHT*2))"
       - name: Verify GameCube / desktop PRISM layout parity
         run: python3 tools/test_prism_layout.py
+
 
 

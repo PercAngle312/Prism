@@ -333,3 +333,40 @@ launch flow are unchanged. The new layout is CI-tested but awaits hardware
 validation. Keep the same `swiss/prism/library.prism`.
 Deliverable: `PRISM-COVERFLOW-<commit>.dol`.
 
+
+## Pinned cover cache and retained frames (October 11, 2026)
+
+The user explicitly chose to defer the coverflow hardware test and continue.
+Build `69ad374` remains hardware-unverified; `9b14b721` is the latest
+user-confirmed baseline. No GameCube or Dolphin runtime validation is claimed
+for the cache integration.
+
+A six-slot browser-session cache holds positive and negative artwork results.
+Three slots may belong to the displayed cover shelf while three incoming
+entries load. Both sets are pinned during preparation, so a cache eviction
+cannot overwrite displayed pixels. Shared disc IDs reuse the same cover.
+Least-recently-used unpinned slots are evicted, and rank ordering is bounded
+without an incrementing clock. Pixels are allocated lazily and aligned for GX;
+the upper bound is six 84,480-byte textures (495 KiB), plus small slot metadata.
+
+The old PRISM screen remains published through metadata/art reads and is
+atomically replaced through Swiss's `DrawRepublish` mutex path once the
+incoming screen is prepared. Entering Swiss game info explicitly disposes the
+PRISM screen first. Return and error paths release the cache after disposing
+the displayed panel. Startup, scan identity checks and Swiss launch handling
+are retained.
+
+Unavailable or invalid cover reads are remembered until the library browser
+is closed and reopened, so transient I/O failures can be retried by reopening.
+Allocation failure stays pending and can retry later. The current pack source
+is fixed for the browser session. The pack format and location are unchanged.
+
+Host cache tests cover pinned old/incoming frames, positive/missing hits,
+eviction, pending retries, invalid IDs, reset and 1,000 page-transition
+simulations with rank and identity invariants. Native CI verifies the cache
+symbol is linked into the ELF before packaging the single
+`PRISM-CACHE-<commit>.dol`. Hardware testing is deferred as requested.
+This pass retains frames during loading; it does not implement motion animation.
+
+
+The native cache adapter is additionally exercised with mocked GX/device services: positive and missing hits skip repeat reads, pinned pixel data stays unchanged, all six buffers stay bounded/aligned, and allocation failure retries without a false missing-art result. These are host adapter checks, not a GPU or hardware runtime test.

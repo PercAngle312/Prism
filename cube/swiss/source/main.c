@@ -38,6 +38,7 @@
 #include "gui/prism_enrich.h"
 #include "gui/prism_layout.h"
 #include "gui/prism_text.h"
+#include "gui/prism_cover_cache.h"
 #include "gui/IPLFontWrite.h"
 #include "devices/deviceHandler.h"
 #include "devices/fat/ata.h"
@@ -275,14 +276,14 @@ static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *ga
 
 static void prism_draw_coverflow(uiDrawObj_t *panel, const PrismLibrary *library,
                                   GXTexObj *texture, int has_cover,
-                                  GXTexObj side_textures[2], int side_covers[2],
+                                  GXTexObj *side_textures[2], int side_covers[2],
                                   const char *title)
 {
     prism_draw_cover_card(panel, prism_library_neighbor(library, -1),
-        &side_textures[0], side_covers[0], PRISM_FLOW_LEFT_X, PRISM_FLOW_SIDE_Y,
+        side_textures[0], side_covers[0], PRISM_FLOW_LEFT_X, PRISM_FLOW_SIDE_Y,
         PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
     prism_draw_cover_card(panel, prism_library_neighbor(library, 1),
-        &side_textures[1], side_covers[1], PRISM_FLOW_RIGHT_X, PRISM_FLOW_SIDE_Y,
+        side_textures[1], side_covers[1], PRISM_FLOW_RIGHT_X, PRISM_FLOW_SIDE_Y,
         PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
     prism_draw_cover_card(panel, prism_library_selected(library),
         texture, has_cover, PRISM_FLOW_CENTER_X, PRISM_FLOW_CENTER_Y,
@@ -402,6 +403,46 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
     }
 }
 
+/* Metadata policy is portable; pixels and GX objects remain stable while
+ * their slot is pinned by either the displayed or incoming frame. */
+typedef struct {
+    PrismCoverCache policy;
+    void *pixels[PRISM_COVER_CACHE_SLOTS];
+    GXTexObj textures[PRISM_COVER_CACHE_SLOTS];
+} PrismRuntimeCoverCache;
+
+static int prism_cached_cover(PrismRuntimeCoverCache *cache,
+                               DEVICEHANDLER_INTERFACE *device,
+                               const char *path, const char *id, unsigned pinned)
+{
+    int load, slot;
+    if (!cache || !device || !path) return -1;
+    slot = prism_cover_cache_reserve(&cache->policy, id, pinned, &load);
+    if (slot < 0 || !load) return slot;
+    if (!cache->pixels[slot])
+        cache->pixels[slot] = memalign(32, PRISM_COVER_TEXTURE_SIZE);
+    /* Allocation failure remains pending so a later frame can retry. */
+    if (!cache->pixels[slot]) return -1;
+    int available = prism_pack_device_cover(device, path, id,
+        cache->pixels[slot], PRISM_COVER_TEXTURE_SIZE);
+    if (available) {
+        DCFlushRange(cache->pixels[slot], PRISM_COVER_TEXTURE_SIZE);
+        GX_InitTexObj(&cache->textures[slot], cache->pixels[slot], PRISM_COVER_WIDTH,
+            PRISM_COVER_HEIGHT, GX_TF_RGB565, GX_CLAMP, GX_CLAMP, GX_FALSE);
+        GX_InitTexObjLOD(&cache->textures[slot], GX_LINEAR, GX_LINEAR,
+            0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE, GX_ANISO_1);
+    }
+    prism_cover_cache_complete(&cache->policy, slot, available);
+    return slot;
+}
+
+static void prism_free_cover_cache(PrismRuntimeCoverCache *cache)
+{
+    if (!cache) return;
+    for (int i = 0; i < PRISM_COVER_CACHE_SLOTS; ++i) free(cache->pixels[i]);
+    free(cache);
+}
+
 /* Raw GameCube images discovered via Swiss on /games.
  * Launch through Swiss's existing file preparation and game-info flow.
  */
@@ -414,10 +455,9 @@ static int prism_installed_browser(int quiet_if_empty)
     char folder[PATHNAME_MAX];
     char pack_path[PATHNAME_MAX];
     int has_pack = 0;
-    void *cover_buffer = NULL;
-    GXTexObj cover_texture;
-    void *side_buffers[2] = {NULL, NULL};
-    GXTexObj side_textures[2];
+    PrismRuntimeCoverCache *covers = NULL;
+    uiDrawObj_t *screen = NULL;
+    unsigned displayed_slots = 0;
     int details = 0;
     u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT |
                BUTTON_X | BUTTON_L | BUTTON_R;
@@ -456,11 +496,15 @@ static int prism_installed_browser(int quiet_if_empty)
         u32 count = 0;
         has_pack = prism_pack_device_count(metadata_device, pack_path, &count);
     }
-    /* GX textures need 32-byte aligned memory; reuse one cover buffer.
-     * Do not tie image storage to temporary directory-entry buffers. */
-    cover_buffer = memalign(32, PRISM_COVER_TEXTURE_SIZE);
+    covers = calloc(1, sizeof(*covers));
+    /* A failed cache allocation still permits title-only browsing/launching. */
     for (;;) {
         int has_cover = 0;
+        int slots[3] = {-1, -1, -1};
+        int side_covers[2] = {0, 0};
+        GXTexObj *cover_texture = NULL;
+        GXTexObj *side_textures[2] = {NULL, NULL};
+        unsigned incoming_slots = 0;
         const PrismLibraryGame *game = prism_library_selected(library);
         char title[PRISM_PACK_TITLE_MAX + 1];
         char synopsis[PRISM_PACK_SYNOPSIS_MAX + 1];
@@ -472,32 +516,24 @@ static int prism_installed_browser(int quiet_if_empty)
                                     has_pack ? pack_path : NULL, game,
                                     title, sizeof(title), synopsis, sizeof(synopsis)))
             break;
-        if (cover_buffer && has_pack &&
-            prism_pack_device_cover(metadata_device, pack_path, game->id,
-                                    cover_buffer, PRISM_COVER_TEXTURE_SIZE)) {
-            DCFlushRange(cover_buffer, PRISM_COVER_TEXTURE_SIZE);
-            GX_InitTexObj(&cover_texture, cover_buffer, PRISM_COVER_WIDTH,
-                          PRISM_COVER_HEIGHT, GX_TF_RGB565,
-                          GX_CLAMP, GX_CLAMP, GX_FALSE);
-            GX_InitTexObjLOD(&cover_texture, GX_LINEAR, GX_LINEAR,
-                             0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE,
-                             GX_ANISO_1);
-            has_cover = 1;
-        }
-        int side_covers[2] = {0, 0};
-        if (!details && has_pack) {
+        if (has_pack && covers) {
+            for (int position = 0; position < 3; ++position) {
+                if (details && position != 1) continue;
+                const PrismLibraryGame *candidate = prism_library_neighbor(library, position - 1);
+                if (!candidate) continue;
+                slots[position] = prism_cached_cover(covers, metadata_device, pack_path,
+                    candidate->id, displayed_slots | incoming_slots);
+                if (slots[position] >= 0) incoming_slots |= 1u << slots[position];
+            }
+            if (slots[1] >= 0) {
+                cover_texture = &covers->textures[slots[1]];
+                has_cover = covers->policy.entries[slots[1]].state == PRISM_CACHE_READY;
+            }
             for (int side = 0; side < 2; ++side) {
-                const PrismLibraryGame *neighbor = prism_library_neighbor(library, side ? 1 : -1);
-                if (!neighbor) continue;
-                if (!side_buffers[side]) side_buffers[side] = memalign(32, PRISM_COVER_TEXTURE_SIZE);
-                if (side_buffers[side] && prism_pack_device_cover(metadata_device, pack_path,
-                    neighbor->id, side_buffers[side], PRISM_COVER_TEXTURE_SIZE)) {
-                    DCFlushRange(side_buffers[side], PRISM_COVER_TEXTURE_SIZE);
-                    GX_InitTexObj(&side_textures[side], side_buffers[side], PRISM_COVER_WIDTH,
-                        PRISM_COVER_HEIGHT, GX_TF_RGB565, GX_CLAMP, GX_CLAMP, GX_FALSE);
-                    GX_InitTexObjLOD(&side_textures[side], GX_LINEAR, GX_LINEAR,
-                        0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE, GX_ANISO_1);
-                    side_covers[side] = 1;
+                int slot = slots[side ? 2 : 0];
+                if (slot >= 0) {
+                    side_textures[side] = &covers->textures[slot];
+                    side_covers[side] = covers->policy.entries[slot].state == PRISM_CACHE_READY;
                 }
             }
         }
@@ -508,7 +544,7 @@ static int prism_installed_browser(int quiet_if_empty)
         DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y,
             game->id, 0.72f, ALIGN_RIGHT, (GXColor){170, 194, 229, 255}));
         if (!details) {
-            prism_draw_coverflow(panel, library, &cover_texture, has_cover,
+            prism_draw_coverflow(panel, library, cover_texture, has_cover,
                 side_textures, side_covers, title);
         } else {
             DrawAddChild(panel, DrawEmptyColouredBox(PRISM_COVER_X, PRISM_COVER_Y,
@@ -554,16 +590,16 @@ static int prism_installed_browser(int quiet_if_empty)
             details ? "LEFT/RIGHT: Browse  L/R: 10  X: Covers  A: Game info  B: Return" :
                       "LEFT/RIGHT: Browse  L/R: 10  X: Details  A: Game info  B: Return",
             0.65f, ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
-        panel = DrawPublish(panel);
+        screen = DrawRepublish(screen, panel);
+        panel = screen;
+        displayed_slots = incoming_slots;
         for (;;) {
             held = padsButtonsHeld();
             pressed = held & ~last;
             last = held;
             if (pressed & (BUTTON_B | BUTTON_START)) {
                 DrawDispose(panel);
-                free(cover_buffer);
-                free(side_buffers[0]);
-                free(side_buffers[1]);
+                prism_free_cover_cache(covers);
                 free(paths);
                 free(library);
                 return 1;
@@ -583,7 +619,9 @@ static int prism_installed_browser(int quiet_if_empty)
                     last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_X | BUTTON_L | BUTTON_R;
                     continue;
                 }
-                DrawDispose(panel);
+                DrawDispose(screen);
+                screen = NULL;
+                displayed_slots = 0;
                 panel = NULL;
                 while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
                 int auto_boot = swissSettings.autoBoot;
@@ -619,11 +657,10 @@ static int prism_installed_browser(int quiet_if_empty)
             }
             VIDEO_WaitVSync();
         }
-        if (panel) DrawDispose(panel);
+        /* Retain this frame during metadata/art reads for the next one. */
     }
-    free(cover_buffer);
-    free(side_buffers[0]);
-    free(side_buffers[1]);
+    if (screen) DrawDispose(screen);
+    prism_free_cover_cache(covers);
     free(paths);
     free(library);
     return 1;
@@ -1043,6 +1080,7 @@ void refreshDeviceCode(bool subdevice) {
 			break;
 	}
 }
+
 
 
 
