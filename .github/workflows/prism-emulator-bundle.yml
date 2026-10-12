@@ -1,0 +1,48 @@
+name: PRISM emulator starter bundle
+
+on:
+  push:
+    branches: [feature/prism-dashboard]
+    paths:
+      - tools/bundle_prism_emulators.py
+      - .github/workflows/prism-emulator-bundle.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install archive and cover tools
+        run: python -m pip install py7zr Pillow
+      - uses: actions/checkout@v4
+        with:
+          ref: 01c00908325f4133344ff0cf0de8132012d9d379
+          path: prism-source
+          submodules: recursive
+      - name: Archive corresponding PRISM and littlefs source
+        run: |
+          git -C prism-source archive --format=zip --output="$GITHUB_WORKSPACE/prism-source.zip" HEAD
+          git -C prism-source/cube/swiss/source/littlefs archive --format=zip --output="$GITHUB_WORKSPACE/littlefs-source.zip" HEAD
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-UI-01c00908325f
+          run-id: 38313210371
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: verified-dol
+      - name: Verify pinned releases and package SD-ready bundle
+        run: |
+          python tools/bundle_prism_emulators.py --dol verified-dol/PRISM-UI-01c00908325f.dol --source prism-source.zip --littlefs littlefs-source.zip --output PRISM-Emulator-Starter-01c00908325f.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Emulator-Starter-01c00908325f
+          path: PRISM-Emulator-Starter-01c00908325f.zip
+          if-no-files-found: error
