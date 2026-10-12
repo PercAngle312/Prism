@@ -445,3 +445,42 @@ its outcome must not be described as UI validation. Native build, DOL packaging
 and host checks remain required. No game launch, installed-artwork, GC Loader
 or SD2SP2 emulator validation has been performed. Real hardware visual/input
 validation of this new shell remains deferred.
+
+
+### Emulator system libraries (first integration)
+
+Press **Z: Systems** on PRISM home to browse Nintendo 64, NES, Super Nintendo,
+Game Boy, Game Boy Advance, and Mega Drive libraries. Each has the same offline
+cover, title, synopsis, left/right browsing and L/R page jumps as the catalog.
+These are curated catalogs: entries do not confirm that ROMs are installed.
+
+Create a separate project in PRISM Studio for each system. Use unique six-character
+uppercase IDs within that project (for example `N64001`); they are metadata keys,
+not GameCube disc IDs. Export the existing pack format with these names to your
+Swiss **config storage**:
+
+| System | Pack | GameCube executable |
+| --- | --- | --- |
+| Nintendo 64 | `n64.prism` | `n64.dol` |
+| NES | `nes.prism` | `nes.dol` |
+| Super Nintendo | `snes.prism` | `snes.dol` |
+| Game Boy | `gb.prism` | `gb.dol` |
+| Game Boy Advance | `gba.prism` | `gba.dol` |
+| Mega Drive | `megadrive.prism` | `megadrive.dol` |
+
+All files go in `/swiss/prism/emulators/`. Supply legally obtained **GameCube**
+emulator DOLs yourself; none are bundled. Select **A: Emulator** to open the matching
+DOL through Swiss's existing exact-path loader, validation and native UI. Choose
+and play the ROM inside the emulator. A missing executable returns a PRISM notice.
+Returning or cancelling releases artwork cache state before rebuilding the catalog.
+
+**Direct launch of the selected ROM is not implemented.** Current upstream
+Wii64's ROM autoboot is inside `#ifdef HW_RVL` (Wii); Not64's `readArgs` parses
+configuration key/value pairs, not a standalone ROM path. Passing an arbitrary
+ROM argument is not a valid universal GameCube launch contract. Direct launch
+requires a tested per-emulator adapter, and storage support remains specific to
+that emulator. This integration does not modify emulator settings, saves or ROMs.
+
+Sources checked: `emukidid/Wii64/main/main_gc-menu2.cpp`,
+`extremscorner/not64/main/main_gc-menu2.cpp`, and this branch's
+`cube/swiss/source/swiss.c` (`boot_dol`, `.cli`, `.dcp`, argv forwarding).

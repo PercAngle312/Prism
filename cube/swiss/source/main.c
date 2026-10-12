@@ -368,9 +368,10 @@ static uiDrawObj_t *prism_draw_home(uiDrawObj_t *previous, int selection)
         prism_draw_wrapped(panel, descriptions[tile], x + 16, y + 47,
             PRISM_HOME_WIDTH - 32, 0.62f, 3, 18, (GXColor){170, 189, 203, 255});
     }
-    prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 170, "D-Pad: Select", (GXColor){185, 200, 225, 255});
-    prism_draw_hint(panel, 214, PRISM_FOOTER_LABELS_Y, 126, "A: Open", (GXColor){113, 223, 181, 255});
-    prism_draw_hint(panel, 340, PRISM_FOOTER_LABELS_Y, 256, "B/START: Classic Swiss", (GXColor){239, 154, 157, 255});
+    prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 136, "D-Pad: Select", (GXColor){185, 200, 225, 255});
+    prism_draw_hint(panel, 180, PRISM_FOOTER_LABELS_Y, 92, "A: Open", (GXColor){113, 223, 181, 255});
+    prism_draw_hint(panel, 272, PRISM_FOOTER_LABELS_Y, 114, "Z: Systems", (GXColor){134, 184, 245, 255});
+    prism_draw_hint(panel, 386, PRISM_FOOTER_LABELS_Y, 210, "B/START: Classic Swiss", (GXColor){239, 154, 157, 255});
     return DrawRepublish(previous, panel);
 }
 
@@ -630,9 +631,10 @@ static int prism_installed_browser(int quiet_if_empty)
     return 1;
 }
 
-/* Metadata-only catalog; never launches titles that may not be installed. */
+/* Catalog metadata never implies that a game is installed. Emulator packs
+ * can open their configured DOL, with ROM selection in the emulator itself. */
 static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *path,
-                                  u32 count)
+                                  u32 count, const char *system_name, const char *emulator_path)
 {
     u32 position = 0;
     u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_L | BUTTON_R;
@@ -653,7 +655,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         }
         int slot = covers ? prism_cached_cover(covers, device, path, entry.id, displayed_slots) : -1;
         int has_cover = slot >= 0 && covers->policy.entries[slot].state == PRISM_CACHE_READY;
-        snprintf(heading, sizeof(heading), "OFFLINE CATALOG  |  %lu / %lu",
+        snprintf(heading, sizeof(heading), "%s  |  %lu / %lu", system_name ? system_name : "OFFLINE CATALOG",
             (unsigned long)(position + 1), (unsigned long)count);
         uiDrawObj_t *panel = prism_draw_panel(heading);
         DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y,
@@ -676,11 +678,15 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
             PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
             6, 22, (GXColor){204, 218, 239, 255});
         DrawAddChild(panel, DrawStyledLabel(PRISM_STATUS_X, PRISM_STATUS_Y,
-            "Catalog entry / not an installed-game check", 0.55f,
+            emulator_path ? "ROM selection happens in the emulator" : "Catalog entry / not an installed-game check", 0.55f,
             ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
         prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 240, "LEFT/RIGHT: Browse", (GXColor){185, 200, 225, 255});
         prism_draw_hint(panel, 284, PRISM_FOOTER_LABELS_Y, 100, "L/R: 10", (GXColor){185, 200, 225, 255});
-        prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 212, "B/START: Return", (GXColor){239, 154, 157, 255});
+        if (emulator_path) {
+            prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 120, "A: Emulator", (GXColor){113, 223, 181, 255});
+            prism_draw_hint(panel, 504, PRISM_FOOTER_LABELS_Y, 92, "B: Return", (GXColor){239, 154, 157, 255});
+        } else
+            prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 212, "B/START: Return", (GXColor){239, 154, 157, 255});
         screen = DrawRepublish(screen, panel);
         displayed_slots = slot >= 0 ? 1u << slot : 0;
         for (;;) {
@@ -688,6 +694,24 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
             pressed = held & ~last;
             last = held;
             if (pressed & (BUTTON_B | BUTTON_START)) goto done;
+            if (emulator_path && (pressed & BUTTON_A)) {
+                /* Native Swiss owns DOL validation and chainloading. These
+                 * entries deliberately open its menu, never fake ROM autoboot. */
+                char target[PATHNAME_MAX];
+                strlcpy(target, emulator_path, sizeof(target));
+                DrawDispose(screen); screen = NULL;
+                prism_free_cover_cache(covers); covers = NULL;
+                displayed_slots = 0;
+                int saved_auto_boot = swissSettings.autoBoot;
+                swissSettings.autoBoot = 0;
+                int error = find_existing_entry_exact(target, true);
+                swissSettings.autoBoot = saved_auto_boot;
+                if (error)
+                    prism_show_notice("Emulator unavailable", "Copy the GameCube emulator DOL to the matching system name in /swiss/prism/emulators/ on your config storage.");
+                covers = calloc(1, sizeof(*covers));
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
+                break;
+            }
             if (pressed & (BUTTON_L | BUTTON_R)) {
                 if (pressed & BUTTON_R) position = count - position > 10 ? position + 10 : count - 1;
                 else position = position > 10 ? position - 10 : 0;
@@ -703,6 +727,60 @@ done:
     prism_free_cover_cache(covers);
 }
 
+/* Separate packs retain the existing indexed cover/synopsis format. A
+ * system catalog is curated metadata, not proof that its ROMs are installed. */
+static void prism_system_libraries(void)
+{
+    static const char *names[] = {"Nintendo 64", "NES", "Super Nintendo", "Game Boy", "Game Boy Advance", "Mega Drive"};
+    static const char *keys[] = {"n64", "nes", "snes", "gb", "gba", "megadrive"};
+    int selection = 0;
+    u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+    uiDrawObj_t *screen = NULL;
+    for (;;) {
+        uiDrawObj_t *panel = prism_draw_panel("EMULATOR LIBRARIES");
+        for (int i = 0; i < 6; ++i) {
+            int x = 54 + (i % 2) * 278, y = 140 + (i / 2) * 84;
+            GXColor fill = i == selection ? (GXColor){32, 78, 83, 255} : (GXColor){22, 33, 48, 255};
+            DrawAddChild(panel, DrawSolidBox(x, y, x + 254, y + 66, fill));
+            if (i == selection)
+                DrawAddChild(panel, DrawSolidBox(x, y, x + 4, y + 66, (GXColor){77, 219, 201, 255}));
+            prism_draw_wrapped(panel, names[i], x + 14, y + 23, 228, 0.85f, 1, 22, (GXColor){233, 241, 247, 255});
+        }
+        prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 180, "D-Pad: System", (GXColor){185, 200, 225, 255});
+        prism_draw_hint(panel, 224, PRISM_FOOTER_LABELS_Y, 180, "A: Library", (GXColor){113, 223, 181, 255});
+        prism_draw_hint(panel, 404, PRISM_FOOTER_LABELS_Y, 192, "B/START: Return", (GXColor){239, 154, 157, 255});
+        screen = DrawRepublish(screen, panel);
+        for (;;) {
+            u32 held = padsButtonsHeld(), pressed = held & ~last;
+            last = held;
+            if (pressed & (BUTTON_B | BUTTON_START)) goto finished;
+            if (pressed & (BUTTON_LEFT | BUTTON_RIGHT)) { selection ^= 1; break; }
+            if (pressed & BUTTON_UP) { selection = (selection + 4) % 6; break; }
+            if (pressed & BUTTON_DOWN) { selection = (selection + 2) % 6; break; }
+            if (pressed & BUTTON_A) {
+                DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CONFIG];
+                char pack[PATHNAME_MAX], emulator[PATHNAME_MAX], body[192];
+                u32 count = 0;
+                if (device && device->initial &&
+                    snprintf(pack, sizeof(pack), "%sswiss/prism/emulators/%s.prism", device->initial->name, keys[selection]) < sizeof(pack) &&
+                    snprintf(emulator, sizeof(emulator), "%sswiss/prism/emulators/%s.dol", device->initial->name, keys[selection]) < sizeof(emulator) &&
+                    prism_pack_device_count(device, pack, &count) && count) {
+                    DrawDispose(screen); screen = NULL;
+                    prism_catalog_browser(device, pack, count, names[selection], emulator);
+                } else {
+                    snprintf(body, sizeof(body), "Export your %s project from PRISM Studio as %s.prism. Copy it to /swiss/prism/emulators/ on your config storage.", names[selection], keys[selection]);
+                    prism_show_notice("System library not found", body);
+                }
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
+                break;
+            }
+            VIDEO_WaitVSync();
+        }
+    }
+finished:
+    if (screen) DrawDispose(screen);
+}
+
 /* Isolated boot UI: always allow direct access to Swiss's original menu.
  * No changes are made to Swiss's device or launch subsystems.
  */
@@ -711,7 +789,7 @@ static void prism_dashboard_bootstrap(void)
 	/* Hardware isolation: render PRISM home first. Installed-game scanning
 	 * remains available through the Games tile, after the UI is proven. */
 	int selection = 0;
-	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT;
+	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_Z;
 	uiDrawObj_t *screen = prism_draw_home(NULL, selection);
 	/* Require a new button press after the diagnostic. Holding A/B/START
 	 * while the dashboard first appears must not immediately exit it. */
@@ -722,6 +800,13 @@ static void prism_dashboard_bootstrap(void)
 		u32 pressed = held & ~last;
 		last = held;
 		if (pressed & (BUTTON_B | BUTTON_START)) break;
+        if (pressed & BUTTON_Z) {
+            DrawDispose(screen); screen = NULL;
+            prism_system_libraries();
+            screen = prism_draw_home(NULL, selection);
+            last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+            continue;
+        }
 		if (pressed & (BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT)) {
 			if (pressed & (BUTTON_UP | BUTTON_DOWN)) selection ^= 2;
 			else selection ^= 1;
@@ -749,7 +834,7 @@ static void prism_dashboard_bootstrap(void)
 				}
 				if (found && game_count) {
 					DrawDispose(screen);
-					prism_catalog_browser(device, path, game_count);
+					prism_catalog_browser(device, path, game_count, NULL, NULL);
 					screen = prism_draw_home(NULL, selection);
 					last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
 					continue;
