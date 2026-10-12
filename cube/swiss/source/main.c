@@ -450,7 +450,7 @@ static int prism_installed_browser(int quiet_if_empty)
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
         if (quiet_if_empty) return 0;
-        prism_show_notice("No game storage", "No active game storage was found. Open Classic Swiss to select a device, then return to PRISM.");
+        prism_show_notice("No game storage", "No active game storage was found. Open Classic Swiss to check your device connection and storage.");
         return 0;
     }
     library = malloc(sizeof(*library));
