@@ -3,6 +3,7 @@
 
 Requires a private X display (xvfb-run), Dolphin Qt, Pillow and
 Tesseract. This uses no game disc/BIOS/assets and no emulated game storage.
+A generated, empty homebrew disc supplies a deterministic closed DVD drive.
 It verifies boot/home/notices/native Swiss return; it does not test games,
 GC Loader, SD2SP2, installed covers or hardware timing.
 """
@@ -12,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import struct
 import time
 from pathlib import Path
 from PIL import ImageGrab, Image
@@ -85,7 +87,20 @@ ForceFiltering = False
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
     emulator = ['flatpak', 'run', f'--filesystem={output.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
     version = subprocess.run(emulator+['--version'],capture_output=True,text=True,env=env).stdout.strip()
-    process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol)],stdout=log,stderr=log,env=env)
+    # No commercial game data: just our executable and an empty GameCube FST.
+    disc = output/'diagnostic.iso'
+    header = bytearray(0x460)
+    header[:6] = b'PZME01'
+    header[0x1c:0x20] = bytes.fromhex('c2339f3d')
+    header[0x20:0x20+17] = b'PRISM diagnostics'
+    struct.pack_into('>IIII',header,0x420,0x2000,0x1000,12,12)
+    struct.pack_into('>I',header,0x458,1)
+    with disc.open('wb') as stream:
+        stream.truncate(8*1024*1024)
+        stream.seek(0);stream.write(header)
+        stream.seek(0x1000);stream.write(struct.pack('>III',0x01000000,0,1))
+        stream.seek(0x2000);stream.write(dol.read_bytes())
+    process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol),'-i',str(disc)],stdout=log,stderr=log,env=env)
     stages = []
 
     def capture(name):
@@ -123,7 +138,7 @@ ForceFiltering = False
     try:
         wait('01-boot', ['PRISM BOOT CHECK V3'],timeout=60)
         if boot_only:
-            (output/'result.json').write_text(json.dumps({'status':'passed','emulator':version, 'dsp':'HLE' if dsp_hle else 'LLE','stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot checkpoint only','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest()},indent=2))
+            (output/'result.json').write_text(json.dumps({'status':'passed','emulator':version, 'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot checkpoint only','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest()},indent=2))
             return
         tap('x')
         wait('02-home',['YOUR GAME LIBRARY'],timeout=90)
@@ -142,7 +157,7 @@ ForceFiltering = False
             'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot, home, D-pad/A/B input, PRISM notices, return to Classic Swiss. No game/storage/hardware test.'}
         (output/'result.json').write_text(json.dumps(report,indent=2))
     except Exception as exc:
-        (output/'result.json').write_text(json.dumps({'status':'failed','error':str(exc),'emulator':version,'stages':stages},indent=2))
+        (output/'result.json').write_text(json.dumps({'status':'failed','error':str(exc),'emulator':version,'dsp':'HLE' if dsp_hle else 'LLE','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),'stages':stages},indent=2))
         raise
     finally:
         process.terminate()

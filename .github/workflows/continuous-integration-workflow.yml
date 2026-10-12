@@ -66,6 +66,9 @@ jobs:
 
   dolphin-ui:
     name: PRISM Dolphin UI smoke
+    permissions:
+      contents: read
+      actions: read
     needs: build
     if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
     runs-on: ubuntu-latest

@@ -415,7 +415,8 @@ Controller hints occupy measured cells with coloured action labels.
 The Swiss build workflow now runs the exact single-DOL artifact in Dolphin
 on a private virtual display. It captures screenshots and OCR evidence for
 startup, home, directional selection, About, missing catalog, empty installed
-library and return to Classic Swiss. No BIOS or game disc is provided. This
+library and return to Classic Swiss. No BIOS or commercial game disc is provided. An empty generated homebrew
+disc (containing only the tested DOL) supplies a deterministic DVD drive state. This
 smoke test does not validate installed artwork, launches, GC Loader, SD2SP2 or
 real-hardware timing. Host tests retain coverage for those portable paths.
 
