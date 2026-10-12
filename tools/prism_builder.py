@@ -65,15 +65,19 @@ class Builder:
         self.system_picker.bind('<<ComboboxSelected>>', self.choose_system)
         toolbar = ttk.Frame(root, padding=(12, 4))
         toolbar.grid(row=1, column=0, sticky='ew')
+        primary_tools = ttk.Frame(toolbar)
+        secondary_tools = ttk.Frame(toolbar)
+        primary_tools.pack(anchor='w')
+        secondary_tools.pack(anchor='w', pady=(3, 0))
         self.commands = []
-        for title, command in [('New project', self.new_project), ('Open project', self.open_project),
+        for index, (title, command) in enumerate([('New project', self.new_project), ('Open project', self.open_project),
                                ('Save', self.save_project), ('Save as', lambda: self.save_project(True)),
                                ('Scan games folder', self.scan_games), ('Import JSON', self.import_json),
                                ('Import GameTDB', self.import_gametdb_xml),
                                ('Import covers', self.import_covers_folder),
                                ('Scrape missing', self.scrape_missing),
-                               ('Export pack', self.package)]:
-            button = ttk.Button(toolbar, text=title, command=command)
+                               ('Export pack', self.package)]):
+            button = ttk.Button(primary_tools if index < 6 else secondary_tools, text=title, command=command)
             button.pack(side='left', padx=3)
             self.commands.append(button)
         body = ttk.Frame(root, padding=12)
