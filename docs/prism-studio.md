@@ -139,3 +139,19 @@ For IGDB, create an authorized Twitch developer application and obtain an
 OAuth access token; see https://api-docs.igdb.com/. TheGamesDB credentials
 come from https://api.thegamesdb.net/. MobyGames API access is described at
 https://www.mobygames.com/info/api/.
+
+## Bulk cover import and live lookup progress
+
+**Import covers** accepts a local folder of image files named by exact
+six-character game ID, such as `GM8E01.png` or `GZLE01.jpg`. Only missing
+covers are imported. Existing edited artwork is preserved. Invalid images
+cause the entire batch to fail without changing the current project.
+This is an **offline folder import**, not automatic downloading from
+metadata providers; use only artwork you have permission to use.
+
+**Scrape missing** now reports the provider, current game ID, number of
+lookups attempted and the count of entries with completed synopses while
+the background operation runs. The final status reports how many still
+lack a synopsis. A completed synopsis is not a guarantee that artwork
+is present. Real API behavior and the packaged GUI still require CI
+and user testing.
