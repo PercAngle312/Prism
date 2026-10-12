@@ -46,6 +46,7 @@ RenderToMain = False
 RenderWindowWidth = 960
 RenderWindowHeight = 720
 [Interface]
+DebugModeEnabled = True
 ConfirmStop = False
 UsePanicHandlers = False
 [Analytics]
@@ -100,13 +101,14 @@ ForceFiltering = False
     header[:6] = b'PZME01'
     header[0x1c:0x20] = bytes.fromhex('c2339f3d')
     header[0x20:0x20+17] = b'PRISM diagnostics'
-    struct.pack_into('>IIII',header,0x420,0x2000,0x1000,12,12)
+    struct.pack_into('>IIII',header,0x420,0x10000,0x1000,12,12)
     struct.pack_into('>I',header,0x458,1)
     with disc.open('wb') as stream:
         stream.truncate(8*1024*1024)
         stream.seek(0);stream.write(header)
         stream.seek(0x1000);stream.write(struct.pack('>III',0x01000000,0,1))
-        stream.seek(0x2000);stream.write(dol.read_bytes())
+        stream.seek(0x2450);stream.write(struct.pack('>III',0xffffffff,0,0))
+        stream.seek(0x10000);stream.write(dol.read_bytes())
     process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol),'--config',f'Dolphin.Core.DefaultISO={disc}'],stdout=log,stderr=log,env=env)
     stages = []
     debugger = None

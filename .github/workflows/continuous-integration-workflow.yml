@@ -130,3 +130,62 @@ jobs:
             dolphin-ui-results/**/*.json
             dolphin-ui-results/**/*.log
           if-no-files-found: warn
+
+  dolphin-probe:
+    name: Known-build Dolphin debugger probe
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: read
+    if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Dolphin and screenshot test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak xvfb xauth tesseract-ocr python3-pil
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user --if-not-exists dolphin https://flatpak.dolphin-emu.org/releases.flatpakrepo
+          flatpak install --user --noninteractive --assumeyes dolphin org.DolphinEmu.dolphin-emu
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-UI-5534615b263c
+          run-id: 38285520873
+          github-token: ${{ github.token }}
+          path: dolphin-dol
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-CPU-symbols
+          run-id: 38285520873
+          github-token: ${{ github.token }}
+          path: dolphin-symbols
+      - name: Verify and launch the exact built PRISM DOL
+        env:
+          PRISM_DOLPHIN_FLATPAK: 1
+        run: |
+          /usr/bin/python3 - <<'PYTHON'
+          from pathlib import Path
+          import subprocess
+          files = list(Path('dolphin-dol').glob('*.dol'))
+          assert len(files) == 1, files
+          source = '5534615b263c'
+          assert files[0].name == f'PRISM-UI-{source}.dol', files[0]
+          subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', '/usr/bin/python3',
+              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results', '--dsp-hle', '--symbols', 'dolphin-symbols/swiss-symbols.txt'], check=True)
+          PYTHON
+      - name: Upload Dolphin screenshots and result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Dolphin-Probe-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            dolphin-ui-results/**/*.png
+            dolphin-ui-results/**/*.txt
+            dolphin-ui-results/**/*.json
+            dolphin-ui-results/**/*.log
+          if-no-files-found: warn
