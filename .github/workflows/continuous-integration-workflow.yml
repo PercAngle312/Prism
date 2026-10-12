@@ -118,7 +118,7 @@ jobs:
           source = subprocess.check_output(['git', 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
           assert files[0].name == f'PRISM-UI-{source}.dol', files[0]
           subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', '/usr/bin/python3',
-              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results'], check=True)
+              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results', '--dsp-hle'], check=True)
           PYTHON
       - name: Upload Dolphin screenshots and result
         if: always()

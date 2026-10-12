@@ -85,7 +85,7 @@ ForceFiltering = False
     (config/'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 4\n[Logs]\nBOOT = True\nCORE = True\nCOMMON = True\nVideo = True\nAudio = True\nDSPHLE = False\nMEMMAP = True\nPOWERPC = True\nCI = True\n')
     log = (output/'dolphin.log').open('w')
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
-    emulator = ['flatpak', 'run', f'--filesystem={output.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
+    emulator = ['flatpak', 'run', f'--filesystem={output.parent}', f'--filesystem={dol.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
     version = subprocess.run(emulator+['--version'],capture_output=True,text=True,env=env).stdout.strip()
     # No commercial game data: just our executable and an empty GameCube FST.
     disc = output/'diagnostic.iso'
