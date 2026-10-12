@@ -77,22 +77,26 @@ jobs:
       - name: Install Dolphin and screenshot test tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends dolphin-emu xvfb xauth xdotool tesseract-ocr python3-pil
+          sudo apt-get install -y --no-install-recommends flatpak xvfb xauth tesseract-ocr python3-pil
+          flatpak remote-add --user --if-not-exists dolphin https://flatpak.dolphin-emu.org/releases.flatpakrepo
+          flatpak install --user --noninteractive dolphin org.DolphinEmu.dolphin-emu
       - uses: actions/download-artifact@v4
         with:
           pattern: PRISM-UI-*
           path: dolphin-dol
           merge-multiple: true
       - name: Verify and launch the exact built PRISM DOL
+        env:
+          PRISM_DOLPHIN_FLATPAK: 1
         run: |
-          python3 - <<'PYTHON'
+          /usr/bin/python3 - <<'PYTHON'
           from pathlib import Path
           import subprocess
           files = list(Path('dolphin-dol').glob('*.dol'))
           assert len(files) == 1, files
           source = subprocess.check_output(['git', 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
           assert files[0].name == f'PRISM-UI-{source}.dol', files[0]
-          subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', 'python3',
+          subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', '/usr/bin/python3',
               'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results'], check=True)
           PYTHON
       - name: Upload Dolphin screenshots and result

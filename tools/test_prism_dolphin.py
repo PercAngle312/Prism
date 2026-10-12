@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the actual PRISM DOL in Dolphin and verify UI routes with screenshot OCR.
 
-Requires a private X display (xvfb-run), Dolphin Qt, xdotool, Pillow and
+Requires a private X display (xvfb-run), Dolphin Qt, Pillow and
 Tesseract. This uses no game disc/BIOS/assets and no emulated game storage.
 It verifies boot/home/notices/native Swiss return; it does not test games,
 GC Loader, SD2SP2, installed covers or hardware timing.
@@ -45,16 +45,22 @@ Enabled = False
 [General]
 ShowLag = False
 ''')
+    pipes = user/'Pipes'
+    pipes.mkdir(parents=True, exist_ok=True)
+    controller = pipes/'prism'
+    controller.unlink(missing_ok=True)
+    os.mkfifo(controller)
+    pipe_fd = os.open(controller, os.O_RDWR | os.O_NONBLOCK)
     (config/'GCPadNew.ini').write_text('''[GCPad1]
-Device = Xlib/0/Keyboard Mouse
-Buttons/A = `X`
-Buttons/B = `Z`
-Buttons/X = `C`
-Buttons/Start = `Return`
-D-Pad/Up = `Up`
-D-Pad/Down = `Down`
-D-Pad/Left = `Left`
-D-Pad/Right = `Right`
+Device = Pipe/0/prism
+Buttons/A = `Button A`
+Buttons/B = `Button B`
+Buttons/X = `Button X`
+Buttons/Start = `Button START`
+D-Pad/Up = `Button D_UP`
+D-Pad/Down = `Button D_DOWN`
+D-Pad/Left = `Button D_LEFT`
+D-Pad/Right = `Button D_RIGHT`
 Options/Always Connected = True
 ''')
     (config/'GFX.ini').write_text('''[Settings]
@@ -67,8 +73,9 @@ ForceFiltering = False
 ''')
     log = (output/'dolphin.log').open('w')
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
-    version = subprocess.run(['dolphin-emu','--version'],capture_output=True,text=True,env=env).stdout.strip()
-    process = subprocess.Popen(['dolphin-emu','-b','-u',str(user),'-e',str(dol)],stdout=log,stderr=log,env=env)
+    emulator = ['flatpak', 'run', f'--filesystem={output.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
+    version = subprocess.run(emulator+['--version'],capture_output=True,text=True,env=env).stdout.strip()
+    process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol)],stdout=log,stderr=log,env=env)
     stages = []
 
     def capture(name):
@@ -95,26 +102,12 @@ ForceFiltering = False
             time.sleep(.5)
         raise RuntimeError(f'{name}: expected {expected}, saw {text}')
 
-    def focus():
-        result = subprocess.run(['xdotool','search','--onlyvisible','--pid',str(process.pid)],capture_output=True,text=True)
-        windows = result.stdout.split()
-        if not windows:
-            raise RuntimeError('No visible Dolphin window for controller input')
-        largest = None
-        area = 0
-        for window in windows:
-            geometry = subprocess.run(['xdotool','getwindowgeometry','--shell',window],capture_output=True,text=True)
-            values = dict(re.findall(r'^(\w+)=(\d+)$',geometry.stdout,re.M))
-            candidate = int(values.get('WIDTH','0'))*int(values.get('HEIGHT','0'))
-            if candidate>area:
-                area,largest=candidate,window
-        subprocess.run(['xdotool','windowfocus','--sync',largest],check=True)
-
     def tap(key):
-        focus()
-        subprocess.run(['xdotool','keydown','--clearmodifiers',key],check=True)
+        buttons = {'x':'A', 'z':'B', 'Right':'D_RIGHT', 'Left':'D_LEFT', 'Up':'D_UP', 'Down':'D_DOWN'}
+        button = buttons[key]
+        os.write(pipe_fd, f'PRESS {button}\n'.encode('ascii'))
         time.sleep(.30)
-        subprocess.run(['xdotool','keyup',key],check=True)
+        os.write(pipe_fd, f'RELEASE {button}\n'.encode('ascii'))
         time.sleep(.30)
 
     try:
@@ -144,6 +137,8 @@ ForceFiltering = False
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
             process.kill();process.wait(timeout=5)
+        os.close(pipe_fd)
+        controller.unlink(missing_ok=True)
         log.close()
         (output/'ocr-input.png').unlink(missing_ok=True)
 
