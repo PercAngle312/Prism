@@ -58,6 +58,17 @@ jobs:
         path: swiss/prism-hardware/*.dol
         if-no-files-found: error
 
+    - name: Capture linked CPU symbols for startup diagnostics
+      working-directory: swiss
+      run: |
+        mkdir -p prism-symbols
+        ${DEVKITPPC}/bin/powerpc-eabi-nm -n cube/swiss/swiss.elf > prism-symbols/swiss-symbols.txt
+        ${DEVKITPPC}/bin/powerpc-eabi-objdump -d cube/swiss/swiss.elf > prism-symbols/swiss-disassembly.txt
+    - uses: actions/upload-artifact@v4
+      with:
+        name: PRISM-CPU-symbols
+        path: swiss/prism-symbols/*.txt
+
     - name: Upload Swiss artifacts
       uses: actions/upload-artifact@main
       with:

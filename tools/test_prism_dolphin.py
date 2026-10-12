@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import struct
+import socket
 import time
 from pathlib import Path
 from PIL import ImageGrab, Image
@@ -25,6 +26,10 @@ def run(dol, output, boot_only=False, dsp_hle=False):
     user = output/'user'
     config = user/'Config'
     config.mkdir(parents=True, exist_ok=True)
+    # A loopback-only debugger gives failed boots a concrete PC and stack.
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', 0))
+        gdb_port = probe.getsockname()[1]
     core_settings = '''[Core]
 CPUCore = 1
 DualCore = False
@@ -55,6 +60,7 @@ ShowLag = False
 '''
     if dsp_hle:
         core_settings = core_settings.replace('DSPHLE = False', 'DSPHLE = True')
+    core_settings += f'GDBPort = {gdb_port}\n'
     (config/'Dolphin.ini').write_text(core_settings)
     pipes = user/'Pipes'
     pipes.mkdir(parents=True, exist_ok=True)
@@ -102,6 +108,55 @@ ForceFiltering = False
         stream.seek(0x2000);stream.write(dol.read_bytes())
     process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol),'--config',f'Dolphin.Core.DefaultISO={disc}'],stdout=log,stderr=log,env=env)
     stages = []
+    debugger = None
+
+    def packet(command):
+        payload = command.encode('ascii')
+        debugger.sendall(b'$'+payload+b'#'+f'{sum(payload)%256:02x}'.encode())
+
+    def reply():
+        while debugger.recv(1) != b'$':
+            pass
+        data = bytearray()
+        while True:
+            byte = debugger.recv(1)
+            if not byte:
+                raise RuntimeError('Debugger disconnected')
+            if byte == b'#':
+                break
+            data.extend(byte)
+        checksum = debugger.recv(2)
+        if int(checksum, 16) != sum(data)%256:
+            raise RuntimeError('Debugger checksum mismatch')
+        debugger.sendall(b'+')
+        return data.decode('ascii')
+
+    def debug_snapshot():
+        if debugger is None:
+            return
+        debugger.sendall(b'\x03')
+        reply()
+        registers = {}
+        for name, index in [('pc',64),('lr',67),('sp',1),('srr0',112),('srr1',113),('r3',3),('r4',4),('r5',5)]:
+            packet(f'p{index:x}')
+            registers[name] = reply()
+        sp = int(registers['sp'],16)
+        frames = []
+        for _ in range(12):
+            if sp % 4 or not 0x80003100 <= sp <= 0x817fffe0:
+                break
+            packet(f'm{sp:x},10')
+            raw = reply()
+            if len(raw) != 32:
+                break
+            words = struct.unpack('>IIII', bytes.fromhex(raw))
+            frames.append({'sp':f'{sp:08x}', 'backchain':f'{words[0]:08x}', 'saved_lr':f'{words[1]:08x}'})
+            if words[0] <= sp:
+                break
+            sp = words[0]
+        (output/'cpu-snapshot.json').write_text(json.dumps({'registers':registers,'frames':frames},indent=2))
+        print('Dolphin CPU snapshot:', json.dumps(registers), flush=True)
+
 
     def capture(name):
         path = output/(name+'.png')
@@ -136,7 +191,18 @@ ForceFiltering = False
         time.sleep(.30)
 
     try:
-        wait('01-boot', ['PRISM BOOT CHECK V3'],timeout=60)
+        deadline = time.monotonic()+30
+        while debugger is None and time.monotonic()<deadline:
+            try:
+                debugger = socket.create_connection(('127.0.0.1',gdb_port),timeout=2)
+            except OSError:
+                time.sleep(.25)
+        if debugger is None:
+            raise RuntimeError('Dolphin GDB connection unavailable')
+        debugger.settimeout(5)
+        packet('?');reply()
+        packet('c')
+        wait('01-boot' , ['PRISM BOOT CHECK V3'],timeout=60)
         if boot_only:
             (output/'result.json').write_text(json.dumps({'status':'passed','emulator':version, 'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot checkpoint only','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest()},indent=2))
             return
@@ -157,9 +223,15 @@ ForceFiltering = False
             'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot, home, D-pad/A/B input, PRISM notices, return to Classic Swiss. No game/storage/hardware test.'}
         (output/'result.json').write_text(json.dumps(report,indent=2))
     except Exception as exc:
+        try:
+            debug_snapshot()
+        except Exception as debug_error:
+            print(f'CPU snapshot failed: {debug_error}',flush=True)
         (output/'result.json').write_text(json.dumps({'status':'failed','error':str(exc),'emulator':version,'dsp':'HLE' if dsp_hle else 'LLE','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),'stages':stages},indent=2))
         raise
     finally:
+        if debugger is not None:
+            debugger.close()
         process.terminate()
         try:
             process.wait(timeout=10)
