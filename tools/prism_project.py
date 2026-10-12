@@ -117,6 +117,31 @@ class LibraryProject:
         else:
             self.covers.pop(key, None)
 
+    def import_cover_folder(self, folder):
+        """Fill missing covers using files named GAMEID.png/jpg/jpeg.
+
+        Does not overwrite curated artwork. All changes are transactional.
+        """
+        folder = Path(folder)
+        if not folder.is_dir():
+            raise ValueError('Cover folder does not exist')
+        pending = self.clone()
+        added = 0
+        for key in sorted(pending.games):
+            if key in pending.covers:
+                continue
+            candidates = [folder / (key + suffix) for suffix in ('.png', '.jpg', '.jpeg')]
+            matches = [path for path in candidates if path.is_file()]
+            if not matches:
+                continue
+            source = matches[0]
+            if source.stat().st_size > MAX_IMAGE_BYTES:
+                raise ValueError(f'{key}: cover exceeds 10 MiB')
+            pending.put(pending.games[key], cover=source.read_bytes(), old_id=key)
+            added += 1
+        self.games, self.covers = pending.games, pending.covers
+        return added
+
     def remove(self, key):
         self.games.pop(key, None)
         self.covers.pop(key, None)
