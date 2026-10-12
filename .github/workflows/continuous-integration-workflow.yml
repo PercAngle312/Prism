@@ -65,7 +65,8 @@ jobs:
         path: swiss/swiss_r*/*
 
   dolphin-ui:
-    name: PRISM Dolphin UI smoke
+    name: PRISM Dolphin startup diagnostic (experimental)
+    continue-on-error: true
     permissions:
       contents: read
       actions: read

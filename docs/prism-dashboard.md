@@ -429,3 +429,19 @@ with up to 31 zero bytes at EOF, preserving every original byte, header,
 address and section size. Both Dolphin and the hardware artifact use this
 same packaged file. Regression tests cover every final-block remainder,
 unchanged aligned files and invalid/truncated input.
+
+### Current Dolphin result (2026-10-12)
+
+Dolphin 2609a accepts and loads the padded DOL in GameCube mode, but did not
+render the PRISM boot checkpoint. The earlier hardware-confirmed `9b14b721`
+build reproduces the same pre-checkpoint black screen with the matched HLE
+profile and generated diagnostic disc. LLE attempts also did not reach the
+checkpoint. This is not an emulator UI pass; no new UI regression was identified
+by this comparison, and the hardware-confirmed startup is preserved.
+
+The Dolphin job is explicitly an experimental, non-blocking startup diagnostic.
+Its failed screenshot/JSON/core-log artifacts remain visible for investigation;
+its outcome must not be described as UI validation. Native build, DOL packaging
+and host checks remain required. No game launch, installed-artwork, GC Loader
+or SD2SP2 emulator validation has been performed. Real hardware visual/input
+validation of this new shell remains deferred.

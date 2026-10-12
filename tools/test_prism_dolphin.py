@@ -2,9 +2,9 @@
 """Run the actual PRISM DOL in Dolphin and verify UI routes with screenshot OCR.
 
 Requires a private X display (xvfb-run), Dolphin Qt, Pillow and
-Tesseract. This uses no game disc/BIOS/assets and no emulated game storage.
+Tesseract. No commercial game data or BIOS dump is used; installed-game storage is not emulated.
 A generated, empty homebrew disc supplies a deterministic closed DVD drive.
-It verifies boot/home/notices/native Swiss return; it does not test games,
+It attempts boot/home/notices/native Swiss return; it does not test games,
 GC Loader, SD2SP2, installed covers or hardware timing.
 """
 import argparse
