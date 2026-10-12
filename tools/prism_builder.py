@@ -320,6 +320,15 @@ class Builder:
         if self.closed:
             return
         try:
+            while True:
+                update = self.progress_events.get_nowait()
+                self.status.set(
+                    f"Metadata: {update['completed']}/{update['total']} complete | "
+                    f"{update['provider']} checking {update['id']} | "
+                    f"{update['checked']} lookups")
+        except queue.Empty:
+            pass
+        try:
             future, completed = self.results.get_nowait()
         except queue.Empty:
             pass
