@@ -14,12 +14,17 @@ XML = b'''<?xml version="1.0"?>
     <locale lang="EN"><title>Wind Waker</title><synopsis>Explore the sea.</synopsis></locale>
   </game>
   <game name="bad"><id>../bad</id></game>
+  <game name="Wii"><id>RZDE01</id><locale lang="EN"><title>Wii Zelda</title></locale></game>
+  <game name="Wii demo"><id>D2SE18</id><locale lang="EN"><title>Wii sports demo</title></locale></game>
+  <game name="GC bonus"><id>D43E01</id><type>GameCube</type><locale lang="EN"><title>Bonus disc</title></locale></game>
+  <game name="Other platform"><id>GTEST1</id><type>Homebrew</type></game>
 </datafile>'''
 
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / 'gcn.xml'
     path.write_bytes(XML)
-    assert len(read_gametdb(path)) == 2
+    catalog = read_gametdb(path)
+    assert set(catalog) == {'GM8E01', 'GZLE01', 'D43E01'}
     p = LibraryProject()
     p.put({'id': 'GM8E01', 'title': 'Custom title', 'synopsis': ''})
     result = import_gametdb(p, path, full_catalog=False)
@@ -27,7 +32,11 @@ with tempfile.TemporaryDirectory() as tmp:
     assert p.games['GM8E01']['title'] == 'Custom title'
     assert p.games['GM8E01']['synopsis'] == 'Explore Tallon IV.'
     result = import_gametdb(p, path, full_catalog=True)
-    assert result['added'] == 1 and len(p.games) == 2
+    assert result['added'] == 2 and len(p.games) == 3
+    p.put({'id':'GM8E01', 'title':'Edited title', 'synopsis':'Keep my edited description.'}, old_id='GM8E01')
+    import_gametdb(p, path, full_catalog=False)
+    assert p.games['GM8E01']['title'] == 'Edited title'
+    assert p.games['GM8E01']['synopsis'] == 'Keep my edited description.'
     assert p.games['GZLE01']['synopsis'] == 'Explore the sea.'
     path.write_bytes(b'<!DOCTYPE x [<!ENTITY y SYSTEM "file:///etc/passwd">]><datafile/>')
     try:

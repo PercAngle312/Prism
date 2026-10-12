@@ -460,9 +460,9 @@ class Builder:
         if not name:
             return
         full = messagebox.askyesno('GameTDB catalog mode',
-            'Import EVERY title from this GameTDB database?\\n\\n'
-            'Yes: build a full offline GameCube catalog (including uninstalled games).\\n'
-            'No: enrich only games already in this project.\\n\\n'
+            'Import every GameCube title from this GameTDB database?\n\n'
+            'Yes: build a full offline GameCube catalog (including uninstalled games).\n'
+            'No: enrich only games already in this project.\n\n'
             'Existing titles, covers and manually written synopses are preserved.',
             parent=self.root)
         snapshot = self.project.clone()
@@ -471,6 +471,7 @@ class Builder:
         def accepted(result):
             self.project, stats = result
             self.dirty |= bool(stats['added'] or stats['enriched'])
+            self.load_form(self.selected if self.selected in self.project.games else None)
             self.refresh_list()
             self.status.set(f"GameTDB: {stats['matched']} indexed, "
                             f"{stats['added']} added, {stats['enriched']} synopses filled.")

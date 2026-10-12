@@ -59,6 +59,11 @@ def read_gametdb(path, language='EN'):
         gid = _text(game, 'id').upper()
         if not re.fullmatch(r'[A-Z0-9]{6}', gid):
             continue
+        game_type = _text(game, 'type').casefold()
+        # D-prefixed Wii demos exist too: the explicit GameCube type is
+        # authoritative. Legacy databases without a type may use G disc IDs.
+        if game_type != 'gamecube' and not (not game_type and gid.startswith('G')):
+            continue
         locales = [e for e in game if _local(e.tag) == 'locale']
         preferred = next((e for e in locales if e.get('lang', '').upper() == language.upper()), None)
         if preferred is None:
