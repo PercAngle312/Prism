@@ -46,7 +46,9 @@ class Builder:
         style.configure('TEntry', padding=5)
         style.configure('Treeview', rowheight=28, background=FIELD, fieldbackground=FIELD, foreground=TEXT)
         style.map('Treeview', background=[('selected', '#285e62')])
-        style.configure('TNotebook.Tab', padding=(16, 8))
+        style.configure('TNotebook', background=PANEL, borderwidth=0)
+        style.configure('TNotebook.Tab', padding=(16, 8), background=FIELD, foreground=MUTED)
+        style.map('TNotebook.Tab', background=[('selected', '#285e62'), ('active', '#29404a')], foreground=[('selected', TEXT)])
         root.columnconfigure(0, weight=1)
         root.rowconfigure(2, weight=1)
         header = ttk.Frame(root, padding=(18, 12))
@@ -75,7 +77,7 @@ class Builder:
         ttk.Entry(sidebar, textvariable=self.filter, width=29).grid(row=0, column=0, sticky='ew', pady=(0, 8))
         self.filter.trace_add('write', lambda *_: self.refresh_list())
         ttk.Label(sidebar, text='Search by title or disc ID', foreground=MUTED).grid(row=1, column=0, sticky='w', pady=(0, 8))
-        self.list = ttk.Treeview(sidebar, columns=('title',), show='tree', selectmode='browse', height=15)
+        self.list = ttk.Treeview(sidebar, show='tree', selectmode='browse', height=15)
         self.list.column('#0', width=260, stretch=False)
         self.list.grid(row=2, column=0, sticky='ns')
         scroll = ttk.Scrollbar(sidebar, orient='vertical', command=self.list.yview)
@@ -446,7 +448,12 @@ def smoke_test(output):
             app.project.put({'id': 'GM8E01', 'title': 'PRISM smoke test', 'synopsis': 'Generated test content.'}, raw.getvalue())
             app.load_form('GM8E01')
             app.refresh_list()
+            root.deiconify()
+            app.tabs.select(1)
             root.update()
+            assert app.list.winfo_reqwidth() <= 300, 'Unused list columns must not steal preview space'
+            assert app.preview.winfo_width() >= 640, 'Full console canvas must fit in the window'
+            assert app.preview.canvas.winfo_width() == 640
             assert app.preview.image_ref is not None
             app.project.save(folder/'test.prism-project')
             project = LibraryProject.load(folder/'test.prism-project')
