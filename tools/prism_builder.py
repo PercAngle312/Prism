@@ -34,6 +34,7 @@ class Builder:
         self.closed = False
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.results = queue.Queue()
+        self.progress_events = queue.Queue()
         self.preview_work = tempfile.TemporaryDirectory(prefix='prism-preview-')
         root.title('PRISM Studio')
         root.geometry('1080x760')
@@ -507,7 +508,8 @@ class Builder:
             snapshot = self.project.clone()
             def job():
                 return snapshot, enrich_project(snapshot, gametdb=settings.pop('gametdb', '') or None,
-                                                credentials=settings)
+                                                credentials=settings,
+                                                progress=self.progress_events.put)
             def accepted(result):
                 self.project, stats = result
                 self.dirty |= bool(stats['enriched'])
