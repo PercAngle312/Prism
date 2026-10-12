@@ -101,23 +101,10 @@ jobs:
           pattern: PRISM-UI-*
           path: dolphin-dol
           merge-multiple: true
-      - name: Download earlier hardware-confirmed baseline for comparison
-        id: baseline
-        continue-on-error: true
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: PRISM-UI-9b14b7214f53
-          run-id: 38184086189
-          github-token: ${{ github.token }}
-          path: dolphin-baseline
-      - name: Compare baseline startup under Dolphin DSP HLE
-        if: steps.baseline.outcome == 'success'
-        continue-on-error: true
-        env:
-          PRISM_DOLPHIN_FLATPAK: 1
-        run: |
-          /usr/bin/python3 tools/prism_dol.py dolphin-baseline/PRISM-UI-9b14b7214f53.dol dolphin-baseline/padded-baseline.dol
-          xvfb-run -a -s '-screen 0 1280x960x24' /usr/bin/python3 tools/test_prism_dolphin.py dolphin-baseline/padded-baseline.dol dolphin-ui-results/baseline-hle --boot-only --dsp-hle
+          name: PRISM-CPU-symbols
+          path: dolphin-symbols
       - name: Verify and launch the exact built PRISM DOL
         env:
           PRISM_DOLPHIN_FLATPAK: 1
@@ -130,7 +117,7 @@ jobs:
           source = subprocess.check_output(['git', 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
           assert files[0].name == f'PRISM-UI-{source}.dol', files[0]
           subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', '/usr/bin/python3',
-              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results', '--dsp-hle'], check=True)
+              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results', '--dsp-hle', '--symbols', 'dolphin-symbols/swiss-symbols.txt'], check=True)
           PYTHON
       - name: Upload Dolphin screenshots and result
         if: always()

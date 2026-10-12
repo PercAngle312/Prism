@@ -20,7 +20,7 @@ from pathlib import Path
 from PIL import ImageGrab, Image
 
 
-def run(dol, output, boot_only=False, dsp_hle=False):
+def run(dol, output, boot_only=False, dsp_hle=False, symbols=None):
     dol, output = Path(dol).resolve(), Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     user = output/'user'
@@ -140,6 +140,7 @@ ForceFiltering = False
         for name, index in [('pc',64),('lr',67),('sp',1),('srr0',112),('srr1',113),('r3',3),('r4',4),('r5',5)]:
             packet(f'p{index:x}')
             registers[name] = reply()
+            print(f"CPU {name}: {registers[name]}", flush=True)
         sp = int(registers['sp'],16)
         frames = []
         for _ in range(12):
@@ -200,7 +201,33 @@ ForceFiltering = False
         if debugger is None:
             raise RuntimeError('Dolphin GDB connection unavailable')
         debugger.settimeout(5)
-        packet('?');reply()
+        debugger.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        packet('?');print('GDB handshake:', reply(), flush=True)
+        packet('p40');print('GDB initial PC:',reply(),flush=True)
+        if symbols:
+            mapping = {}
+            for line in Path(symbols).read_text().splitlines():
+                fields = line.split()
+                if len(fields) == 3:
+                    mapping[fields[2]] = int(fields[0],16)
+            targets = {mapping[name]:name for name in ['__InitSystem','SYS_Init','__SYS_PreInit','__dsp_bootstrap','main','Initialise'] if name in mapping}
+            for address in targets:
+                packet(f'Z1,{address:x},4')
+                assert reply() == 'OK'
+            trace = []
+            while targets:
+                packet('c')
+                stop = reply()
+                packet('p40');pc = int(reply(),16)
+                name = targets.pop(pc, 'unexpected stop')
+                trace.append({'pc':f'{pc:08x}','symbol':name,'stop':stop})
+                (output/'startup-trace.json').write_text(json.dumps(trace,indent=2))
+                print('CPU reached:', name, f'{pc:08x}', flush=True)
+                packet(f'z1,{pc:x},4');reply()
+                if name == 'Initialise':
+                    for address in targets:
+                        packet(f'z1,{address:x},4');reply()
+                    break
         packet('c')
         wait('01-boot' , ['PRISM BOOT CHECK V3'],timeout=60)
         if boot_only:
@@ -252,5 +279,6 @@ if __name__=='__main__':
     parser.add_argument('output',type=Path)
     parser.add_argument('--boot-only',action='store_true')
     parser.add_argument('--dsp-hle',action='store_true')
+    parser.add_argument('--symbols',type=Path)
     args=parser.parse_args()
-    run(args.dol,args.output,args.boot_only,args.dsp_hle)
+    run(args.dol,args.output,args.boot_only,args.dsp_hle,args.symbols)
