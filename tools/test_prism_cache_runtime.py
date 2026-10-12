@@ -89,6 +89,8 @@ with tempfile.TemporaryDirectory() as folder:
 browser = source[source.index('static int prism_installed_browser'):source.index('static void prism_dashboard_bootstrap')]
 assert 'screen = DrawRepublish(screen, panel);' in browser
 assert 'displayed_slots | incoming_slots' in browser
+assert 'DrawTexObj(cover_texture,' in browser
+assert 'DrawTexObj(&cover_texture,' not in browser
 assert 'if (panel) DrawDispose(panel);' not in browser
 assert browser.index('DrawDispose(screen);\n                screen = NULL;') < browser.index('find_existing_entry_exact(')
 print('GX-cache adapter: read reuse, missing art, pinned pixels, alignment, OOM retry and frame guards passed')

@@ -551,7 +551,7 @@ static int prism_installed_browser(int quiet_if_empty)
                 PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH, PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT,
                 (GXColor){37, 52, 78, 255}));
             if (has_cover)
-                DrawAddChild(panel, DrawTexObj(&cover_texture,
+                DrawAddChild(panel, DrawTexObj(cover_texture,
                     PRISM_COVER_X, PRISM_COVER_Y, PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT,
                     0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
             else
