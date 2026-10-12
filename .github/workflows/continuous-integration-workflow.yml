@@ -64,7 +64,45 @@ jobs:
         name: swiss-gc
         path: swiss/swiss_r*/*
 
-
-
-
-
+  dolphin-ui:
+    name: PRISM Dolphin UI smoke
+    needs: build
+    if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Dolphin and screenshot test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dolphin-emu xvfb xauth xdotool tesseract-ocr python3-pil
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PRISM-UI-*
+          path: dolphin-dol
+          merge-multiple: true
+      - name: Verify and launch the exact built PRISM DOL
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import subprocess
+          files = list(Path('dolphin-dol').glob('*.dol'))
+          assert len(files) == 1, files
+          source = subprocess.check_output(['git', 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
+          assert files[0].name == f'PRISM-UI-{source}.dol', files[0]
+          subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', 'python3',
+              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results'], check=True)
+          PYTHON
+      - name: Upload Dolphin screenshots and result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Dolphin-UI-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            dolphin-ui-results/*.png
+            dolphin-ui-results/*.txt
+            dolphin-ui-results/*.json
+            dolphin-ui-results/dolphin.log
+          if-no-files-found: warn

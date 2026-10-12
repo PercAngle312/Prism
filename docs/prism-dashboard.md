@@ -403,3 +403,18 @@ roundtrip, cover preview and export verification. Host tests also read a Studio
 export through the actual portable GameCube pack reader. The Windows build is
 portable (extract the entire folder); it does not require Python installation.
 Automatic website synopsis retrieval remains future work.
+
+## UI cleanup and Dolphin checks
+
+PRISM notices use the same flat shell as the home and library. Empty storage,
+missing packs, changed games and About no longer fall back to Swiss-styled
+message boxes. A/B/START dismiss these notices only after releasing the button
+that opened them. Return-to-home input masks ignore any buttons still held.
+Controller hints occupy measured cells with coloured action labels.
+
+The Swiss build workflow now runs the exact single-DOL artifact in Dolphin
+on a private virtual display. It captures screenshots and OCR evidence for
+startup, home, directional selection, About, missing catalog, empty installed
+library and return to Classic Swiss. No BIOS or game disc is provided. This
+smoke test does not validate installed artwork, launches, GC Loader, SD2SP2 or
+real-hardware timing. Host tests retain coverage for those portable paths.
