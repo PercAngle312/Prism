@@ -94,6 +94,10 @@ ForceFiltering = False
     log = (output/'dolphin.log').open('w')
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
     emulator = ['flatpak', 'run', f'--filesystem={output.parent}', f'--filesystem={dol.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
+    nogui = os.environ.get('PRISM_DOLPHIN_BINARY')
+    if nogui:
+        emulator = [str(Path(nogui).resolve())]
+    launch_options = ['-p', 'x11'] if nogui else ['-b']
     version = subprocess.run(emulator+['--version'],capture_output=True,text=True,env=env).stdout.strip()
     # No commercial game data: just our executable and an empty GameCube FST.
     disc = output/'diagnostic.iso'
@@ -109,7 +113,7 @@ ForceFiltering = False
         stream.seek(0x1000);stream.write(struct.pack('>III',0x01000000,0,1))
         stream.seek(0x2450);stream.write(struct.pack('>III',0xffffffff,0,0))
         stream.seek(0x10000);stream.write(dol.read_bytes())
-    process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol),'--config',f'Dolphin.Core.DefaultISO={disc}'],stdout=log,stderr=log,env=env)
+    process = subprocess.Popen(emulator+launch_options+['-u',str(user),'-e',str(dol),'--config',f'Dolphin.Core.DefaultISO={disc}'],stdout=log,stderr=log,env=env)
     stages = []
     debugger = None
 
@@ -213,7 +217,7 @@ ForceFiltering = False
                 fields = line.split()
                 if len(fields) == 3:
                     mapping[fields[2]] = int(fields[0],16)
-            targets = {mapping[name]:name for name in ['__InitBATS','__InitHardware','__InitPS','__InitFPRS','__InitCache','__InitSystem','SYS_Init','__SYS_PreInit','__dsp_bootstrap','main','Initialise'] if name in mapping}
+            targets = {mapping[name]:name for name in ['__InitBATS','__InitHardware','__InitPS','__InitFPRS','__InitCache','__InitSystem','SYS_Init','__SYS_PreInit','__dsp_bootstrap','main','__eabi','gameID_init','initSRAM','refreshSRAM','Initialise'] if name in mapping}
             for address in targets:
                 packet(f'Z1,{address:x},4')
                 assert reply() == 'OK'
@@ -234,7 +238,7 @@ ForceFiltering = False
         packet('c')
         wait('01-boot' , ['PRISM BOOT CHECK V3'],timeout=60)
         if boot_only:
-            (output/'result.json').write_text(json.dumps({'status':'passed','emulator':version, 'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot checkpoint only','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest()},indent=2))
+            (output/'result.json').write_text(json.dumps({'status':'passed','emulator':version,'emulator_variant':os.environ.get('PRISM_DOLPHIN_VARIANT','stock'), 'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot checkpoint only','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest()},indent=2))
             return
         tap('x')
         wait('02-home',['YOUR GAME LIBRARY'],timeout=90)
@@ -253,7 +257,7 @@ ForceFiltering = False
         tap('z');wait('08-return-library',['YOUR GAME LIBRARY'])
         tap('z')
         wait('09-classic-swiss',['SWISS','SELECT A DEVICE','DEVICE SELECTION'],forbidden='YOUR GAME LIBRARY')
-        report={'status':'passed','emulator':version,'dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),
+        report={'status':'passed','emulator':version,'emulator_variant':os.environ.get('PRISM_DOLPHIN_VARIANT','stock'),'dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),
             'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot, home, D-pad/A/B input, PRISM notices, return to Classic Swiss. No game/storage/hardware test.'}
         (output/'result.json').write_text(json.dumps(report,indent=2))
     except Exception as exc:
@@ -261,7 +265,7 @@ ForceFiltering = False
             debug_snapshot()
         except Exception as debug_error:
             print(f'CPU snapshot failed: {debug_error}',flush=True)
-        (output/'result.json').write_text(json.dumps({'status':'failed','error':str(exc),'emulator':version,'dsp':'HLE' if dsp_hle else 'LLE','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),'stages':stages},indent=2))
+        (output/'result.json').write_text(json.dumps({'status':'failed','error':str(exc),'emulator':version,'emulator_variant':os.environ.get('PRISM_DOLPHIN_VARIANT','stock'),'dsp':'HLE' if dsp_hle else 'LLE','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),'stages':stages},indent=2))
         raise
     finally:
         if debugger is not None:
