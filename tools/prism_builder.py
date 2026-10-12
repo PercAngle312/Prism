@@ -70,6 +70,7 @@ class Builder:
                                ('Save', self.save_project), ('Save as', lambda: self.save_project(True)),
                                ('Scan games folder', self.scan_games), ('Import JSON', self.import_json),
                                ('Import GameTDB', self.import_gametdb_xml),
+                               ('Import covers', self.import_covers_folder),
                                ('Scrape missing', self.scrape_missing),
                                ('Export pack', self.package)]:
             button = ttk.Button(toolbar, text=title, command=command)
@@ -465,6 +466,23 @@ class Builder:
             self.status.set(f"GameTDB: {stats['matched']} indexed, "
                             f"{stats['added']} added, {stats['enriched']} synopses filled.")
         self.run_job('Importing GameTDB metadata…', import_data, accepted)
+
+    def import_covers_folder(self):
+        if not self.guard_edits():
+            return
+        folder = filedialog.askdirectory(parent=self.root, title='Choose a folder of GAMEID.png or GAMEID.jpg covers')
+        if not folder:
+            return
+        snapshot = self.project.clone()
+        def operation():
+            return snapshot, snapshot.import_cover_folder(folder)
+        def accepted(result):
+            self.project, count = result
+            self.dirty |= bool(count)
+            self.load_form(self.selected if self.selected in self.project.games else None)
+            self.refresh_list()
+            self.status.set(f'Imported {count} missing covers. Existing artwork preserved.')
+        self.run_job('Importing missing cover artwork…', operation, accepted)
 
     def scrape_missing(self):
         if not self.guard_edits():
