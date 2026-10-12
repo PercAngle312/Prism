@@ -110,6 +110,7 @@ uiDrawObj_t* DrawProgressLoading(int miniModePos);
 uiDrawObj_t* DrawContainer();
 uiDrawObj_t* DrawMessageBox(int type, const char *message);
 uiDrawObj_t* DrawSelectableButton(int x1, int y1, int x2, int y2, const char *message, int mode);
+uiDrawObj_t* DrawSolidBox(int x1, int y1, int x2, int y2, GXColor colour);
 uiDrawObj_t* DrawEmptyBox(int x1, int y1, int x2, int y2);
 uiDrawObj_t* DrawEmptyColouredBox(int x1, int y1, int x2, int y2, GXColor colour);
 uiDrawObj_t* DrawTransparentBox(int x1, int y1, int x2, int y2);
@@ -144,3 +145,4 @@ void DrawShutdown();
 void DrawVideoMode(GXRModeObj *videoMode);
 
 #endif
+

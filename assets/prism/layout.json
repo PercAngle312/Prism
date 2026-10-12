@@ -48,5 +48,13 @@
     "title_y": 390,
     "status_y": 411,
     "footer_y": 432
+  },
+  "home": {
+    "x": 54,
+    "y": 139,
+    "width": 254,
+    "height": 113,
+    "stride_x": 278,
+    "stride_y": 135
   }
 }

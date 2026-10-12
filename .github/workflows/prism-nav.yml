@@ -21,6 +21,8 @@ on:
       - 'cube/swiss/source/gui/prism_cover_cache.*'
       - 'tests/prism_cover_cache_test.c'
       - 'tools/test_prism_cache_runtime.py'
+      - 'tools/test_prism_solid_box.py'
+      - 'cube/swiss/source/gui/FrameBufferMagic.*'
       - 'tests/prism_nav_test.c'
       - 'tests/prism_game_test.c'
       - 'tests/prism_library_test.c'
@@ -76,6 +78,8 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -o /tmp/prism-cache-test tests/prism_cover_cache_test.c cube/swiss/source/gui/prism_cover_cache.c
           /tmp/prism-cache-test
+      - name: Verify exact PRISM solid fill and legacy Swiss renderer
+        run: python3 tools/test_prism_solid_box.py
       - name: Verify native cover-cache adapter and frame guards
         run: python3 tools/test_prism_cache_runtime.py
       - name: Build and run measured text layout tests

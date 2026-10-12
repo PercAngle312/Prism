@@ -45,16 +45,16 @@ jobs:
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "YOUR GAME LIBRARY"
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "X: Details"
         ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_cover_cache_reserve"
-        cp cube/swiss/swiss.dol "prism-hardware/PRISM-CACHE-${commit}.dol"
-        cmp cube/swiss/swiss.dol "prism-hardware/PRISM-CACHE-${commit}.dol"
-        sha256sum "prism-hardware/PRISM-CACHE-${commit}.dol"
+        cp cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
+        cmp cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
+        sha256sum "prism-hardware/PRISM-UI-${commit}.dol"
         echo "commit=${commit}" >> "$GITHUB_OUTPUT"
 
     - name: Upload single PRISM hardware DOL
       if: steps.prism.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: PRISM-CACHE-${{ steps.prism.outputs.commit }}
+        name: PRISM-UI-${{ steps.prism.outputs.commit }}
         path: swiss/prism-hardware/*.dol
         if-no-files-found: error
 

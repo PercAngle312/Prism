@@ -32,6 +32,7 @@ expected = {
 }
 expected.update({"PRISM_STATUS_" + key.upper(): value for key, value in layout["status"].items()})
 expected.update({"PRISM_FLOW_" + key.upper(): value for key, value in layout["coverflow"].items()})
+expected.update({"PRISM_HOME_" + key.upper(): value for key, value in layout["home"].items()})
 assert macros == expected, (macros, expected)
 # Swiss's box helper expands frames by 10px. Keep glyph areas clear of frames.
 cover = layout["cover"]
@@ -51,3 +52,11 @@ assert flow["footer_y"] + 12 <= layout["panel"]["bottom"]
 assert flow["side_width"] * cover["height"] == flow["side_height"] * cover["width"]
 print("PRISM desktop/GameCube layout coordinates agree")
 
+
+home = layout['home']
+assert home['x'] - 2 >= layout['panel']['x']
+assert home['y'] > layout['header']['subtitle_y'] + 25
+assert home['x'] + home['stride_x'] + home['width'] + 2 <= layout['panel']['right']
+assert home['y'] + home['stride_y'] + home['height'] + 2 < 417
+assert home['stride_x'] > home['width'] + 4
+assert home['stride_y'] > home['height'] + 4

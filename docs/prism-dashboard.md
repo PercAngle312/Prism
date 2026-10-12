@@ -370,3 +370,20 @@ This pass retains frames during loading; it does not implement motion animation.
 
 
 The native cache adapter is additionally exercised with mocked GX/device services: positive and missing hits skip repeat reads, pinned pixel data stays unchanged, all six buffers stay bounded/aligned, and allocation failure retries without a false missing-art result. These are host adapter checks, not a GPU or hardware runtime test.
+
+## PRISM UI shell pass
+
+The home screen uses a 2x2 tile layout. Left/right switch columns; up/down
+switch rows. A opens the focused tile, and B/START still enters Classic Swiss.
+The PRISM shell now uses flat, exact-bounds fills, teal focus edges and muted
+header/footer dividers. The three-cover shelf keeps its cached artwork and
+selected-cover emphasis. Swiss's legacy framed boxes are unchanged.
+
+Offline catalog details now read cover textures from the same pack/cache
+adapter as the installed library. The catalog is read-only; only the installed
+library performs source-path and disc-header checks before native game info.
+Catalog L/R jumps ten entries, clamping at the ends. Metadata/art reads retain
+the previous frame until the replacement is published.
+
+This composition has host layout/renderer checks and requires a future real
+GameCube visual check. The startup checkpoint remains intentionally visible.

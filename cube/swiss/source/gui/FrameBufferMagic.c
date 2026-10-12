@@ -181,6 +181,7 @@ typedef struct drawBoxEvent {
 	int x2;
 	int y2;
 	GXColor backfill;
+	bool solid;
 } drawBoxEvent_t;
 
 typedef struct drawFileBrowserButtonEvent {
@@ -1432,10 +1433,31 @@ uiDrawObj_t* DrawFileCarouselEntry(int x1, int y1, int x2, int y2, const char *m
 // Internal
 static void _DrawEmptyBox(uiDrawObj_t *evt) {
 	drawBoxEvent_t *data = (drawBoxEvent_t*)evt->data;
+	if (data->solid) {
+		GX_SetNumTevStages(1);
+		GX_SetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_RASC);
+		GX_SetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_RASA);
+		_drawRect(data->x1, data->y1, data->x2-data->x1, data->y2-data->y1,
+			0, data->backfill, 0, 1, 0, 1);
+		return;
+	}
 	
 	GXColor borderColor = (GXColor) {200,200,200,GUI_MSGBOX_ALPHA}; //Silver
 	
 	_DrawSimpleBox(data->x1, data->y1, data->x2-data->x1, data->y2-data->y1, 0, data->backfill, borderColor);
+}
+
+/* Exact bounds, untextured fill; existing Swiss box events stay unchanged. */
+uiDrawObj_t* DrawSolidBox(int x1, int y1, int x2, int y2, GXColor colour)
+{
+	drawBoxEvent_t *data = calloc(1, sizeof(*data));
+	data->x1 = x1; data->y1 = y1; data->x2 = x2; data->y2 = y2;
+	data->backfill = colour;
+	data->solid = true;
+	uiDrawObj_t *event = calloc(1, sizeof(*event));
+	event->type = EV_EMPTYBOX;
+	event->data = data;
+	return event;
 }
 
 // External
@@ -2381,3 +2403,4 @@ void DrawVideoMode(GXRModeObj *videoMode)
 	}
 	LWP_MutexUnlock(_videomutex);
 }
+
