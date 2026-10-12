@@ -254,6 +254,49 @@ static void prism_draw_wrapped(uiDrawObj_t *panel, const char *text,
     }
 }
 
+/* A compact cover shelf: central selection stays prominent on a 4:3 TV. */
+static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *game,
+                                   GXTexObj *texture, int has_cover,
+                                   int x, int y, int width, int height)
+{
+    if (!game) return;
+    DrawAddChild(panel, DrawEmptyColouredBox(x, y, x + width, y + height,
+        (GXColor){29, 42, 65, 255}));
+    if (has_cover)
+        DrawAddChild(panel, DrawTexObj(texture, x, y, width, height,
+            0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
+    else {
+        prism_draw_wrapped(panel, game->title, x + 8, y + 28, width - 16,
+            0.65f, 4, 18, (GXColor){204, 218, 239, 255});
+        DrawAddChild(panel, DrawStyledLabel(x + width / 2, y + height - 24,
+            "NO COVER", 0.55f, ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+    }
+}
+
+static void prism_draw_coverflow(uiDrawObj_t *panel, const PrismLibrary *library,
+                                  GXTexObj *texture, int has_cover,
+                                  GXTexObj side_textures[2], int side_covers[2],
+                                  const char *title)
+{
+    prism_draw_cover_card(panel, prism_library_neighbor(library, -1),
+        &side_textures[0], side_covers[0], PRISM_FLOW_LEFT_X, PRISM_FLOW_SIDE_Y,
+        PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
+    prism_draw_cover_card(panel, prism_library_neighbor(library, 1),
+        &side_textures[1], side_covers[1], PRISM_FLOW_RIGHT_X, PRISM_FLOW_SIDE_Y,
+        PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
+    prism_draw_cover_card(panel, prism_library_selected(library),
+        texture, has_cover, PRISM_FLOW_CENTER_X, PRISM_FLOW_CENTER_Y,
+        PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT);
+    PrismTextMeasure measure = {500, 0.85f};
+    const char *cursor = title;
+    char label[128];
+    if (prism_text_next(&cursor, label, sizeof(label), prism_text_fits, &measure)) {
+        if (*cursor) prism_text_elide(label, sizeof(label), prism_text_fits, &measure);
+        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FLOW_TITLE_Y, label,
+            0.85f, ALIGN_CENTER, (GXColor){225, 235, 255, 255}));
+    }
+}
+
 static uiDrawObj_t *prism_draw_home(int selection)
 {
     uiDrawObj_t *panel = prism_draw_panel("YOUR GAME LIBRARY");
@@ -373,7 +416,11 @@ static int prism_installed_browser(int quiet_if_empty)
     int has_pack = 0;
     void *cover_buffer = NULL;
     GXTexObj cover_texture;
-    u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT;
+    void *side_buffers[2] = {NULL, NULL};
+    GXTexObj side_textures[2];
+    int details = 0;
+    u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT |
+               BUTTON_X | BUTTON_L | BUTTON_R;
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
         if (quiet_if_empty) return 0;
@@ -437,31 +484,53 @@ static int prism_installed_browser(int quiet_if_empty)
                              GX_ANISO_1);
             has_cover = 1;
         }
+        int side_covers[2] = {0, 0};
+        if (!details && has_pack) {
+            for (int side = 0; side < 2; ++side) {
+                const PrismLibraryGame *neighbor = prism_library_neighbor(library, side ? 1 : -1);
+                if (!neighbor) continue;
+                if (!side_buffers[side]) side_buffers[side] = memalign(32, PRISM_COVER_TEXTURE_SIZE);
+                if (side_buffers[side] && prism_pack_device_cover(metadata_device, pack_path,
+                    neighbor->id, side_buffers[side], PRISM_COVER_TEXTURE_SIZE)) {
+                    DCFlushRange(side_buffers[side], PRISM_COVER_TEXTURE_SIZE);
+                    GX_InitTexObj(&side_textures[side], side_buffers[side], PRISM_COVER_WIDTH,
+                        PRISM_COVER_HEIGHT, GX_TF_RGB565, GX_CLAMP, GX_CLAMP, GX_FALSE);
+                    GX_InitTexObjLOD(&side_textures[side], GX_LINEAR, GX_LINEAR,
+                        0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE, GX_ANISO_1);
+                    side_covers[side] = 1;
+                }
+            }
+        }
         snprintf(heading, sizeof(heading), "INSTALLED GAMES  |  %lu / %lu",
             (unsigned long)(library->selected + 1),
             (unsigned long)library->count);
         panel = prism_draw_panel(heading);
         DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y,
             game->id, 0.72f, ALIGN_RIGHT, (GXColor){170, 194, 229, 255}));
-        DrawAddChild(panel, DrawEmptyColouredBox(PRISM_COVER_X, PRISM_COVER_Y,
-            PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH, PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT,
-            (GXColor){37, 52, 78, 255}));
-        if (has_cover)
-            DrawAddChild(panel, DrawTexObj(&cover_texture,
-                PRISM_COVER_X, PRISM_COVER_Y, PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT,
-                0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
-        else
-            DrawAddChild(panel, DrawStyledLabel(PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH / 2,
-                PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT / 2, "NO COVER", 0.72f,
-                ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
-        prism_draw_wrapped(panel, title, PRISM_TEXT_X, PRISM_TITLE_Y,
-            PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
-        DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
-            "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-        prism_draw_wrapped(panel,
-            synopsis[0] ? synopsis : "Metadata not available for this disc.",
-            PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
-            6, 22, (GXColor){204, 218, 239, 255});
+        if (!details) {
+            prism_draw_coverflow(panel, library, &cover_texture, has_cover,
+                side_textures, side_covers, title);
+        } else {
+            DrawAddChild(panel, DrawEmptyColouredBox(PRISM_COVER_X, PRISM_COVER_Y,
+                PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH, PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT,
+                (GXColor){37, 52, 78, 255}));
+            if (has_cover)
+                DrawAddChild(panel, DrawTexObj(&cover_texture,
+                    PRISM_COVER_X, PRISM_COVER_Y, PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT,
+                    0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
+            else
+                DrawAddChild(panel, DrawStyledLabel(PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH / 2,
+                    PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT / 2, "NO COVER", 0.72f,
+                    ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+            prism_draw_wrapped(panel, title, PRISM_TEXT_X, PRISM_TITLE_Y,
+                PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
+            DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
+                "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
+            prism_draw_wrapped(panel,
+                synopsis[0] ? synopsis : "Metadata not available for this disc.",
+                PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
+                6, 22, (GXColor){204, 218, 239, 255});
+        }
         char scan_status[100];
         if (paths->truncated)
             snprintf(scan_status, sizeof(scan_status),
@@ -474,13 +543,17 @@ static int prism_installed_browser(int quiet_if_empty)
         else
             snprintf(scan_status, sizeof(scan_status),
                 "%s | /games + game folders", device->deviceName);
-        float status_scale = GetTextScaleToFitInWidth(scan_status, 500);
-        if (status_scale > 0.65f) status_scale = 0.65f;
-        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FOOTER_LINE_Y, scan_status, status_scale,
-            ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
-        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FOOTER_LABELS_Y,
-            "LEFT/RIGHT: Browse   A: Game info   B: Return", 0.72f,
-            ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
+        float status_scale = GetTextScaleToFitInWidth(scan_status,
+            details ? PRISM_STATUS_WIDTH : 500);
+        if (status_scale > 0.6f) status_scale = 0.6f;
+        DrawAddChild(panel, DrawStyledLabel(details ? PRISM_STATUS_X : 320,
+            details ? PRISM_STATUS_Y : PRISM_FLOW_STATUS_Y, scan_status, status_scale,
+            details ? ALIGN_LEFT : ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
+        DrawAddChild(panel, DrawStyledLabel(320,
+            details ? PRISM_FOOTER_LABELS_Y : PRISM_FLOW_FOOTER_Y,
+            details ? "LEFT/RIGHT: Browse  L/R: 10  X: Covers  A: Game info  B: Return" :
+                      "LEFT/RIGHT: Browse  L/R: 10  X: Details  A: Game info  B: Return",
+            0.65f, ALIGN_CENTER, (GXColor){185, 200, 225, 255}));
         panel = DrawPublish(panel);
         for (;;) {
             held = padsButtonsHeld();
@@ -489,6 +562,8 @@ static int prism_installed_browser(int quiet_if_empty)
             if (pressed & (BUTTON_B | BUTTON_START)) {
                 DrawDispose(panel);
                 free(cover_buffer);
+                free(side_buffers[0]);
+                free(side_buffers[1]);
                 free(paths);
                 free(library);
                 return 1;
@@ -505,7 +580,7 @@ static int prism_installed_browser(int quiet_if_empty)
                     while (padsButtonsHeld() & (BUTTON_A | BUTTON_B)) VIDEO_WaitVSync();
                     while (!(padsButtonsHeld() & (BUTTON_A | BUTTON_B))) VIDEO_WaitVSync();
                     DrawDispose(error);
-                    last = BUTTON_A | BUTTON_B | BUTTON_START;
+                    last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_X | BUTTON_L | BUTTON_R;
                     continue;
                 }
                 DrawDispose(panel);
@@ -526,6 +601,14 @@ static int prism_installed_browser(int quiet_if_empty)
                 last = BUTTON_A | BUTTON_B | BUTTON_START;
                 break; /* Cancellation/errors redraw the same PRISM selection. */
             }
+            if (pressed & BUTTON_X) {
+                details = !details;
+                break;
+            }
+            if (pressed & (BUTTON_L | BUTTON_R)) {
+                prism_library_step(library, (pressed & BUTTON_R) ? 10 : -10);
+                break;
+            }
             if (pressed & BUTTON_RIGHT) {
                 prism_library_move(library, 1);
                 break;
@@ -539,6 +622,8 @@ static int prism_installed_browser(int quiet_if_empty)
         if (panel) DrawDispose(panel);
     }
     free(cover_buffer);
+    free(side_buffers[0]);
+    free(side_buffers[1]);
     free(paths);
     free(library);
     return 1;
@@ -958,6 +1043,7 @@ void refreshDeviceCode(bool subdevice) {
 			break;
 	}
 }
+
 
 
 

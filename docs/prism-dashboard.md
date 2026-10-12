@@ -304,3 +304,32 @@ discovery has been physically verified. The pack format is unchanged:
 keep the existing `swiss/prism/library.prism`; diagnostic covers remain
 diagnostic artwork. Deliverable: `PRISM-UI-<commit>.dol`.
 
+
+## Aurora-inspired cover browsing (October 11, 2026)
+
+**Design direction:** Aurora on Xbox 360 is the inspiration for PRISM's
+cover-focused browsing and clear selected-game details. PRISM uses its own
+interface and the existing Swiss backend.
+
+The user reported that build `9b14b721` worked on hardware. Their photos show
+the full PRISM interface and 144 discovered games, beyond the old 128-entry
+limit. The library photo also shows the storage-status text crowding the
+cover's bottom frame. This is the preserved baseline for the next build.
+
+Installed games now default to a three-card cover shelf: a large centered
+selection and smaller neighbors. Missing art uses the native game title on
+the card. Up to three aligned RGB565 buffers are reused (about 253 KiB total);
+neighbor art is read only for valid adjacent entries and only in cover mode.
+X switches to the synopsis/details view without changing selection.
+LEFT/RIGHT moves one game, L/R jumps ten with bounds clamping, A retains
+Swiss game info and B/START returns. No 3D animation is implemented yet.
+
+The details status now lives in the right column, clear of the cover frame.
+Controls have a separate lower footer. Shared layout checks account for
+Swiss's 10px box expansion, cover proportions, and title/status/footer gaps.
+Navigation tests cover neighbor boundaries, paging, exact source identity
+and extreme deltas without signed overflow. Startup and the native Swiss
+launch flow are unchanged. The new layout is CI-tested but awaits hardware
+validation. Keep the same `swiss/prism/library.prism`.
+Deliverable: `PRISM-COVERFLOW-<commit>.dol`.
+

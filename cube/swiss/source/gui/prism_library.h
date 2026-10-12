@@ -26,7 +26,10 @@ int prism_library_add(PrismLibrary *library, const char *id,
                       const char *title, unsigned short source_index);
 void prism_library_sort(PrismLibrary *library);
 void prism_library_move(PrismLibrary *library, int direction);
+void prism_library_step(PrismLibrary *library, int delta);
+const PrismLibraryGame *prism_library_neighbor(const PrismLibrary *library, int offset);
 const PrismLibraryGame *prism_library_selected(const PrismLibrary *library);
 
 #endif
+
 

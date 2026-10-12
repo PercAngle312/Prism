@@ -67,12 +67,41 @@ void prism_library_sort(PrismLibrary *library)
     library->selected = 0;
 }
 
+void prism_library_step(PrismLibrary *library, int delta)
+{
+    size_t amount, remaining;
+    if (!library || !library->count || library->count > PRISM_LIBRARY_MAX_GAMES ||
+        library->selected >= library->count) return;
+    if (delta < 0) {
+        amount = (size_t)(0u - (unsigned int)delta);
+        library->selected = amount > library->selected ? 0 : library->selected - amount;
+    } else {
+        amount = (size_t)(unsigned int)delta;
+        remaining = library->count - 1 - library->selected;
+        library->selected += amount > remaining ? remaining : amount;
+    }
+}
+
 void prism_library_move(PrismLibrary *library, int direction)
 {
-    if (!library || !library->count) return;
-    if (direction < 0 && library->selected > 0) --library->selected;
-    else if (direction > 0 && library->selected + 1 < library->count)
-        ++library->selected;
+    prism_library_step(library, direction < 0 ? -1 : direction > 0 ? 1 : 0);
+}
+
+const PrismLibraryGame *prism_library_neighbor(const PrismLibrary *library, int offset)
+{
+    size_t amount, index;
+    if (!library || !library->count || library->count > PRISM_LIBRARY_MAX_GAMES ||
+        library->selected >= library->count) return NULL;
+    if (offset < 0) {
+        amount = (size_t)(0u - (unsigned int)offset);
+        if (amount > library->selected) return NULL;
+        index = library->selected - amount;
+    } else {
+        amount = (size_t)(unsigned int)offset;
+        if (amount > library->count - 1 - library->selected) return NULL;
+        index = library->selected + amount;
+    }
+    return &library->games[index];
 }
 
 const PrismLibraryGame *prism_library_selected(const PrismLibrary *library)
@@ -80,3 +109,4 @@ const PrismLibraryGame *prism_library_selected(const PrismLibrary *library)
     if (!library || library->selected >= library->count) return NULL;
     return &library->games[library->selected];
 }
+
