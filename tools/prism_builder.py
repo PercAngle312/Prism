@@ -13,6 +13,7 @@ from PIL import Image, ImageTk
 
 from prism_download import download_cover
 from prism_gametdb import import_gametdb
+from prism_scrape import enrich_project
 from prism_preview import PrismPreview
 from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, validate_image, verify_pack
 
@@ -68,6 +69,7 @@ class Builder:
                                ('Save', self.save_project), ('Save as', lambda: self.save_project(True)),
                                ('Scan games folder', self.scan_games), ('Import JSON', self.import_json),
                                ('Import GameTDB', self.import_gametdb_xml),
+                               ('Scrape missing', self.scrape_missing),
                                ('Export pack', self.package)]:
             button = ttk.Button(toolbar, text=title, command=command)
             button.pack(side='left', padx=3)
@@ -453,6 +455,68 @@ class Builder:
             self.status.set(f"GameTDB: {stats['matched']} indexed, "
                             f"{stats['added']} added, {stats['enriched']} synopses filled.")
         self.run_job('Importing GameTDB metadata…', import_data, accepted)
+
+    def scrape_missing(self):
+        if not self.guard_edits():
+            return
+        if self.project.system != 'gamecube':
+            messagebox.showinfo('GameCube only', 'The first provider integration supports GameCube.', parent=self.root)
+            return
+        if not self.project.games:
+            messagebox.showinfo('Empty library', 'Scan or import games first.', parent=self.root)
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title('Scrape missing metadata — official sources')
+        dialog.geometry('620x450')
+        dialog.transient(self.root)
+        dialog.grab_set()
+        panel = ttk.Frame(dialog, padding=18)
+        panel.pack(fill='both', expand=True)
+        ttk.Label(panel, text='Search in order: GameTDB → ScreenScraper → TheGamesDB → IGDB → MobyGames → LaunchBox → RAWG',
+                  wraplength=560).pack(anchor='w', pady=(0, 8))
+        ttk.Label(panel, text='Only GameTDB, TheGamesDB, IGDB and MobyGames have connectors in this version. '
+                  'Unsupported or unconfigured providers are skipped. Existing synopses are never replaced.',
+                  wraplength=560).pack(anchor='w', pady=(0, 10))
+        entries = {}
+        for key, label in [('gametdb', 'Local GameTDB XML/ZIP (optional)'),
+                           ('thegamesdb', 'TheGamesDB API key'),
+                           ('igdb_client', 'IGDB / Twitch Client ID'),
+                           ('igdb_token', 'IGDB / Twitch access token'),
+                           ('mobygames', 'MobyGames API key')]:
+            line = ttk.Frame(panel)
+            line.pack(fill='x', pady=3)
+            ttk.Label(line, text=label, width=29).pack(side='left')
+            value = tk.StringVar()
+            ttk.Entry(line, textvariable=value, show='*' if key in ('thegamesdb', 'igdb_token', 'mobygames') else '').pack(
+                side='left', fill='x', expand=True)
+            entries[key] = value
+        def choose_database():
+            name = filedialog.askopenfilename(parent=dialog, filetypes=[('GameTDB XML or ZIP', '*.xml *.zip')])
+            if name:
+                entries['gametdb'].set(name)
+        ttk.Button(panel, text='Browse GameTDB file…', command=choose_database).pack(anchor='w', pady=7)
+        ttk.Label(panel, text='Keys are used for this lookup only and are not saved in your project. '
+                  'API descriptions may have redistribution restrictions. Review before exporting.',
+                  wraplength=560).pack(anchor='w', pady=8)
+        def start():
+            settings = {key: value.get().strip() for key, value in entries.items()}
+            if not any(settings.values()):
+                messagebox.showinfo('No sources', 'Choose a GameTDB database or enter API credentials.', parent=dialog)
+                return
+            dialog.destroy()
+            snapshot = self.project.clone()
+            def job():
+                return snapshot, enrich_project(snapshot, gametdb=settings.pop('gametdb', '') or None,
+                                                credentials=settings)
+            def accepted(result):
+                self.project, stats = result
+                self.dirty |= bool(stats['enriched'])
+                self.refresh_list()
+                self.status.set(f"Metadata lookup: {stats['enriched']} synopses added; "
+                                f"{stats['checked']} queries; skipped {', '.join(stats['skipped']) or 'none'}; "
+                                f"{len(stats['errors'])} lookup errors.")
+            self.run_job('Fetching missing metadata…', job, accepted)
+        ttk.Button(panel, text='Fetch missing synopses', command=start).pack(anchor='e', pady=8)
 
     def package(self):
         if not self.guard_edits():
