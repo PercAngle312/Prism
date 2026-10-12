@@ -91,6 +91,9 @@ def enrich_project(project, *, gametdb=None, credentials=None, request=_json_req
         ('LaunchBox', None),
         ('RAWG', None),
     ]
+    total = len(pending.games)
+    stats['total'] = total
+    stats['completed'] = sum(bool(g.get('synopsis', '').strip()) for g in pending.games.values())
     # MobyGames documents 1 request/sec and 720/hour for noncommercial keys;
     # slow down even when earlier providers fill some entries.
     for name, fn in providers:
@@ -103,7 +106,7 @@ def enrich_project(project, *, gametdb=None, credentials=None, request=_json_req
             if game.get('synopsis', '').strip():
                 continue
             if progress:
-                progress(name, gid)
+                progress({'provider': name, 'id': gid, 'checked': stats['checked'], 'completed': stats['completed'], 'total': total})
             stats['checked'] += 1
             try:
                 result = fn(game)
@@ -118,9 +121,11 @@ def enrich_project(project, *, gametdb=None, credentials=None, request=_json_req
                 updated['synopsis'] = _short(result['synopsis'], 191)
                 pending.put(updated, old_id=gid)
                 count += 1
+                stats['completed'] += 1
             if name == 'MobyGames':
                 sleep(5.1)
         stats['sources'][name] = count
         stats['enriched'] += count
+    stats['missing'] = total - stats['completed']
     project.games, project.covers = pending.games, pending.covers
     return stats
