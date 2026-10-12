@@ -8,6 +8,7 @@ import io
 import re
 import zipfile
 import xml.etree.ElementTree as ET
+from prism_project import MAX_PROJECT_SYNOPSIS, console_synopsis
 
 MAX_XML = 32 * 1024 * 1024
 
@@ -71,11 +72,11 @@ def read_gametdb(path, language='EN'):
         title = (_text(preferred, 'title') if preferred is not None else '') or game.get('name', '') or gid
         synopsis = _text(preferred, 'synopsis') if preferred is not None else ''
         games[gid] = {'id': gid, 'title': _short(title, 96) or gid,
-                      'synopsis': _short(synopsis, 191)}
+                      'synopsis': _short(synopsis, MAX_PROJECT_SYNOPSIS)}
     return games
 
 
-def import_gametdb(project, path, full_catalog=False):
+def import_gametdb(project, path, full_catalog=False, expand_shortened=False):
     """Atomically add metadata; never overwrite a user's edited entries.
 
     full_catalog=True includes uninstalled titles, up to the pack's capacity.
@@ -83,7 +84,7 @@ def import_gametdb(project, path, full_catalog=False):
     """
     catalog = read_gametdb(path)
     pending = project.clone()
-    added = updated = 0
+    added = updated = expanded = 0
     for gid, game in sorted(catalog.items()):
         if gid in pending.games:
             existing = dict(pending.games[gid])
@@ -92,8 +93,13 @@ def import_gametdb(project, path, full_catalog=False):
                 existing['synopsis'] = game['synopsis']
                 pending.put(existing, old_id=gid)
                 updated += 1
+            elif expand_shortened and len(game['synopsis'].encode('utf-8')) > 191 and existing.get('synopsis') in (
+                    _short(game['synopsis'], 191), console_synopsis(game['synopsis'])):
+                existing['synopsis'] = game['synopsis']
+                pending.put(existing, old_id=gid)
+                expanded += 1
         elif full_catalog:
             pending.put(game)
             added += 1
     project.games, project.covers = pending.games, pending.covers
-    return {'matched': len(catalog), 'added': added, 'enriched': updated}
+    return {'matched': len(catalog), 'added': added, 'enriched': updated + expanded, 'expanded': expanded}

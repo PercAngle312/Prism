@@ -1,4 +1,20 @@
-# PRISM Studio 0.4 for Windows
+# PRISM Studio 0.5 for Windows
+
+Studio preserves full descriptions up to 4096 UTF-8 bytes in editable projects.
+The preview uses all available synopsis space and supports mouse-wheel or
+scrollbar reading. The existing GameCube pack still holds a 191-byte summary;
+export shortens long descriptions at a word boundary with an ellipsis while
+retaining the full text and original cover in your saved project. Use Studio
+0.5 or newer to reopen projects containing long descriptions.
+
+To merge a mixed Wii/GameCube GameTDB database into your backups project, use
+**Import GameTDB**, choose the XML, and answer **No** to the full-catalog prompt.
+This fills missing synopsis by exact GameCube disc ID and preserves edited
+titles, existing descriptions and covers. **Yes** adds all GameCube records,
+including uninstalled titles; Wii titles and Wii demos are excluded. The selected
+game's editor and scrolling preview refresh after import. Exact short prefixes
+from earlier GameTDB imports are expanded to the full database description.
+Other existing text is kept. Save your project after merging.
 
 ## Install PRISM to a GameCube SD card
 
@@ -84,7 +100,8 @@ it. **Remove cover** takes effect when you apply the edit. **Delete** removes an
 entry from the project, not from your game storage.
 
 The current pack format allows a title of 96 UTF-8 bytes and synopsis of 191
-UTF-8 bytes. The editor displays the synopsis byte count. Unicode characters
+UTF-8 bytes. Editable projects keep up to 4096 synopsis bytes. The editor displays
+both the project limit and console summary limit. Unicode characters
 can use multiple bytes. The reference URL is saved in the project for your
 records; it is not embedded in the current console pack.
 

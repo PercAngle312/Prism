@@ -35,6 +35,21 @@ class ProjectTests(unittest.TestCase):
         self.project = LibraryProject()
         self.project.put({'id': 'GM8E01', 'title': 'Prime', 'synopsis': 'Curated description.'}, cover())
 
+    def test_full_synopsis_roundtrip_and_bounded_console_export(self):
+        text = 'Generated long description with Unicode é and complete sentences. ' * 35
+        self.project.put({'id':'GM8E01', 'title':'Prime', 'synopsis':text}, old_id='GM8E01')
+        path = self.folder/'full.prism-project'; self.project.save(path)
+        loaded = LibraryProject.load(path)
+        self.assertEqual(loaded.games['GM8E01']['synopsis'], text)
+        pack = self.folder/'full.prism'; loaded.export(pack)
+        self.assertEqual(verify_pack(pack), 1)
+        raw = pack.read_bytes()
+        _, _, offset, title, synopsis, _ = struct.unpack_from('<6sHIHHI', raw, 16)
+        self.assertLessEqual(synopsis, 191)
+        self.assertTrue(raw[offset+title:offset+title+synopsis].decode('utf-8').endswith('...'))
+        self.assertEqual(loaded.games['GM8E01']['synopsis'], text)
+        self.assertEqual(loaded.covers, self.project.covers)
+
     def test_roundtrip_and_deterministic_pack(self):
         self.project.put({'id': 'GALE01', 'title': 'Melee'})
         path = self.folder/'library.prism-project'
@@ -88,7 +103,7 @@ class ProjectTests(unittest.TestCase):
     def test_utf8_limits_and_types(self):
         for game in [{'id': 'bad', 'title': 'X'}, {'id': 'GM8E01', 'title': ''},
                      {'id': 'GM8E01', 'title': 'é'*49}, {'id': 'GM8E01', 'title': None},
-                     {'id': 'GM8E01', 'title': 'X', 'synopsis': 'é'*96},
+                     {'id': 'GM8E01', 'title': 'X', 'synopsis': 'é'*2049},
                      {'id': 'GM8E01', 'title': 'X\0Y'}]:
             with self.subTest(game=game), self.assertRaises(ValueError):
                 validate_game(game)

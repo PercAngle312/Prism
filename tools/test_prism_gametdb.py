@@ -19,6 +19,8 @@ XML = b'''<?xml version="1.0"?>
   <game name="GC bonus"><id>D43E01</id><type>GameCube</type><locale lang="EN"><title>Bonus disc</title></locale></game>
   <game name="Other platform"><id>GTEST1</id><type>Homebrew</type></game>
 </datafile>'''
+XML = XML.replace(b'<title>Bonus disc</title>', b'<title>Bonus disc</title><synopsis>' +
+                  b'Generated complete description. ' * 30 + b'</synopsis>')
 
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / 'gcn.xml'
@@ -34,10 +36,16 @@ with tempfile.TemporaryDirectory() as tmp:
     result = import_gametdb(p, path, full_catalog=True)
     assert result['added'] == 2 and len(p.games) == 3
     p.put({'id':'GM8E01', 'title':'Edited title', 'synopsis':'Keep my edited description.'}, old_id='GM8E01')
-    import_gametdb(p, path, full_catalog=False)
+    import_gametdb(p, path, full_catalog=False, expand_shortened=True)
     assert p.games['GM8E01']['title'] == 'Edited title'
     assert p.games['GM8E01']['synopsis'] == 'Keep my edited description.'
     assert p.games['GZLE01']['synopsis'] == 'Explore the sea.'
+    assert len(p.games['D43E01']['synopsis']) > 191
+    full_description = p.games['D43E01']['synopsis']
+    p.put({'id':'D43E01','title':'My bonus disc','synopsis':full_description[:191].strip()}, old_id='D43E01')
+    stats = import_gametdb(p, path, expand_shortened=True)
+    assert stats['expanded'] == 1 and p.games['D43E01']['synopsis'] == full_description
+    assert p.games['D43E01']['title'] == 'My bonus disc'
     path.write_bytes(b'<!DOCTYPE x [<!ENTITY y SYSTEM "file:///etc/passwd">]><datafile/>')
     try:
         read_gametdb(path)

@@ -12,6 +12,7 @@ from prism_pack import build, MAX_GAMES
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_PROJECT_BYTES = 128 * 1024 * 1024
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
+MAX_PROJECT_SYNOPSIS = 4096
 PROJECT_VERSION = 1
 SYSTEMS = {
     'gamecube': ('GameCube', 'library.prism', '/swiss/prism/'),
@@ -24,6 +25,16 @@ SYSTEMS = {
 }
 
 
+def console_synopsis(text):
+    if len(text.encode('utf-8')) <= 191:
+        return text
+    prefix = text.encode('utf-8')[:188].decode('utf-8', errors='ignore')
+    last_space = prefix.rfind(' ')
+    if last_space > len(prefix) // 2:
+        prefix = prefix[:last_space]
+    return prefix.rstrip() + '...'
+
+
 def validate_game(game):
     if not isinstance(game, dict):
         raise ValueError('Each game must be an object')
@@ -31,7 +42,7 @@ def validate_game(game):
     if not isinstance(game_id, str) or not re.fullmatch(r'[A-Z0-9]{6}', game_id):
         raise ValueError('Game ID must be six uppercase letters/digits')
     clean = {'id': game_id}
-    for key, limit in [('title', 96), ('synopsis', 191), ('info_url', 2048)]:
+    for key, limit in [('title', 96), ('synopsis', MAX_PROJECT_SYNOPSIS), ('info_url', 2048)]:
         value = game.get(key, '')
         if not isinstance(value, str) or '\0' in value or len(value.encode('utf-8')) > limit:
             raise ValueError(f'{game_id}: {key} must be text of at most {limit} UTF-8 bytes')
@@ -162,6 +173,8 @@ class LibraryProject:
 
     def save(self, path):
         manifest = json.dumps(self.manifest(), ensure_ascii=False, indent=2).encode('utf-8')
+        if len(manifest) > MAX_MANIFEST_BYTES:
+            raise ValueError('Project metadata exceeds 16 MiB; split the library into smaller projects')
         def write(target):
             with zipfile.ZipFile(target, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
                 archive.writestr('catalog.json', manifest)
@@ -247,7 +260,12 @@ class LibraryProject:
         with tempfile.TemporaryDirectory(prefix='prism-export-') as folder:
             workspace = Path(folder)
             manifest = workspace/'catalog.json'
-            manifest.write_text(json.dumps(self.manifest(), ensure_ascii=False), encoding='utf-8')
+            data = self.manifest()
+            # The editable project retains full text; the existing console
+            # format/reader receives a bounded summary without mutating it.
+            for game in data['games']:
+                game['synopsis'] = console_synopsis(game.get('synopsis', ''))
+            manifest.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
             for key, raw in self.covers.items():
                 (workspace/f'{key}.png').write_bytes(raw)
             def write(target):

@@ -15,7 +15,7 @@ from prism_download import download_cover
 from prism_gametdb import import_gametdb
 from prism_scrape import enrich_project
 from prism_preview import PrismPreview
-from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, validate_image, verify_pack
+from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, MAX_PROJECT_SYNOPSIS, validate_image, verify_pack
 from prism_install import card_candidates, require_card_root, install, dashboard_bytes, DASHBOARD_BUILD
 
 BG, PANEL, FIELD, TEXT, MUTED, ACCENT = '#090e18', '#101825', '#1c293a', '#e9f1f7', '#aabdcf', '#4ddbc9'
@@ -167,7 +167,7 @@ class Builder:
         root.after(100, self.poll)
 
     def update_count(self, _event=None):
-        self.byte_count.set(f'{len(self.synopsis.get("1.0", "end-1c").encode("utf-8"))} / 191 UTF-8 bytes')
+        self.byte_count.set(f'{len(self.synopsis.get("1.0", "end-1c").encode("utf-8"))} / {MAX_PROJECT_SYNOPSIS} bytes saved | Console summary: 191 bytes')
         self.synopsis.edit_modified(False)
 
     def read_form(self):
@@ -463,18 +463,18 @@ class Builder:
             'Import every GameCube title from this GameTDB database?\n\n'
             'Yes: build a full offline GameCube catalog (including uninstalled games).\n'
             'No: enrich only games already in this project.\n\n'
-            'Existing titles, covers and manually written synopses are preserved.',
+            'Existing titles, covers and edited text are preserved. Exact older truncated copies are expanded.',
             parent=self.root)
         snapshot = self.project.clone()
         def import_data():
-            return snapshot, import_gametdb(snapshot, name, full_catalog=full)
+            return snapshot, import_gametdb(snapshot, name, full_catalog=full, expand_shortened=True)
         def accepted(result):
             self.project, stats = result
             self.dirty |= bool(stats['added'] or stats['enriched'])
             self.load_form(self.selected if self.selected in self.project.games else None)
             self.refresh_list()
             self.status.set(f"GameTDB: {stats['matched']} indexed, "
-                            f"{stats['added']} added, {stats['enriched']} synopses filled.")
+                            f"{stats['added']} added, {stats['enriched']} synopses filled/expanded.")
         self.run_job('Importing GameTDB metadata…', import_data, accepted)
 
     def import_covers_folder(self):
@@ -729,12 +729,15 @@ def smoke_test(output):
             root.update()
             assert app.preview.synopsis_text.get('1.0', 'end-1c') == 'Complete short synopsis.'
             assert app.preview.synopsis_text.yview()[0] == 0
+            saved_full_synopsis = 'Generated complete stored description. ' * 30
+            app.project.put({'id':'GM8E01', 'title':'PRISM smoke test', 'synopsis':saved_full_synopsis}, old_id='GM8E01')
             app.system_name.set('Nintendo 64')
             app.choose_system()
             assert app.project.system == 'n64' and app.dirty
             app.project.save(folder/'test.prism-project')
             project = LibraryProject.load(folder/'test.prism-project')
             assert project.system == 'n64'
+            assert project.games['GM8E01']['synopsis'] == saved_full_synopsis
             project.export(folder/'library.prism')
             assert verify_pack(folder/'library.prism') == 1
             card = folder / 'sd-card'
@@ -762,7 +765,8 @@ def smoke_test(output):
             Path(output).write_text(json.dumps({'status': 'passed', 'tk': root.tk.call('info', 'patchlevel'),
                 'project_roundtrip': True, 'pack_verified': True, 'cover_preview': True,
                 'installer_dialog': True, 'sd_install_verified': True, 'dashboard_build': DASHBOARD_BUILD,
-                'rom_scan_and_index_install': True, 'synopsis_preview_scroll': True}), encoding='utf-8')
+                'rom_scan_and_index_install': True, 'synopsis_preview_scroll': True,
+                'full_synopsis_project_roundtrip': True}), encoding='utf-8')
     finally:
         app.closed = True
         app.executor.shutdown(wait=True)
