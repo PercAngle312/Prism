@@ -16,6 +16,7 @@ from prism_gametdb import import_gametdb
 from prism_scrape import enrich_project
 from prism_preview import PrismPreview
 from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, validate_image, verify_pack
+from prism_install import card_candidates, require_card_root, install, dashboard_bytes, DASHBOARD_BUILD
 
 BG, PANEL, FIELD, TEXT, MUTED, ACCENT = '#090e18', '#101825', '#1c293a', '#e9f1f7', '#aabdcf', '#4ddbc9'
 
@@ -76,7 +77,7 @@ class Builder:
                                ('Import GameTDB', self.import_gametdb_xml),
                                ('Import covers', self.import_covers_folder),
                                ('Scrape missing', self.scrape_missing),
-                               ('Export pack', self.package)]):
+                               ('Export pack', self.package), ('Install PRISM', self.install_prism)]):
             button = ttk.Button(primary_tools if index < 6 else secondary_tools, text=title, command=command)
             button.pack(side='left', padx=3)
             self.commands.append(button)
@@ -569,6 +570,82 @@ class Builder:
                 messagebox.showinfo('Library exported', f'{name}\n\nCopy as {destination}{filename} on Swiss config storage.\n' + ('Choose the ROM inside your GameCube emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else ''), parent=self.root)
             self.run_job(f'Converting covers and building {filename}…', export, accepted)
 
+    def install_prism(self, candidates=None):
+        if self.busy or not self.guard_edits():
+            return
+        dialog = tk.Toplevel(self.root)
+        self.install_dialog = dialog
+        dialog.title('Install PRISM to SD card')
+        dialog.transient(self.root)
+        dialog.grab_set()
+        panel = ttk.Frame(dialog, padding=18)
+        panel.pack(fill='both', expand=True)
+        ttk.Label(panel, text='Install to your GameCube SD card', font=('Segoe UI', 15, 'bold')).pack(anchor='w')
+        ttk.Label(panel, text='Swiss markers suggest a GameCube card. Verify the selected drive before installing.',
+                  wraplength=620).pack(anchor='w', pady=(8, 12))
+        choice = tk.StringVar()
+        picker = ttk.Combobox(panel, textvariable=choice, state='readonly', width=80)
+        picker.pack(fill='x')
+        choices = {}
+        def refresh():
+            choices.clear()
+            for item in card_candidates() if candidates is None else candidates:
+                label = f"{item['root']}  —  {item['reason']}"
+                choices[label] = item['root']
+            picker.configure(values=list(choices))
+            choice.set(next(iter(choices), ''))
+        def browse():
+            name = filedialog.askdirectory(parent=dialog, title='Choose the root of your SD-card drive')
+            if name:
+                label = str(Path(name)) + '  —  Manually selected SD-card root'
+                choices[label] = Path(name)
+                picker.configure(values=list(choices))
+                choice.set(label)
+        controls = ttk.Frame(panel)
+        controls.pack(anchor='w', pady=8)
+        ttk.Button(controls, text='Refresh drives', command=refresh).pack(side='left', padx=(0, 8))
+        ttk.Button(controls, text='Choose SD-card root…', command=browse).pack(side='left')
+        dashboard = tk.BooleanVar(value=True)
+        pack = tk.BooleanVar(value=bool(self.project.games))
+        self.install_dashboard_var, self.install_pack_var = dashboard, pack
+        ttk.Checkbutton(panel, text=f'Install PRISM dashboard build {DASHBOARD_BUILD} as /PRISM.dol',
+                        variable=dashboard).pack(anchor='w', pady=5)
+        _, filename, destination = SYSTEMS[self.project.system]
+        pack_button = ttk.Checkbutton(panel, text=f'Export and install this project as {destination}{filename}', variable=pack)
+        pack_button.pack(anchor='w', pady=5)
+        if not self.project.games:
+            pack_button.configure(state='disabled')
+        ttk.Label(panel, text='Existing destination files get verified .backup copies. Swiss settings, boot files, '
+                  'ROMs and saves are preserved. Launch PRISM.dol in Swiss after installing. '
+                  'Keep the card connected until verification finishes, then safely eject it in Windows.',
+                  wraplength=620, foreground=MUTED).pack(anchor='w', pady=12)
+        def start():
+            try:
+                if choice.get() not in choices:
+                    raise ValueError('Select your SD-card drive first')
+                target = require_card_root(choices[choice.get()])
+                if not dashboard.get() and not pack.get():
+                    raise ValueError('Select the dashboard or library pack to install')
+                if dashboard.get():
+                    dashboard_bytes()
+            except Exception as exc:
+                messagebox.showerror('Install PRISM', str(exc), parent=dialog)
+                return
+            snapshot = self.project.clone() if pack.get() else None
+            include_dashboard = dashboard.get()
+            dialog.destroy()
+            def accepted(result):
+                self.status.set('Installed and verified ' + ', '.join(result['files']))
+                details = '\n'.join(result['files'])
+                if result['backups']:
+                    details += '\n\nPrevious files backed up:\n' + '\n'.join(result['backups'])
+                messagebox.showinfo('PRISM installed', details + '\n\nSafely eject the card in Windows. Launch PRISM.dol in Swiss.', parent=self.root)
+            self.run_job('Exporting, copying and verifying the SD-card installation…',
+                         lambda: install(target, snapshot, include_dashboard), accepted)
+        self.install_start_button = ttk.Button(panel, text='Install selected files', command=start)
+        self.install_start_button.pack(anchor='e', pady=(4, 0))
+        refresh()
+
     def close(self):
         if self.busy:
             messagebox.showinfo('Operation running', 'Please let the current operation finish before closing.', parent=self.root)
@@ -609,8 +686,23 @@ def smoke_test(output):
             assert project.system == 'n64'
             project.export(folder/'library.prism')
             assert verify_pack(folder/'library.prism') == 1
+            card = folder / 'sd-card'
+            (card / 'swiss').mkdir(parents=True)
+            (card / 'swiss.ini').write_text('preserve-settings')
+            result = install(card, project, dashboard=True)
+            assert (card / 'PRISM.dol').read_bytes() == dashboard_bytes()
+            assert verify_pack(card / 'swiss/prism/emulators/n64.prism') == 1
+            assert (card / 'swiss.ini').read_text() == 'preserve-settings'
+            assert not result['backups']
+            app.install_prism(candidates=card_candidates([(card, True)]))
+            root.update()
+            assert app.install_dialog.winfo_exists()
+            assert app.install_start_button.winfo_ismapped()
+            assert app.install_dashboard_var.get() and app.install_pack_var.get()
+            app.install_dialog.destroy()
             Path(output).write_text(json.dumps({'status': 'passed', 'tk': root.tk.call('info', 'patchlevel'),
-                'project_roundtrip': True, 'pack_verified': True, 'cover_preview': True}), encoding='utf-8')
+                'project_roundtrip': True, 'pack_verified': True, 'cover_preview': True,
+                'installer_dialog': True, 'sd_install_verified': True, 'dashboard_build': DASHBOARD_BUILD}), encoding='utf-8')
     finally:
         app.closed = True
         app.executor.shutdown(wait=True)

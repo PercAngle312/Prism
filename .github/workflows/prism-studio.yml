@@ -9,6 +9,7 @@ on:
       - 'tools/test_prism_gametdb.py'
       - 'tools/test_prism_scrape.py'
       - 'tools/test_prism_cover_import.py'
+      - 'tools/test_prism_install.py'
       - 'tools/requirements-prism-studio.txt'
       - 'assets/prism/layout.json'
       - 'docs/prism-studio.md'
@@ -17,11 +18,16 @@ on:
     paths:
       - 'tools/prism_*.py'
       - 'tools/test_prism_project.py'
+      - 'tools/test_prism_install.py'
       - 'tools/requirements-prism-studio.txt'
       - 'assets/prism/layout.json'
       - 'docs/prism-studio.md'
       - '.github/workflows/prism-studio.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   windows:
@@ -37,6 +43,25 @@ jobs:
           cache-dependency-path: tools/requirements-prism-studio.txt
       - name: Install packaging dependencies
         run: python -m pip install -r tools/requirements-prism-studio.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-Emulator-Starter-01c00908325f
+          run-id: 38315054276
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dashboard-download
+      - name: Prepare verified dashboard and its corresponding source
+        run: |
+          @'
+          import hashlib, pathlib, zipfile
+          p = pathlib.Path('dashboard-download/PRISM-Emulator-Starter-01c00908325f.zip')
+          assert hashlib.sha256(p.read_bytes()).hexdigest() == '4c92967b403628a68ef87ee00313799a3dc119c186d27454299b0e9cbac800e7'
+          with zipfile.ZipFile(p) as z:
+              pathlib.Path('assets/prism/dashboard.dol').write_bytes(z.read('SD-ROOT/PRISM-UI-01c00908325f.dol'))
+              out = pathlib.Path('dashboard-source'); out.mkdir()
+              for name in ['PRISM-01c00908325f-source.zip', 'littlefs-6cb4e86540ec-source.zip', 'GNU-GPL-v2.txt']:
+                  (out/name).write_bytes(z.read('SOURCE-AND-LICENSES/' + name))
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
       - name: Test project roundtrip, header scan and safe exports
         run: python tools/test_prism_project.py
       - name: Test GameTDB offline metadata imports
@@ -45,6 +70,8 @@ jobs:
         run: python tools/test_prism_scrape.py
       - name: Test bulk cover import
         run: python tools/test_prism_cover_import.py
+      - name: Test card detection, install backups and failed-copy recovery
+        run: python tools/test_prism_install.py
       - name: Exercise source GUI and preview
         run: |
           python tools/prism_builder.py --smoke-test source-smoke.json
@@ -52,7 +79,7 @@ jobs:
           Get-Content source-smoke.json
       - name: Package portable Windows app
         run: |
-          python -m PyInstaller --noconfirm --clean --onedir --windowed --name PRISM-Studio --add-data "assets/prism/layout.json:assets/prism" tools/prism_builder.py
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name PRISM-Studio --add-data "assets/prism/layout.json:assets/prism" --add-data "assets/prism/dashboard.dol:assets/prism" tools/prism_builder.py
           if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }
       - name: Launch packaged Windows executable
         run: |
@@ -70,7 +97,10 @@ jobs:
           $commit = (git rev-parse --short=12 HEAD)
           Copy-Item docs/prism-studio.md dist/PRISM-Studio/READ-ME.md
           Copy-Item packaged-smoke.json dist/PRISM-Studio/CI-VERIFICATION.json
-          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.2`nSource: $commit`nWindows x64 portable build"
+          Copy-Item -Recurse dashboard-source dist/PRISM-Studio/dashboard-source
+          git archive --format=zip --output=dist/PRISM-Studio/PRISM-Studio-source.zip HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Studio source archive failed' }
+          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.3`nSource: $commit`nDashboard build: 01c00908325f`nWindows x64 portable build"
           $hash = (Get-FileHash dist/PRISM-Studio/PRISM-Studio.exe -Algorithm SHA256).Hash.ToLower()
           Set-Content dist/PRISM-Studio/SHA256.txt "$hash  PRISM-Studio.exe"
           Write-Output "commit=$commit" >> $env:GITHUB_OUTPUT

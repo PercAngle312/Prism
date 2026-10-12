@@ -1,4 +1,34 @@
-# PRISM Studio 0.2 for Windows
+# PRISM Studio 0.3 for Windows
+
+## Install PRISM to a GameCube SD card
+
+The portable Windows download includes verified dashboard build `01c00908325f`.
+Click **Install PRISM** to list likely Swiss cards and other removable drives.
+Swiss files are a detection hint; verify the selected drive is your SD card.
+Use **Choose SD-card root** if your reader is not listed, and select the drive
+root (for example `E:\`), rather than a folder inside it.
+
+Choose either or both:
+
+- **Dashboard:** installs the bundled GameCube app as `/PRISM.dol`.
+- **This project:** exports and verifies the current project, then installs
+  `/swiss/prism/library.prism` for GameCube, or the matching system pack under
+  `/swiss/prism/emulators/` for an emulator project.
+
+Click **Install selected files** to copy. Existing destination files receive
+verified `.backup-...` copies before replacement. The installer checks free
+space, verifies copied file hashes, and attempts to restore replaced files if
+installation fails. If the card is disconnected during recovery, retain the
+backups and follow the reported error. Safely eject the card after success.
+
+Launch `PRISM.dol` through Swiss. Installation preserves Swiss boot files,
+settings, ROMs and saves; it does not configure automatic startup. An emulator
+project installs its metadata pack, not an emulator executable. Use the emulator
+starter bundle or supply the matching GameCube emulator DOL separately.
+
+The Windows package contains the dashboard's corresponding source and license
+in `dashboard-source/`, and Studio source in `PRISM-Studio-source.zip`. Source
+checkouts without the bundled dashboard can still install library packs alone.
 
 PRISM Studio prepares the offline artwork and descriptions used by the PRISM
 GameCube dashboard. This is a portable Windows x64 app: extract the entire ZIP
@@ -44,8 +74,8 @@ records; it is not embedded in the current console pack.
 ```
 
 Cover paths must be relative and remain inside the JSON file's folder. Use
-images/content you can use. This version supports manual curation and direct
-image downloads; it does not scrape websites or automatically fetch synopses.
+images/content you can use. This version supports manual curation, direct
+image downloads and the optional metadata lookup described below.
 Direct cover downloads require HTTPS on port 443, a public destination, and a
 PNG/JPEG response. Redirecting webpage links need their actual image URL.
 
