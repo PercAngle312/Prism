@@ -109,5 +109,5 @@ jobs:
             dolphin-ui-results/*.png
             dolphin-ui-results/*.txt
             dolphin-ui-results/*.json
-            dolphin-ui-results/dolphin.log
+            dolphin-ui-results/*.log
           if-no-files-found: warn

@@ -40,11 +40,14 @@ RenderWindowWidth = 960
 RenderWindowHeight = 720
 [Interface]
 ConfirmStop = False
+UsePanicHandlers = False
 [Analytics]
 Enabled = False
 PermissionAsked = True
 [Input]
 BackgroundInput = True
+[DSP]
+Backend = No audio output
 [General]
 ShowLag = False
 ''')
@@ -74,6 +77,7 @@ ShowFPS = False
 [Enhancements]
 ForceFiltering = False
 ''')
+    (config/'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 4\n[Logs]\nBOOT = True\nCORE = True\nCOMMON = True\nVideo = True\nAudio = True\nDSPHLE = True\nMEMMAP = True\nPOWERPC = True\nCI = True\n')
     log = (output/'dolphin.log').open('w')
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
     emulator = ['flatpak', 'run', f'--filesystem={output.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
@@ -143,6 +147,9 @@ ForceFiltering = False
         os.close(pipe_fd)
         controller.unlink(missing_ok=True)
         log.close()
+        core_log = user/'Logs'/'dolphin.log'
+        if core_log.exists():
+            (output/'dolphin-core.log').write_bytes(core_log.read_bytes())
         (output/'ocr-input.png').unlink(missing_ok=True)
 
 
