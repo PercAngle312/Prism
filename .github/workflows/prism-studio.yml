@@ -58,12 +58,35 @@ jobs:
           p = pathlib.Path('dashboard-download/PRISM-Emulator-Starter-01c00908325f.zip')
           assert hashlib.sha256(p.read_bytes()).hexdigest() == '4c92967b403628a68ef87ee00313799a3dc119c186d27454299b0e9cbac800e7'
           with zipfile.ZipFile(p) as z:
-              pathlib.Path('assets/prism/dashboard.dol').write_bytes(z.read('SD-ROOT/PRISM-UI-01c00908325f.dol'))
               out = pathlib.Path('dashboard-source'); out.mkdir()
-              for name in ['PRISM-01c00908325f-source.zip', 'littlefs-6cb4e86540ec-source.zip', 'GNU-GPL-v2.txt']:
+              for name in ['littlefs-6cb4e86540ec-source.zip', 'GNU-GPL-v2.txt']:
                   (out/name).write_bytes(z.read('SOURCE-AND-LICENSES/' + name))
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-UI-baec828345ba
+          run-id: 38318251784
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dashboard-native
+      - name: Verify the ROM-aware GameCube dashboard
+        run: |
+          @'
+          import hashlib, pathlib
+          raw = pathlib.Path('dashboard-native/PRISM-UI-baec828345ba.dol').read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == '14352817ddc4a57a449338d66a474b7dc94e52ab6385df4b0a9dba0547415c89'
+          pathlib.Path('assets/prism/dashboard.dol').write_bytes(raw)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'ROM-aware dashboard verification failed' }
+      - uses: actions/checkout@v4
+        with:
+          ref: baec828345ba10992f085bf9d35f68ae4bba21c8
+          path: dashboard-tree
+      - name: Archive the matching GameCube source
+        run: |
+          $archive = Join-Path $PWD 'dashboard-source/PRISM-baec828345ba-source.zip'
+          git -C dashboard-tree archive --format=zip --output=$archive HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
       - name: Test project roundtrip, header scan and safe exports
         run: python tools/test_prism_project.py
       - name: Test GameTDB offline metadata imports
@@ -104,7 +127,7 @@ jobs:
           Copy-Item -Recurse dashboard-source dist/PRISM-Studio/dashboard-source
           git archive --format=zip --output=dist/PRISM-Studio/PRISM-Studio-source.zip HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Studio source archive failed' }
-          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.3`nSource: $commit`nDashboard build: 01c00908325f`nWindows x64 portable build"
+          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.4`nSource: $commit`nDashboard build: baec828345ba`nWindows x64 portable build"
           $hash = (Get-FileHash dist/PRISM-Studio/PRISM-Studio.exe -Algorithm SHA256).Hash.ToLower()
           Set-Content dist/PRISM-Studio/SHA256.txt "$hash  PRISM-Studio.exe"
           Write-Output "commit=$commit" >> $env:GITHUB_OUTPUT

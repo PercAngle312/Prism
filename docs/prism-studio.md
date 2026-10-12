@@ -1,8 +1,8 @@
-# PRISM Studio 0.3 for Windows
+# PRISM Studio 0.4 for Windows
 
 ## Install PRISM to a GameCube SD card
 
-The portable Windows download includes verified dashboard build `01c00908325f`.
+The portable Windows download includes verified dashboard build `baec828345ba`.
 Click **Install PRISM** to list likely Swiss cards and other removable drives.
 Swiss files are a detection hint; verify the selected drive is your SD card.
 Use **Choose SD-card root** if your reader is not listed, and select the drive

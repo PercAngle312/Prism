@@ -11,8 +11,8 @@ from pathlib import Path
 
 from prism_project import SYSTEMS, verify_pack
 
-DASHBOARD_BUILD = '01c00908325f'
-DASHBOARD_SHA256 = '45c3e444e9b9aed55cc5d030de44d84b74ac0d471aeb15b84f044f841f17f819'
+DASHBOARD_BUILD = 'baec828345ba'
+DASHBOARD_SHA256 = '14352817ddc4a57a449338d66a474b7dc94e52ab6385df4b0a9dba0547415c89'
 MARKERS = ('swiss', 'swiss.ini', 'swiss.dol', 'ipl.dol')
 
 
