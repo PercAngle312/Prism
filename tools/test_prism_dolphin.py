@@ -42,6 +42,9 @@ RenderWindowHeight = 720
 ConfirmStop = False
 [Analytics]
 Enabled = False
+PermissionAsked = True
+[Input]
+BackgroundInput = True
 [General]
 ShowLag = False
 ''')
