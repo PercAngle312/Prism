@@ -73,6 +73,7 @@ Device = Pipe/0/prism
 Buttons/A = `Button A`
 Buttons/B = `Button B`
 Buttons/X = `Button X`
+Buttons/Z = `Button Z`
 Buttons/Start = `Button START`
 D-Pad/Up = `Button D_UP`
 D-Pad/Down = `Button D_DOWN`
@@ -184,7 +185,7 @@ ForceFiltering = False
         raise RuntimeError(f'{name}: expected {expected}, saw {text}')
 
     def tap(key):
-        buttons = {'x':'A', 'z':'B', 'Right':'D_RIGHT', 'Left':'D_LEFT', 'Up':'D_UP', 'Down':'D_DOWN'}
+        buttons = {'x':'A', 'z':'B', 'c':'Z', 'Right':'D_RIGHT', 'Left':'D_LEFT', 'Up':'D_UP', 'Down':'D_DOWN'}
         button = buttons[key]
         os.write(pipe_fd, f'PRESS {button}\n'.encode('ascii'))
         time.sleep(.30)
@@ -235,6 +236,10 @@ ForceFiltering = False
             return
         tap('x')
         wait('02-home',['YOUR GAME LIBRARY'],timeout=90)
+        tap('c');wait('02a-systems',['EMULATOR LIBRARIES'])
+        tap('x');wait('02b-system-empty',['SYSTEM LIBRARY NOT FOUND'])
+        tap('z');wait('02c-return-systems',['EMULATOR LIBRARIES'])
+        tap('z');wait('02d-return-home',['YOUR GAME LIBRARY'])
         tap('Right');tap('Down');tap('x')
         wait('03-about',['ABOUT PRISM'])
         tap('z');wait('04-return-about',['YOUR GAME LIBRARY'])

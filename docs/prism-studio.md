@@ -72,3 +72,19 @@ the executable checksum. Real GameCube visual testing remains separate.
 Python 3.12 with Tkinter and Pillow can run `python tools/prism_builder.py`.
 Windows packaging is defined in `.github/workflows/prism-studio.yml` and uses
 PyInstaller's one-folder format with the shared layout asset included.
+
+
+### System libraries
+
+Choose the project system in the header: GameCube, Nintendo 64, NES, Super Nintendo,
+Game Boy, Game Boy Advance or Mega Drive. The choice is saved in the project;
+older projects default to GameCube. Export suggests the exact filename and tells
+you where to copy it. GameCube uses `/swiss/prism/library.prism`; emulator packs
+use `/swiss/prism/emulators/<system>.prism`. Use one project per system.
+
+For emulator games, enter a unique six-character uppercase metadata ID such as
+`N64001`, then edit covers and synopsis normally. ISO/GCM scanning stays GameCube
+only. Emulator ROM scanning and automatic metadata retrieval are not implemented.
+The console's **A: Emulator** opens the GameCube emulator DOL; it does not launch
+the selected ROM automatically. See the dashboard's system-library instructions
+for the matching `.dol` filenames and storage requirements.

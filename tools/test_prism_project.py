@@ -94,6 +94,22 @@ class ProjectTests(unittest.TestCase):
                 validate_game(game)
         validate_game({'id': 'GM8E01', 'title': 'é'*48, 'synopsis': 'a'*191})
 
+    def test_system_roundtrip_and_legacy_default(self):
+        path = self.folder/'system.prism-project'
+        for system in ['gamecube', 'n64', 'nes', 'snes', 'gb', 'gba', 'megadrive']:
+            self.project.system = system
+            self.assertEqual(self.project.clone().system, system)
+            self.project.save(path)
+            self.assertEqual(LibraryProject.load(path).system, system)
+        with zipfile.ZipFile(path, 'w') as archive:
+            archive.writestr('catalog.json', json.dumps({'project_version':1,'games':[]}))
+        self.assertEqual(LibraryProject.load(path).system, 'gamecube')
+        for system in ['../escape', None, ['n64']]:
+            with zipfile.ZipFile(path, 'w') as archive:
+                archive.writestr('catalog.json', json.dumps({'project_version':1,'system':system,'games':[]}))
+            with self.assertRaises(ValueError):
+                LibraryProject.load(path)
+
     def test_untrusted_project_files(self):
         path = self.folder/'bad.prism-project'
         for manifest, extra in [({'project_version': 99, 'games': []}, {}),

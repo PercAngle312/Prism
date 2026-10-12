@@ -13,6 +13,15 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_PROJECT_BYTES = 128 * 1024 * 1024
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 PROJECT_VERSION = 1
+SYSTEMS = {
+    'gamecube': ('GameCube', 'library.prism', '/swiss/prism/'),
+    'n64': ('Nintendo 64', 'n64.prism', '/swiss/prism/emulators/'),
+    'nes': ('NES', 'nes.prism', '/swiss/prism/emulators/'),
+    'snes': ('Super Nintendo', 'snes.prism', '/swiss/prism/emulators/'),
+    'gb': ('Game Boy', 'gb.prism', '/swiss/prism/emulators/'),
+    'gba': ('Game Boy Advance', 'gba.prism', '/swiss/prism/emulators/'),
+    'megadrive': ('Mega Drive', 'megadrive.prism', '/swiss/prism/emulators/'),
+}
 
 
 def validate_game(game):
@@ -73,11 +82,13 @@ def atomic_write(path, writer):
 
 class LibraryProject:
     def __init__(self):
+        self.system = 'gamecube'
         self.games = {}
         self.covers = {}
 
     def clone(self):
         result = LibraryProject()
+        result.system = self.system
         result.games = copy.deepcopy(self.games)
         result.covers = dict(self.covers)
         return result
@@ -117,7 +128,7 @@ class LibraryProject:
             if key in self.covers:
                 game['cover'] = f'{key}.png'
             games.append(game)
-        return {'project_version': PROJECT_VERSION, 'games': games}
+        return {'project_version': PROJECT_VERSION, 'system': self.system, 'games': games}
 
     def save(self, path):
         manifest = json.dumps(self.manifest(), ensure_ascii=False, indent=2).encode('utf-8')
@@ -143,6 +154,9 @@ class LibraryProject:
             manifest = json.loads(archive.read('catalog.json').decode('utf-8'))
             if not isinstance(manifest, dict) or manifest.get('project_version') != PROJECT_VERSION:
                 raise ValueError('Unsupported project version')
+            result.system = manifest.get('system', 'gamecube')
+            if not isinstance(result.system, str) or result.system not in SYSTEMS:
+                raise ValueError('Unsupported library system')
             games = manifest.get('games')
             if not isinstance(games, list) or len(games) > MAX_GAMES:
                 raise ValueError('Invalid project game list')

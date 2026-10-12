@@ -97,6 +97,8 @@ jobs:
         run: |
           cc -D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -Itests/stubs -Icube/swiss/source -o /tmp/prism-installed-test tests/prism_installed_test.c cube/swiss/source/gui/prism_installed.c cube/swiss/source/gui/prism_library.c cube/swiss/source/gui/prism_game.c
           /tmp/prism-installed-test
+      - name: Verify emulator system navigation and exact paths
+        run: python3 tools/test_prism_systems.py
       - name: Verify exact Swiss launch and cancellation guards
         run: python3 tools/test_prism_launch.py
       - name: Generate deterministic example offline pack

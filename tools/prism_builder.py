@@ -13,7 +13,7 @@ from PIL import Image, ImageTk
 
 from prism_download import download_cover
 from prism_preview import PrismPreview
-from prism_project import LibraryProject, MAX_IMAGE_BYTES, validate_image, verify_pack
+from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, validate_image, verify_pack
 
 BG, PANEL, FIELD, TEXT, MUTED, ACCENT = '#090e18', '#101825', '#1c293a', '#e9f1f7', '#aabdcf', '#4ddbc9'
 
@@ -54,14 +54,19 @@ class Builder:
         header = ttk.Frame(root, padding=(18, 12))
         header.grid(row=0, column=0, sticky='ew')
         ttk.Label(header, text='PRISM', foreground=ACCENT, font=('Segoe UI', 22, 'bold')).pack(side='left')
-        ttk.Label(header, text='  STUDIO   /   Your offline GameCube library', foreground=MUTED).pack(side='left')
+        ttk.Label(header, text='  STUDIO   /   Your offline game libraries', foreground=MUTED).pack(side='left')
+        self.system_name = tk.StringVar(value=SYSTEMS[self.project.system][0])
+        self.system_picker = ttk.Combobox(header, textvariable=self.system_name,
+            values=[value[0] for value in SYSTEMS.values()], state='readonly', width=21)
+        self.system_picker.pack(side='right')
+        self.system_picker.bind('<<ComboboxSelected>>', self.choose_system)
         toolbar = ttk.Frame(root, padding=(12, 4))
         toolbar.grid(row=1, column=0, sticky='ew')
         self.commands = []
         for title, command in [('New project', self.new_project), ('Open project', self.open_project),
                                ('Save', self.save_project), ('Save as', lambda: self.save_project(True)),
                                ('Scan games folder', self.scan_games), ('Import JSON', self.import_json),
-                               ('Export library.prism', self.package)]:
+                               ('Export pack', self.package)]:
             button = ttk.Button(toolbar, text=title, command=command)
             button.pack(side='left', padx=3)
             self.commands.append(button)
@@ -76,7 +81,7 @@ class Builder:
         self.filter = tk.StringVar()
         ttk.Entry(sidebar, textvariable=self.filter, width=29).grid(row=0, column=0, sticky='ew', pady=(0, 8))
         self.filter.trace_add('write', lambda *_: self.refresh_list())
-        ttk.Label(sidebar, text='Search by title or disc ID', foreground=MUTED).grid(row=1, column=0, sticky='w', pady=(0, 8))
+        ttk.Label(sidebar, text='Search by title or metadata ID', foreground=MUTED).grid(row=1, column=0, sticky='w', pady=(0, 8))
         self.list = ttk.Treeview(sidebar, show='tree', selectmode='browse', height=15)
         self.list.column('#0', width=260, stretch=False)
         self.list.grid(row=2, column=0, sticky='ns')
@@ -96,7 +101,7 @@ class Builder:
         self.tabs.add(editor, text='Game editor')
         editor.columnconfigure(0, weight=1)
         self.inputs = {}
-        for row, (key, label) in enumerate([('id', 'Disc ID'), ('title', 'Game title')]):
+        for row, (key, label) in enumerate([('id', 'Game / metadata ID'), ('title', 'Game title')]):
             ttk.Label(editor, text=label, foreground=MUTED).grid(row=row*2, column=0, sticky='w', pady=(6, 2))
             variable = tk.StringVar()
             self.inputs[key] = variable
@@ -196,7 +201,18 @@ class Builder:
             preview_game['cover'] = filename
         self.preview.show_game(preview_game, self.preview_work.name)
 
+    def choose_system(self, _event=None):
+        if self.busy:
+            self.system_name.set(SYSTEMS[self.project.system][0])
+            return
+        selected = next(key for key, value in SYSTEMS.items() if value[0] == self.system_name.get())
+        if selected != self.project.system:
+            self.project.system = selected
+            self.dirty = True
+            self.status.set(f'{SYSTEMS[selected][0]} project. Export as {SYSTEMS[selected][1]}.')
+
     def refresh_list(self):
+        self.system_name.set(SYSTEMS[self.project.system][0])
         term = self.filter.get().casefold()
         self.list.delete(*self.list.get_children())
         for key, game in sorted(self.project.games.items(), key=lambda item: (item[1]['title'].casefold(), item[0])):
@@ -357,7 +373,7 @@ class Builder:
         path = None if save_as else self.project_path
         if path is None:
             name = filedialog.asksaveasfilename(parent=self.root, defaultextension='.prism-project',
-                initialfile='My GameCube Library.prism-project', filetypes=[('PRISM Studio project', '*.prism-project')])
+                initialfile=f'My {SYSTEMS[self.project.system][0]} Library.prism-project', filetypes=[('PRISM Studio project', '*.prism-project')])
             if not name:
                 return False
             path = Path(name)
@@ -373,6 +389,9 @@ class Builder:
             return False
 
     def scan_games(self):
+        if self.project.system != 'gamecube':
+            messagebox.showinfo('GameCube scan', 'This scanner reads GameCube ISO/GCM disc headers. Add emulator entries manually or import JSON using unique six-character metadata IDs.', parent=self.root)
+            return
         if not self.guard_edits():
             return
         folder = filedialog.askdirectory(parent=self.root, title='Choose your games folder')
@@ -412,16 +431,17 @@ class Builder:
         if not self.project.games:
             messagebox.showinfo('Empty library', 'Add or scan at least one game before export.', parent=self.root)
             return
-        name = filedialog.asksaveasfilename(parent=self.root, defaultextension='.prism', initialfile='library.prism', filetypes=[('PRISM library pack', '*.prism')])
+        system_label, filename, destination = SYSTEMS[self.project.system]
+        name = filedialog.asksaveasfilename(parent=self.root, defaultextension='.prism', initialfile=filename, filetypes=[('PRISM library pack', '*.prism')])
         if name:
             snapshot = self.project.clone()
             def export():
                 snapshot.export(name)
                 return verify_pack(name)
             def accepted(count):
-                self.status.set(f'Exported and verified {count} games. Copy library.prism to /swiss/prism/ on your config SD.')
-                messagebox.showinfo('Library exported', f'{name}\n\nCopy this pack to /swiss/prism/library.prism on the config SD used by Swiss.', parent=self.root)
-            self.run_job('Converting covers and building library.prism…', export, accepted)
+                self.status.set(f'Exported and verified {count} games. Copy as {destination}{filename} on your config storage.')
+                messagebox.showinfo('Library exported', f'{name}\n\nCopy as {destination}{filename} on Swiss config storage.\n' + ('Choose the ROM inside your GameCube emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else ''), parent=self.root)
+            self.run_job(f'Converting covers and building {filename}…', export, accepted)
 
     def close(self):
         if self.busy:
@@ -455,8 +475,12 @@ def smoke_test(output):
             assert app.preview.winfo_width() >= 640, 'Full console canvas must fit in the window'
             assert app.preview.canvas.winfo_width() == 640
             assert app.preview.image_ref is not None
+            app.system_name.set('Nintendo 64')
+            app.choose_system()
+            assert app.project.system == 'n64' and app.dirty
             app.project.save(folder/'test.prism-project')
             project = LibraryProject.load(folder/'test.prism-project')
+            assert project.system == 'n64'
             project.export(folder/'library.prism')
             assert verify_pack(folder/'library.prism') == 1
             Path(output).write_text(json.dumps({'status': 'passed', 'tk': root.tk.call('info', 'patchlevel'),
