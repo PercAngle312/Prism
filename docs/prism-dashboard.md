@@ -418,3 +418,13 @@ startup, home, directional selection, About, missing catalog, empty installed
 library and return to Classic Swiss. No BIOS or game disc is provided. This
 smoke test does not validate installed artwork, launches, GC Loader, SD2SP2 or
 real-hardware timing. Host tests retain coverage for those portable paths.
+
+### DOL loader block compatibility
+
+Dolphin 2609a rejected the linked DOL before starting the core: its reader rounds
+section reads up to 32 bytes, while elf2dol can leave the final data section
+short of that rounded endpoint. `tools/prism_dol.py` packages the linked DOL
+with up to 31 zero bytes at EOF, preserving every original byte, header,
+address and section size. Both Dolphin and the hardware artifact use this
+same packaged file. Regression tests cover every final-block remainder,
+unchanged aligned files and invalid/truncated input.

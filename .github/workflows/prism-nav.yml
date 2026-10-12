@@ -40,6 +40,8 @@ on:
       - 'tools/prism_layout.py'
       - 'tools/test_prism_layout.py'
       - 'tools/test_prism_boot_order.py'
+      - 'tools/prism_dol.py'
+      - 'tools/test_prism_dol.py'
       - 'cube/swiss/source/main.c'
       - 'cube/swiss/source/gui/prism_layout.h'
       - 'cube/swiss/source/gui/prism_installed.c'
@@ -110,6 +112,8 @@ jobs:
           python3 tools/test_prism_export_reader.py
       - name: Validate PRISM builder Python syntax
         run: python3 -m py_compile tools/prism_pack.py tools/prism_cover.py tools/prism_builder.py tools/prism_project.py tools/prism_download.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
+      - name: Verify padded DOL loader blocks
+        run: python3 tools/test_prism_dol.py
       - name: Verify PRISM startup before Swiss autoload
         run: python3 tools/test_prism_boot_order.py
       - name: Verify cover texture constants

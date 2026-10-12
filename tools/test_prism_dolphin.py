@@ -47,7 +47,7 @@ PermissionAsked = True
 [Input]
 BackgroundInput = True
 [DSP]
-Backend = No audio output
+Backend = No Audio Output
 [General]
 ShowLag = False
 ''')

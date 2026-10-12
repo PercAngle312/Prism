@@ -12,7 +12,7 @@ jobs:
     - name: Install packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends -t bookworm-backports 7zip gcc gcc-mingw-w64-i686 libc6-dev libc6-i386 xorriso
+        sudo apt-get install -y --no-install-recommends -t bookworm-backports python3 7zip gcc gcc-mingw-w64-i686 libc6-dev libc6-i386 xorriso
         sudo dkp-pacman -Sy
         sudo dkp-pacman -S --noconfirm --ask 4 ppc-libiconv-lite
 
@@ -45,8 +45,8 @@ jobs:
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "YOUR GAME LIBRARY"
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "X: Details"
         ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_cover_cache_reserve"
-        cp cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
-        cmp cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
+        python3 tools/test_prism_dol.py
+        python3 tools/prism_dol.py cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
         sha256sum "prism-hardware/PRISM-UI-${commit}.dol"
         echo "commit=${commit}" >> "$GITHUB_OUTPUT"
 
