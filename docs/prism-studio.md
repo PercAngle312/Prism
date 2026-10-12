@@ -37,6 +37,27 @@ it. Python and Pillow are included; no development tools are needed.
 
 ## Create your library
 
+For an emulator project, **Scan games folder** reads raw ROMs in that folder
+and one child-folder level. Choose the system first, then enter where those
+files will live relative to the SD-card root (for example `wii64/roms`). Scanning
+does not copy ROMs. Supported extensions are N64 `.z64/.v64/.n64`, NES `.nes`,
+SNES `.sfc/.smc`, GB/GBC `.gb/.gbc`, GBA `.gba`, and Mega Drive `.md/.gen/.bin`.
+Compressed archives are skipped. Individual ROM files are limited to 128 MiB.
+
+Full-content fingerprints keep scanned entries matched after renaming; N64
+byte orders are normalized. The six-character IDs are metadata keys, not disc
+IDs. Identical copies share one entry and the last scanned path. Existing
+titles, covers and descriptions are preserved. Manual entries without ROM
+mappings stay in the catalog. A project containing ROM mappings keeps its
+system; create a separate project for another system.
+
+Emulator exports produce **both** `<system>.prism` and `<system>.roms`. Copy
+both beside the emulator DOL under `/swiss/prism/emulators/`, or use **Install
+PRISM**, which installs both with backups and verification. The new console
+reader checks whether each mapped file exists on config storage. It does not
+re-hash the file, scan other devices or launch a selected ROM automatically.
+Older dashboard builds ignore the `.roms` companion and keep catalog browsing.
+
 1. Choose **Scan games folder** and select the folder containing your raw
    GameCube ISO/GCM files. The scan reads headers in that folder and one child
    folder level. It imports disc IDs and titles; it does not change game files.

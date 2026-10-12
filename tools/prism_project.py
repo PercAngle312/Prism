@@ -85,12 +85,14 @@ class LibraryProject:
         self.system = 'gamecube'
         self.games = {}
         self.covers = {}
+        self.roms = {}
 
     def clone(self):
         result = LibraryProject()
         result.system = self.system
         result.games = copy.deepcopy(self.games)
         result.covers = dict(self.covers)
+        result.roms = copy.deepcopy(self.roms)
         return result
 
     def put(self, game, cover=None, old_id=None, remove_cover=False):
@@ -111,6 +113,8 @@ class LibraryProject:
         if old_id and old_id != key:
             self.games.pop(old_id)
             self.covers.pop(old_id, None)
+            if old_id in self.roms:
+                self.roms[key] = self.roms.pop(old_id)
         self.games[key] = clean
         if new_cover is not None:
             self.covers[key] = new_cover
@@ -145,6 +149,7 @@ class LibraryProject:
     def remove(self, key):
         self.games.pop(key, None)
         self.covers.pop(key, None)
+        self.roms.pop(key, None)
 
     def manifest(self):
         games = []
@@ -153,7 +158,7 @@ class LibraryProject:
             if key in self.covers:
                 game['cover'] = f'{key}.png'
             games.append(game)
-        return {'project_version': PROJECT_VERSION, 'system': self.system, 'games': games}
+        return {'project_version': PROJECT_VERSION, 'system': self.system, 'games': games, 'roms': self.roms}
 
     def save(self, path):
         manifest = json.dumps(self.manifest(), ensure_ascii=False, indent=2).encode('utf-8')
@@ -200,7 +205,41 @@ class LibraryProject:
                 result.put(clean, cover)
             if set(names) != allowed:
                 raise ValueError('Project contains unexpected files')
+            from prism_roms import validate_mapping
+            result.roms = validate_mapping(manifest.get('roms', {}), result.games)
         return result
+
+    def scan_roms(self, folder, destination):
+        from prism_roms import scan
+        return scan(self, folder, destination)
+
+    def export_rom_index(self):
+        from prism_roms import encode_index, validate_mapping
+        return encode_index(validate_mapping(self.roms, self.games))
+
+    def export_library(self, path):
+        """Export pack plus emulator path index, restoring originals on failure."""
+        if self.system == 'gamecube':
+            return self.export(path)
+        path = Path(path)
+        index = path.with_suffix('.roms')
+        with tempfile.TemporaryDirectory(prefix='prism-export-pair-') as td:
+            staged = Path(td) / 'pack.prism'
+            self.export(staged)
+            files = [(path, staged.read_bytes()), (index, self.export_rom_index())]
+            originals = {p: p.read_bytes() if p.exists() else None for p, _ in files}
+            changed = []
+            try:
+                for p, data in files:
+                    changed.append(p)
+                    atomic_write(p, lambda target, raw=data: target.write_bytes(raw))
+            except Exception:
+                for p in reversed(changed):
+                    if originals[p] is None:
+                        p.unlink(missing_ok=True)
+                    else:
+                        atomic_write(p, lambda target, raw=originals[p]: target.write_bytes(raw))
+                raise
 
     def export(self, path):
         if not self.games:

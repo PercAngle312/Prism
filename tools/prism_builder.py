@@ -8,7 +8,7 @@ import tempfile
 import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from PIL import Image, ImageTk
 
 from prism_download import download_cover
@@ -217,6 +217,10 @@ class Builder:
             self.system_name.set(SYSTEMS[self.project.system][0])
             return
         selected = next(key for key, value in SYSTEMS.items() if value[0] == self.system_name.get())
+        if selected != self.project.system and self.project.roms:
+            self.system_name.set(SYSTEMS[self.project.system][0])
+            messagebox.showinfo('Separate system projects', 'This project contains ROM mappings. Create a new project for another system.', parent=self.root)
+            return
         if selected != self.project.system:
             self.project.system = selected
             self.dirty = True
@@ -410,7 +414,7 @@ class Builder:
 
     def scan_games(self):
         if self.project.system != 'gamecube':
-            messagebox.showinfo('GameCube scan', 'This scanner reads GameCube ISO/GCM disc headers. Add emulator entries manually or import JSON using unique six-character metadata IDs.', parent=self.root)
+            self.scan_roms()
             return
         if not self.guard_edits():
             return
@@ -552,6 +556,36 @@ class Builder:
             self.run_job('Fetching missing metadata…', job, accepted)
         ttk.Button(panel, text='Fetch missing synopses', command=start).pack(anchor='e', pady=8)
 
+    def scan_roms(self):
+        from prism_roms import FORMATS, validate_path
+        if not self.guard_edits():
+            return
+        folder = filedialog.askdirectory(parent=self.root, title='Choose raw ROMs folder (includes one child-folder level)')
+        if not folder:
+            return
+        destination = simpledialog.askstring('ROM location on SD',
+            'Where will these ROMs live on the card? Enter a folder relative to its root.\n'
+            'Scanning reads your files; it does not copy ROMs to the card.',
+            initialvalue=FORMATS[self.project.system][1], parent=self.root)
+        if destination is None:
+            return
+        try:
+            destination = validate_path(destination.strip('/'))
+        except ValueError as exc:
+            messagebox.showerror('ROM location', str(exc), parent=self.root)
+            return
+        snapshot = self.project.clone()
+        def scan():
+            return snapshot, snapshot.scan_roms(folder, destination)
+        def accepted(result):
+            self.project, (added, matched, invalid) = result
+            self.dirty |= bool(added or matched)
+            self.refresh_list()
+            self.status.set(f'ROM scan: {added} added, {matched} matched; {len(invalid)} invalid files. Covers and descriptions preserved.')
+            if invalid:
+                messagebox.showinfo('ROM scan finished', '\n'.join(invalid[:12]), parent=self.root)
+        self.run_job('Reading ROM fingerprints and matching library entries…', scan, accepted)
+
     def package(self):
         if not self.guard_edits():
             return
@@ -563,11 +597,12 @@ class Builder:
         if name:
             snapshot = self.project.clone()
             def export():
-                snapshot.export(name)
+                snapshot.export_library(name)
                 return verify_pack(name)
             def accepted(count):
                 self.status.set(f'Exported and verified {count} games. Copy as {destination}{filename} on your config storage.')
-                messagebox.showinfo('Library exported', f'{name}\n\nCopy as {destination}{filename} on Swiss config storage.\n' + ('Choose the ROM inside your GameCube emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else ''), parent=self.root)
+                messagebox.showinfo('Library exported', f'{name}\n\nCopy as {destination}{filename} on Swiss config storage.\n' +
+                    (f'Also copy {Path(name).with_suffix(".roms").name} beside it for ROM presence checks. Choose the ROM inside your emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else ''), parent=self.root)
             self.run_job(f'Converting covers and building {filename}…', export, accepted)
 
     def install_prism(self, candidates=None):
@@ -694,6 +729,14 @@ def smoke_test(output):
             assert verify_pack(card / 'swiss/prism/emulators/n64.prism') == 1
             assert (card / 'swiss.ini').read_text() == 'preserve-settings'
             assert not result['backups']
+            raw_roms = folder / 'roms'; raw_roms.mkdir()
+            (raw_roms / 'Synthetic.z64').write_bytes(b'\x80\x37\x12\x40' + bytes(range(60)))
+            assert app.project.scan_roms(raw_roms, 'wii64/roms')[0] == 1
+            app.project.save(folder / 'roms.prism-project')
+            scanned = LibraryProject.load(folder / 'roms.prism-project')
+            assert scanned.roms == app.project.roms
+            install(card, scanned, dashboard=False)
+            assert (card / 'swiss/prism/emulators/n64.roms').read_bytes() == scanned.export_rom_index()
             app.install_prism(candidates=card_candidates([(card, True)]))
             root.update()
             assert app.install_dialog.winfo_exists()
@@ -702,7 +745,8 @@ def smoke_test(output):
             app.install_dialog.destroy()
             Path(output).write_text(json.dumps({'status': 'passed', 'tk': root.tk.call('info', 'patchlevel'),
                 'project_roundtrip': True, 'pack_verified': True, 'cover_preview': True,
-                'installer_dialog': True, 'sd_install_verified': True, 'dashboard_build': DASHBOARD_BUILD}), encoding='utf-8')
+                'installer_dialog': True, 'sd_install_verified': True, 'dashboard_build': DASHBOARD_BUILD,
+                'rom_scan_and_index_install': True}), encoding='utf-8')
     finally:
         app.closed = True
         app.executor.shutdown(wait=True)

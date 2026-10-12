@@ -3,6 +3,10 @@
 
 #include "prism_pack.h"
 #include "devices/deviceHandler.h"
+/* 1: mapped file exists; 0: mapped file missing; -1: no valid mapping.
+ * Checks the config-storage file path only, never reads/hashes or launches ROMs. */
+int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
+                                 const char *pack_path, const char *game_id);
 
 /* Adapter for a single, already available Swiss storage device.
  * Caller chooses device; this does not initialize, switch, or deinit devices.

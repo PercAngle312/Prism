@@ -155,6 +155,9 @@ def install(root, project=None, dashboard=True, dashboard_path=None):
             project.export(pack)
             count = verify_pack(pack)
             writes.append((destination.lstrip('/') + filename, pack.read_bytes()))
+            if project.system != 'gamecube':
+                writes.append((destination.lstrip('/') + Path(filename).with_suffix('.roms').name,
+                               project.export_rom_index()))
     else:
         count = 0
     if not writes:

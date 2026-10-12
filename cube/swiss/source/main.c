@@ -674,11 +674,14 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
             PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
         DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
             "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-        prism_draw_wrapped(panel, synopsis[0] ? synopsis : "Metadata not available for this disc.",
+        prism_draw_wrapped(panel, synopsis[0] ? synopsis : "Description not available for this game.",
             PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
             6, 22, (GXColor){204, 218, 239, 255});
+        int rom_status = emulator_path ? prism_pack_device_rom_status(device, path, entry.id) : -1;
         DrawAddChild(panel, DrawStyledLabel(PRISM_STATUS_X, PRISM_STATUS_Y,
-            emulator_path ? "ROM selection happens in the emulator" : "Catalog entry / not an installed-game check", 0.55f,
+            emulator_path ? (rom_status > 0 ? "ROM file found / choose inside the emulator" :
+                rom_status == 0 ? "Mapped ROM missing on config storage" : "No ROM mapping / choose inside the emulator") :
+                "Catalog entry / not an installed-game check", 0.55f,
             ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
         prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 240, "LEFT/RIGHT: Browse", (GXColor){185, 200, 225, 255});
         prism_draw_hint(panel, 284, PRISM_FOOTER_LABELS_Y, 100, "L/R: 10", (GXColor){185, 200, 225, 255});

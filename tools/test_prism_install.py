@@ -33,7 +33,7 @@ class InstallationTests(unittest.TestCase):
             result = installer.install(self.card, self.project, dashboard=False)
             path = self.card / (destination.lstrip('/') + filename)
             self.assertEqual(verify_pack(path), 1)
-            self.assertEqual(result['files'], [str(path)])
+            self.assertEqual(result['files'], [str(path)] if system == 'gamecube' else [str(path), str(path.with_suffix('.roms'))])
         self.assertEqual((self.card / 'swiss.ini').read_text(), 'unchanged')
 
     def test_replacements_keep_verified_backups(self):

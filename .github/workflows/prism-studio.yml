@@ -10,6 +10,7 @@ on:
       - 'tools/test_prism_scrape.py'
       - 'tools/test_prism_cover_import.py'
       - 'tools/test_prism_install.py'
+      - 'tools/test_prism_roms.py'
       - 'tools/requirements-prism-studio.txt'
       - 'assets/prism/layout.json'
       - 'docs/prism-studio.md'
@@ -19,6 +20,7 @@ on:
       - 'tools/prism_*.py'
       - 'tools/test_prism_project.py'
       - 'tools/test_prism_install.py'
+      - 'tools/test_prism_roms.py'
       - 'tools/requirements-prism-studio.txt'
       - 'assets/prism/layout.json'
       - 'docs/prism-studio.md'
@@ -72,6 +74,8 @@ jobs:
         run: python tools/test_prism_cover_import.py
       - name: Test card detection, install backups and failed-copy recovery
         run: python tools/test_prism_install.py
+      - name: Test ROM scans, persistence and paired exports
+        run: python tools/test_prism_roms.py
       - name: Exercise source GUI and preview
         run: |
           python tools/prism_builder.py --smoke-test source-smoke.json

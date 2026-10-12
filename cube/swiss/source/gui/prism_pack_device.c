@@ -1,4 +1,6 @@
 #include "prism_pack_device.h"
+#include "prism_rom_index.h"
+#include <stdio.h>
 #include <string.h>
 
 typedef struct {
@@ -110,4 +112,36 @@ int prism_pack_device_text(DEVICEHANDLER_INTERFACE *device,
                                   title, title_capacity, synopsis, synopsis_capacity);
     device->closeFile(&stream.file);
     return ok;
+}
+
+int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
+                                 const char *pack_path, const char *game_id)
+{
+    PrismDeviceStream stream;
+    char index[PATHNAME_MAX], relative[PRISM_ROM_PATH_MAX + 1];
+    file_handle rom;
+    size_t length;
+    int found;
+    if (!device || !device->initial || !pack_path || !game_id)
+        return -1;
+    length = strlen(pack_path);
+    if (length < 6 || length >= sizeof(index) || strcmp(pack_path + length - 6, ".prism"))
+        return -1;
+    memcpy(index, pack_path, length - 6);
+    memcpy(index + length - 6, ".roms", 6);
+    if (!stream_open(&stream, device, index))
+        return -1;
+    found = prism_rom_find(device_read, &stream, stream.file.size, game_id, relative, sizeof(relative));
+    device->closeFile(&stream.file);
+    if (!found)
+        return -1;
+    memset(&rom, 0, sizeof(rom));
+    if (snprintf(rom.name, sizeof(rom.name), "%s%s", device->initial->name, relative) >= sizeof(rom.name))
+        return 0;
+    rom.device = device;
+    if (device->statFile(&rom) != 0)
+        return 0;
+    found = !(rom.fileAttrib & ATTRIB_DIRECTORY) && rom.size > 0;
+    device->closeFile(&rom);
+    return found;
 }

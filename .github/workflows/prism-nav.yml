@@ -5,6 +5,10 @@ on:
     branches: [feature/prism-dashboard]
   pull_request:
     paths:
+      - 'cube/swiss/source/gui/prism_rom_index.*'
+      - 'cube/swiss/source/gui/prism_pack_device.*'
+      - 'tools/prism_roms.py'
+      - 'tools/test_prism_roms.py'
       - 'cube/swiss/source/gui/prism_nav.*'
       - 'cube/swiss/source/gui/prism_game.*'
       - 'cube/swiss/source/gui/prism_library.*'
@@ -99,6 +103,10 @@ jobs:
           /tmp/prism-installed-test
       - name: Verify emulator system navigation and exact paths
         run: python3 tools/test_prism_systems.py
+      - name: Verify ROM matching, project paths and actual console index reader
+        run: |
+          python3 tools/test_prism_roms.py
+          python3 tools/test_prism_roms.py --console-reader
       - name: Verify exact Swiss launch and cancellation guards
         run: python3 tools/test_prism_launch.py
       - name: Generate deterministic example offline pack
