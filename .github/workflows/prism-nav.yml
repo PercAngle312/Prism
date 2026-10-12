@@ -9,6 +9,7 @@ on:
       - 'cube/swiss/source/gui/prism_pack_device.*'
       - 'tools/prism_background.py'
       - 'tools/test_prism_background.py'
+      - 'tools/test_prism_background_reader.py'
       - 'tools/test_prism_library_flow.py'
       - 'tools/prism_roms.py'
       - 'tools/test_prism_roms.py'
@@ -124,6 +125,7 @@ jobs:
       - name: Test Studio projects and console-reader export compatibility
         run: |
           python3 tools/test_prism_background.py
+          python3 tools/test_prism_background_reader.py
           python3 tools/test_prism_project.py
           python3 tools/test_prism_export_reader.py
       - name: Validate PRISM builder Python syntax

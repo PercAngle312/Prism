@@ -84,11 +84,20 @@ jobs:
           path: dashboard-tree
       - name: Archive the matching GameCube source
         run: |
-          $archive = Join-Path $PWD 'dashboard-source/PRISM-baec828345ba-source.zip'
+          @'
+          import pathlib, re
+          def synopsis_limit(path):
+              return int(re.search(r'PRISM_PACK_SYNOPSIS_MAX (\d+)u', pathlib.Path(path).read_text()).group(1))
+          assert synopsis_limit('cube/swiss/source/gui/prism_pack.h') == synopsis_limit('dashboard-tree/cube/swiss/source/gui/prism_pack.h'), 'Refresh bundled native dashboard before publishing new-format Studio exports'
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard pack compatibility check failed' }
+          $archive = Join-Path $PWD 'dashboard-source/PRISM-baec828345ba-source.zip' 
           git -C dashboard-tree archive --format=zip --output=$archive HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
       - name: Test project roundtrip, header scan and safe exports
         run: python tools/test_prism_project.py
+      - name: Test screenshot projects and SD export
+        run: python tools/test_prism_background.py
       - name: Test GameTDB offline metadata imports
         run: python tools/test_prism_gametdb.py
       - name: Test ordered metadata enrichment

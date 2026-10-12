@@ -803,7 +803,7 @@ def smoke_test(output):
                 'project_roundtrip': True, 'pack_verified': True, 'cover_preview': True,
                 'installer_dialog': True, 'sd_install_verified': True, 'dashboard_build': DASHBOARD_BUILD,
                 'rom_scan_and_index_install': True, 'synopsis_preview_scroll': True,
-                'full_synopsis_project_roundtrip': True}), encoding='utf-8')
+                'full_synopsis_project_roundtrip': True, 'screenshot_preview': True}), encoding='utf-8')
     finally:
         app.closed = True
         app.executor.shutdown(wait=True)
