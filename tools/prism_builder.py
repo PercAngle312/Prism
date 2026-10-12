@@ -12,6 +12,7 @@ from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 
 from prism_download import download_cover
+from prism_gametdb import import_gametdb
 from prism_preview import PrismPreview
 from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, validate_image, verify_pack
 
@@ -66,6 +67,7 @@ class Builder:
         for title, command in [('New project', self.new_project), ('Open project', self.open_project),
                                ('Save', self.save_project), ('Save as', lambda: self.save_project(True)),
                                ('Scan games folder', self.scan_games), ('Import JSON', self.import_json),
+                               ('Import GameTDB', self.import_gametdb_xml),
                                ('Export pack', self.package)]:
             button = ttk.Button(toolbar, text=title, command=command)
             button.pack(side='left', padx=3)
@@ -424,6 +426,33 @@ class Builder:
                 self.refresh_list()
                 self.status.set(f'Imported {added} games; preserved {len(duplicates)} existing entries.')
             self.run_job('Importing catalog…', import_data, accepted)
+
+    def import_gametdb_xml(self):
+        if not self.guard_edits():
+            return
+        if self.project.system != 'gamecube':
+            messagebox.showinfo('GameCube only', 'GameTDB XML import currently supports GameCube projects.', parent=self.root)
+            return
+        name = filedialog.askopenfilename(parent=self.root,
+            filetypes=[('GameTDB XML or ZIP', '*.xml *.zip')])
+        if not name:
+            return
+        full = messagebox.askyesno('GameTDB catalog mode',
+            'Import EVERY title from this GameTDB database?\\n\\n'
+            'Yes: build a full offline GameCube catalog (including uninstalled games).\\n'
+            'No: enrich only games already in this project.\\n\\n'
+            'Existing titles, covers and manually written synopses are preserved.',
+            parent=self.root)
+        snapshot = self.project.clone()
+        def import_data():
+            return snapshot, import_gametdb(snapshot, name, full_catalog=full)
+        def accepted(result):
+            self.project, stats = result
+            self.dirty |= bool(stats['added'] or stats['enriched'])
+            self.refresh_list()
+            self.status.set(f"GameTDB: {stats['matched']} indexed, "
+                            f"{stats['added']} added, {stats['enriched']} synopses filled.")
+        self.run_job('Importing GameTDB metadata…', import_data, accepted)
 
     def package(self):
         if not self.guard_edits():
