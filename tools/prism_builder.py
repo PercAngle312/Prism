@@ -713,6 +713,21 @@ def smoke_test(output):
             assert app.preview.winfo_width() >= 640, 'Full console canvas must fit in the window'
             assert app.preview.canvas.winfo_width() == 640
             assert app.preview.image_ref is not None
+            long_synopsis = '\n'.join(f'Generated preview test line {i}: full text remains readable.' for i in range(30))
+            app.preview.render({'id': 'TEST01', 'title': 'Scrolling preview test', 'synopsis': long_synopsis})
+            root.update()
+            assert app.preview.synopsis_text.get('1.0', 'end-1c') == long_synopsis
+            assert app.preview.synopsis_text.yview()[1] < 1
+            app.preview.synopsis_text.event_generate('<MouseWheel>', delta=-120)
+            root.update()
+            assert app.preview.synopsis_text.yview()[0] > 0
+            app.preview.synopsis_text.yview_moveto(1)
+            root.update()
+            assert app.preview.synopsis_text.yview()[1] == 1
+            app.preview.render({'id': 'TEST02', 'title': 'Short preview', 'synopsis': 'Complete short synopsis.'})
+            root.update()
+            assert app.preview.synopsis_text.get('1.0', 'end-1c') == 'Complete short synopsis.'
+            assert app.preview.synopsis_text.yview()[0] == 0
             app.system_name.set('Nintendo 64')
             app.choose_system()
             assert app.project.system == 'n64' and app.dirty
@@ -746,7 +761,7 @@ def smoke_test(output):
             Path(output).write_text(json.dumps({'status': 'passed', 'tk': root.tk.call('info', 'patchlevel'),
                 'project_roundtrip': True, 'pack_verified': True, 'cover_preview': True,
                 'installer_dialog': True, 'sd_install_verified': True, 'dashboard_build': DASHBOARD_BUILD,
-                'rom_scan_and_index_install': True}), encoding='utf-8')
+                'rom_scan_and_index_install': True, 'synopsis_preview_scroll': True}), encoding='utf-8')
     finally:
         app.closed = True
         app.executor.shutdown(wait=True)

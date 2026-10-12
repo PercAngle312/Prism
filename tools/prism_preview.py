@@ -24,34 +24,40 @@ PALE = "#edf3ff"
 MUTED = "#b4c7e1"
 
 
-def synopsis_lines(text, width=43, limit=8):
-    """Predictable character-bounded word wrap for the preview, not GX font metrics."""
-    words = (text or "No synopsis available.").split()
-    lines = []
-    current = ""
-    for word in words:
-        for fragment in (word[i:i + width] for i in range(0, len(word), width)):
-            if current and len(current) + 1 + len(fragment) > width:
-                lines.append(current)
-                current = ""
-            current = (current + " " + fragment).strip()
-    if current:
-        lines.append(current)
-    if len(lines) > limit:
-        lines = lines[:limit]
-        lines[-1] = lines[-1][:width - 3] + "..."
-    return "\n".join(lines)
-
-
 class PrismPreview(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent, bg=BG)
         self.canvas = tk.Canvas(self, width=WIDTH, height=HEIGHT, bg=BG,
                                 highlightthickness=0, borderwidth=0)
         self.canvas.pack()
+        self.synopsis_frame = tk.Frame(self.canvas, bg=PANEL)
+        self.synopsis_text = tk.Text(self.synopsis_frame, wrap='word', bg=PANEL,
+                                    fg='#d1def0', font=('Arial', 10), borderwidth=0,
+                                    highlightthickness=0, padx=0, pady=0,
+                                    selectbackground='#285e62', exportselection=False,
+                                    cursor='arrow', state='disabled')
+        self.synopsis_scroll = tk.Scrollbar(self.synopsis_frame, orient='vertical',
+                                           command=self.synopsis_text.yview,
+                                           width=12, borderwidth=0, highlightthickness=0)
+        self.synopsis_scroll.pack(side='right', fill='y', padx=(6, 0))
+        self.synopsis_text.pack(side='left', fill='both', expand=True)
+        self.synopsis_text.configure(yscrollcommand=self.synopsis_scroll.set)
+        def wheel(event):
+            amount = int(event.delta / 120) if abs(event.delta) >= 120 else (1 if event.delta > 0 else -1)
+            self.synopsis_text.yview_scroll(-amount, 'units')
+            return 'break'
+        self.synopsis_text.bind('<MouseWheel>', wheel)
+        self.synopsis_text.bind('<Button-4>', lambda _event: self.scroll_synopsis(-1))
+        self.synopsis_text.bind('<Button-5>', lambda _event: self.scroll_synopsis(1))
+        self.synopsis_text.bind('<Up>', lambda _event: self.scroll_synopsis(-1))
+        self.synopsis_text.bind('<Down>', lambda _event: self.scroll_synopsis(1))
         self.image_ref = None
         self.render({"id": "------", "title": "Choose a game",
                      "synopsis": "The selected game's cover and synopsis appear here."})
+
+    def scroll_synopsis(self, amount):
+        self.synopsis_text.yview_scroll(amount, 'units')
+        return 'break'
 
     def render(self, game):
         c = self.canvas
@@ -76,9 +82,17 @@ class PrismPreview(tk.Frame):
                       width=TEXT_W)
         c.create_text(TEXT_X, LAYOUT['text']['synopsis_heading_y'], text="SYNOPSIS", fill="#92b3df",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(TEXT_X, LAYOUT['text']['synopsis_y'], text=synopsis_lines(game.get("synopsis", ""), limit=6),
-                      fill="#d1def0", font=("Arial", 10), anchor="nw",
-                      width=TEXT_W)
+        self.synopsis_text.configure(state='normal')
+        self.synopsis_text.delete('1.0', 'end')
+        self.synopsis_text.insert('1.0', game.get('synopsis') or 'No synopsis available.')
+        self.synopsis_text.configure(state='disabled')
+        self.synopsis_text.yview_moveto(0)
+        c.create_window(TEXT_X, LAYOUT['text']['synopsis_y'], window=self.synopsis_frame,
+                        anchor='nw', width=TEXT_W,
+                        height=LAYOUT['status']['y'] - LAYOUT['text']['synopsis_y'] - 8,
+                        tags='synopsis_view')
+        c.create_text(TEXT_X, LAYOUT['status']['y'], text='Mouse wheel / scrollbar: read synopsis',
+                      fill=MUTED, font=('Arial', 8), anchor='nw')
         c.create_line(58, LAYOUT['footer']['line_y'], 582, LAYOUT['footer']['line_y'], fill="#3a526f")
         c.create_text(58, LAYOUT['footer']['labels_y'], text="A  SELECT", fill="#d8e8fa",
                       font=("Arial", 10, "bold"), anchor="nw")
