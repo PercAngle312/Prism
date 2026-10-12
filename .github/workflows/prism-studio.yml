@@ -8,6 +8,7 @@ on:
       - 'tools/test_prism_project.py'
       - 'tools/test_prism_gametdb.py'
       - 'tools/test_prism_scrape.py'
+      - 'tools/test_prism_cover_import.py'
       - 'tools/requirements-prism-studio.txt'
       - 'assets/prism/layout.json'
       - 'docs/prism-studio.md'
@@ -42,6 +43,8 @@ jobs:
         run: python tools/test_prism_gametdb.py
       - name: Test ordered metadata enrichment
         run: python tools/test_prism_scrape.py
+      - name: Test bulk cover import
+        run: python tools/test_prism_cover_import.py
       - name: Exercise source GUI and preview
         run: |
           python tools/prism_builder.py --smoke-test source-smoke.json
