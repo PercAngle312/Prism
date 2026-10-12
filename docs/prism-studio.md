@@ -111,3 +111,31 @@ is connected to the automatic-fetch button in this release. Respect provider
 attribution, rate limits, and redistribution restrictions; especially do not
 redistribute MobyGames content as a bundled database. Bulk export should only
 include data for which the user has the required rights.
+
+## Scrape missing — ordered metadata lookup (experimental)
+
+Click **Scrape missing** after scanning or importing GameCube games. Choose
+a local GameTDB XML/ZIP database and/or provide personal API credentials for
+TheGamesDB, IGDB (Client ID plus valid access token), or MobyGames. Click
+**Fetch missing synopses**. The lookup runs in the background; credentials are
+used only for this operation, not stored in the project.
+
+Priority is GameTDB → ScreenScraper → TheGamesDB → IGDB → MobyGames →
+LaunchBox → RAWG. In this first release, ScreenScraper, LaunchBox and RAWG
+are **skipped** because their connectors are not yet implemented. Other
+providers are skipped unless configured. Existing descriptions are preserved;
+once a game receives a synopsis, lower-priority providers are not queried for
+it. Provider matches require normalized exact game titles, and GameTDB uses
+six-character disc IDs. Ambiguous or differently named games may remain empty.
+
+This button currently fills **missing synopses only**, not covers, genres or
+release dates. You can import an entire catalog first using **Import GameTDB**
+and then enrich its missing entries. Only export data under the applicable
+provider terms; the app does not provide a redistributable prebuilt catalog.
+API errors appear as counts in the status line. API rate limits apply, and
+MobyGames calls are deliberately spaced out.
+
+For IGDB, create an authorized Twitch developer application and obtain an
+OAuth access token; see https://api-docs.igdb.com/. TheGamesDB credentials
+come from https://api.thegamesdb.net/. MobyGames API access is described at
+https://www.mobygames.com/info/api/.
