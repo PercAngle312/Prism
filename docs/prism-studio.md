@@ -88,3 +88,26 @@ only. Emulator ROM scanning and automatic metadata retrieval are not implemented
 The console's **A: Emulator** opens the GameCube emulator DOL; it does not launch
 the selected ROM automatically. See the dashboard's system-library instructions
 for the matching `.dol` filenames and storage requirements.
+
+## GameTDB full-library import (first metadata-provider integration)
+
+Use **Import GameTDB** in PRISM Studio and select a GameCube XML database
+downloaded from [GameTDB](https://www.gametdb.com/) (plain XML or ZIP).
+Choose **Yes** to add all database entries to the current GameCube project,
+including games not installed on your SD card. Choose **No** to enrich only
+games already listed in your project. Existing titles, covers and nonempty
+synopses are preserved. Review the results, save a `.prism-project`, and
+export `library.prism` to `/swiss/prism/`.
+
+This import reads the metadata from a local database file; it does **not**
+download publisher covers or scrape websites. GameTDB language preference is
+English, with title fallback when synopsis is unavailable. Game IDs are used
+for matching. An imported catalog is metadata only: PRISM's Installed Games
+view must continue to show only actual files.
+
+**Upcoming providers:** IGDB (Twitch application credentials) and MobyGames
+(API subscription/key) are planned as optional authorized lookups. Neither
+is connected to the automatic-fetch button in this release. Respect provider
+attribution, rate limits, and redistribution restrictions; especially do not
+redistribute MobyGames content as a bundled database. Bulk export should only
+include data for which the user has the required rights.
