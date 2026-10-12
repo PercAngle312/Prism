@@ -31,6 +31,11 @@ on:
       - 'tools/prism_pack.py'
       - 'tools/prism_cover.py'
       - 'tools/prism_builder.py'
+      - 'tools/prism_project.py'
+      - 'tools/prism_download.py'
+      - 'tools/test_prism_project.py'
+      - 'tools/test_prism_export_reader.py'
+      - 'tools/requirements-prism-studio.txt'
       - 'tools/prism_preview.py'
       - 'tools/prism_layout.py'
       - 'tools/test_prism_layout.py'
@@ -97,8 +102,14 @@ jobs:
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library.prism
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library2.prism
           cmp /tmp/library.prism /tmp/library2.prism
+      - name: Install cover conversion test dependency
+        run: python3 -m pip install Pillow==11.3.0
+      - name: Test Studio projects and console-reader export compatibility
+        run: |
+          python3 tools/test_prism_project.py
+          python3 tools/test_prism_export_reader.py
       - name: Validate PRISM builder Python syntax
-        run: python3 -m py_compile tools/prism_pack.py tools/prism_cover.py tools/prism_builder.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
+        run: python3 -m py_compile tools/prism_pack.py tools/prism_cover.py tools/prism_builder.py tools/prism_project.py tools/prism_download.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
       - name: Verify PRISM startup before Swiss autoload
         run: python3 tools/test_prism_boot_order.py
       - name: Verify cover texture constants

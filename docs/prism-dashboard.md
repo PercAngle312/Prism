@@ -387,3 +387,19 @@ the previous frame until the replacement is published.
 
 This composition has host layout/renderer checks and requires a future real
 GameCube visual check. The startup checkpoint remains intentionally visible.
+
+## PRISM Studio desktop milestone
+
+`tools/prism_builder.py` now opens PRISM Studio: a Windows-ready offline editor
+with searchable entries, multiline synopsis editing, cover selection/download,
+project save/reopen, raw ISO/GCM ID scanning and atomic pack export. Editable
+`.prism-project` ZIPs carry their metadata and normalized PNG covers together.
+Existing descriptions/art are preserved during manifest import and disc scan.
+The console pack format and its SD location are unchanged.
+
+See `docs/prism-studio.md` for the user guide. Windows CI launches the source
+GUI and packaged executable, testing Tk, Pillow, bundled layout data, project
+roundtrip, cover preview and export verification. Host tests also read a Studio
+export through the actual portable GameCube pack reader. The Windows build is
+portable (extract the entire folder); it does not require Python installation.
+Automatic website synopsis retrieval remains future work.

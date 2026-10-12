@@ -1,8 +1,10 @@
 """Load and validate the layout shared by the PRISM preview and GameCube UI."""
 import json
+import sys
 from pathlib import Path
 
-LAYOUT_FILE = Path(__file__).resolve().parent.parent / "assets" / "prism" / "layout.json"
+ASSET_ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+LAYOUT_FILE = ASSET_ROOT / "assets" / "prism" / "layout.json"
 
 
 def load_layout(path=LAYOUT_FILE):
@@ -23,3 +25,4 @@ def load_layout(path=LAYOUT_FILE):
     if text["x"] <= cover["x"] + cover["width"] or text["x"] + text["width"] > 640:
         raise ValueError("Text must fit to the right of the cover")
     return data
+

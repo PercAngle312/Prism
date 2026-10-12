@@ -10,7 +10,7 @@ from prism_layout import load_layout
 LAYOUT = load_layout()
 
 try:
-    from PIL import Image, ImageTk
+    from PIL import Image, ImageTk, ImageOps
 except ImportError:
     Image = ImageTk = None
 
@@ -18,8 +18,8 @@ WIDTH, HEIGHT = LAYOUT["screen"]["width"], LAYOUT["screen"]["height"]
 COVER_X, COVER_Y = LAYOUT["cover"]["x"], LAYOUT["cover"]["y"]
 COVER_W, COVER_H = LAYOUT["cover"]["width"], LAYOUT["cover"]["height"]
 TEXT_X, TEXT_W = LAYOUT["text"]["x"], LAYOUT["text"]["width"]
-BG = "#101a2e"
-PANEL = "#19263d"
+BG = "#090e18"
+PANEL = "#101825"
 PALE = "#edf3ff"
 MUTED = "#b4c7e1"
 
@@ -56,7 +56,9 @@ class PrismPreview(tk.Frame):
     def render(self, game):
         c = self.canvas
         c.delete("all")
-        c.create_rectangle(LAYOUT['panel']['x'], LAYOUT['panel']['y'], LAYOUT['panel']['right'], LAYOUT['panel']['bottom'], fill=PANEL, outline="#344660", width=2)
+        c.create_rectangle(LAYOUT['panel']['x'], LAYOUT['panel']['y'], LAYOUT['panel']['right'], LAYOUT['panel']['bottom'], fill=PANEL, outline=PANEL, width=0)
+        c.create_rectangle(42, 44, 46, 84, fill="#4ddbc9", outline="")
+        c.create_line(42, 91, 598, 91, fill="#2c3d50")
         c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['logo_y'], text="PRISM", fill=PALE,
                       font=("Arial", 23, "bold"), anchor="nw")
         c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['subtitle_y'], text="GAME DETAILS   /   " + game.get("id", "------"),
@@ -74,7 +76,7 @@ class PrismPreview(tk.Frame):
                       width=TEXT_W)
         c.create_text(TEXT_X, LAYOUT['text']['synopsis_heading_y'], text="SYNOPSIS", fill="#92b3df",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(TEXT_X, LAYOUT['text']['synopsis_y'], text=synopsis_lines(game.get("synopsis", "")),
+        c.create_text(TEXT_X, LAYOUT['text']['synopsis_y'], text=synopsis_lines(game.get("synopsis", ""), limit=6),
                       fill="#d1def0", font=("Arial", 10), anchor="nw",
                       width=TEXT_W)
         c.create_line(58, LAYOUT['footer']['line_y'], 582, LAYOUT['footer']['line_y'], fill="#3a526f")
@@ -98,8 +100,7 @@ class PrismPreview(tk.Frame):
         try:
             if Image is not None:
                 with Image.open(path) as source:
-                    image = source.copy()
-                image.thumbnail((COVER_W, COVER_H))
+                    image = ImageOps.fit(ImageOps.exif_transpose(source).convert("RGB"), (COVER_W, COVER_H), method=Image.Resampling.LANCZOS)
                 self.image_ref = ImageTk.PhotoImage(image)
             else:
                 image = tk.PhotoImage(file=str(path))
@@ -114,3 +115,4 @@ class PrismPreview(tk.Frame):
                                     COVER_Y + COVER_H - 22,
                                     text="PREVIEW UNAVAILABLE", fill="#ebbcaa",
                                     font=("Arial", 8))
+

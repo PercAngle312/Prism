@@ -17,10 +17,10 @@ def convert_cover(path: Path) -> bytes:
     except ImportError as exc:
         raise ValueError("Install Pillow to convert cover art: python -m pip install Pillow") from exc
     with Image.open(path) as source:
-        source.load()
         if source.width > 8192 or source.height > 8192 or source.width * source.height > 16_000_000:
             raise ValueError("Cover source exceeds safe pixel dimensions")
-        image = ImageOps.fit(source.convert("RGB"), (WIDTH, HEIGHT), method=Image.Resampling.LANCZOS)
+        source.load()
+        image = ImageOps.fit(ImageOps.exif_transpose(source).convert("RGB"), (WIDTH, HEIGHT), method=Image.Resampling.LANCZOS)
     out = bytearray(MAGIC + WIDTH.to_bytes(2, "little") + HEIGHT.to_bytes(2, "little"))
     pixels = image.load()
     for tile_y in range(0, HEIGHT, 4):
@@ -38,3 +38,4 @@ def validate_cover(data: bytes) -> bool:
     return (len(data) == COVER_BYTES and data[:8] == MAGIC and
             int.from_bytes(data[8:10], "little") == WIDTH and
             int.from_bytes(data[10:12], "little") == HEIGHT)
+
