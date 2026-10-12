@@ -13,6 +13,7 @@ p.put({'id': 'GZLE01', 'title': 'The Legend of Zelda: The Wind Waker',
        'synopsis': 'My custom synopsis'})
 p.put({'id': 'GSAE01', 'title': 'Star Fox Adventures', 'synopsis': ''})
 calls = []
+progress_events = []
 def fake_request(url, headers=None, body=None):
     calls.append(url)
     if 'thegamesdb' in url:
@@ -28,8 +29,13 @@ with tempfile.TemporaryDirectory() as tmp:
 </locale></game></datafile>''', encoding='utf-8')
     result = enrich_project(p, gametdb=db,
         credentials={'thegamesdb': 'test', 'igdb_client': 'test', 'igdb_token': 'test'},
-        request=fake_request, sleep=lambda seconds: None)
+        request=fake_request, sleep=lambda seconds: None,
+        progress=progress_events.append)
 assert result['enriched'] == 2, result
+assert result['completed'] == 3 and result['missing'] == 0
+assert progress_events and progress_events[0]['total'] == 3
+assert progress_events[0]['completed'] == 1
+assert any(e['provider'] == 'IGDB' for e in progress_events)
 assert p.games['GM8E01']['synopsis'] == 'Investigate Tallon IV.'
 assert p.games['GSAE01']['synopsis'] == 'Explore Dinosaur Planet.'
 assert p.games['GZLE01']['synopsis'] == 'My custom synopsis'
