@@ -484,3 +484,23 @@ that emulator. This integration does not modify emulator settings, saves or ROMs
 Sources checked: `emukidid/Wii64/main/main_gc-menu2.cpp`,
 `extremscorner/not64/main/main_gc-menu2.cpp`, and this branch's
 `cube/swiss/source/swiss.c` (`boot_dol`, `.cli`, `.dcp`, argv forwarding).
+
+
+## Hardware feedback: library-first dashboard
+
+PRISM now enters installed games automatically after normal device setup. No
+interactive boot-check gate remains. START opens Settings (the former home),
+including Classic Swiss. A on a cover opens its synopsis; B returns to the same
+cover; A on synopsis rechecks the exact disc identity and starts through Swiss
+with AutoBoot temporarily enabled. X has no details action. UP/DOWN scrolls
+full descriptions, up to 4096 UTF-8 bytes.
+
+The shelf has no cover frames, title row or healthy folder-status row. A Systems
+card sits between the last and first cover, opened with A; Z is a shortcut.
+Storage total/free space is shown for the active game device. Solid header and
+footer bars sit over a quiet indigo abstract background. Optional Studio-exported
+screenshots appear only behind details, dimmed to 20 percent brightness.
+
+Host controller tapes verify these transitions and launch restoration; native
+CI compilation is required. Rendering and game startup still need confirmation
+on GameCube hardware for each new build.

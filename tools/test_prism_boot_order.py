@@ -22,23 +22,12 @@ assert auto_dol_guard != -1 and auto_dol - auto_dol_guard < 200, (
 assert auto_dol < dashboard, "Device auto-DOL must be checked before PRISM bootstrap"
 assert "if(!prism_opened && swissSettings.autoload[0])" in main
 assert "else if(!prism_opened && swissSettings.recent[0][0]" in main
-home = source[source.index("static void prism_dashboard_bootstrap(void)"):source.index("int main(int argc, char *argv[])")]
-assert "prism_installed_browser(1);" not in home, "Startup must not auto-scan games"
-release_gate = "while (padsButtonsHeld() & (BUTTON_A | BUTTON_B | BUTTON_START))"
-assert release_gate in home, "Dashboard must wait for release of entry buttons"
-assert home.index("prism_draw_home(NULL, selection)") < home.index(release_gate), "Release gate must follow home rendering"
-assert "\"PRISM BOOT CHECK V3\"" in main
-marker = main.index("\"PRISM BOOT CHECK V3\"")
-assert init < marker < main.index("populateDeviceAvailability();")
-assert marker < main.index("config_init(&config_migration)")
-assert main.index("DrawClassicUI();") < main.index("swissSettings.cubebootInvoked = 0;")
-assert 'unsetenv("CUBEBOOT");' in main
+bootstrap = source[source.index("static void prism_dashboard_bootstrap(void)"):source.index("int main(int argc, char *argv[])")]
+assert "prism_installed_browser(1);" in bootstrap, "PRISM boots directly into installed games"
+assert "PRISM BOOT CHECK V3" not in main and "Press A to enter PRISM" not in main
+assert "boot_pressed" not in main, "Startup cannot wait for an A press"
+assert main.index('unsetenv("CUBEBOOT");') < auto_dol
 assert main.index("swissSettings.cubebootInvoked = 0;") < auto_dol
-assert main.index("int prism_opened = !swissSettings.cubebootInvoked;") < auto_dol
-assert 'if(!prism_opened && strverscmp(swissSettings.gcloaderTopVersion, "2.0.1")' in main
-assert 'if(!prism_opened && strverscmp(swissSettings.gcloaderTopVersion, "1.0.1")' in main
+assert main.index("int prism_opened = 1;") < auto_dol
 assert main.index("DrawDispose(startup);") < dashboard
-assert "boot_pressed & BUTTON_A" in main
-assert "BUTTON_X : 0" in main
-print("PRISM entry and persistent pre-storage marker: OK")
-
+print("PRISM automatic library startup and Swiss autoload isolation: OK")

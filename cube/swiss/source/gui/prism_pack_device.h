@@ -7,6 +7,11 @@
  * Checks the config-storage file path only, never reads/hashes or launches ROMs. */
 int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
                                  const char *pack_path, const char *game_id);
+#define PRISM_BACKGROUND_WIDTH 320u
+#define PRISM_BACKGROUND_HEIGHT 240u
+#define PRISM_BACKGROUND_BYTES (PRISM_BACKGROUND_WIDTH * PRISM_BACKGROUND_HEIGHT * 2u)
+int prism_pack_device_background(DEVICEHANDLER_INTERFACE *device, const char *game_id,
+                                  void *pixels, size_t capacity);
 
 /* Adapter for a single, already available Swiss storage device.
  * Caller chooses device; this does not initialize, switch, or deinit devices.

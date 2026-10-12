@@ -145,3 +145,23 @@ int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
     device->closeFile(&rom);
     return found;
 }
+
+int prism_pack_device_background(DEVICEHANDLER_INTERFACE *device, const char *game_id,
+                                  void *pixels, size_t capacity)
+{
+    char path[PATHNAME_MAX];
+    unsigned char header[12];
+    PrismDeviceStream stream;
+    int ok;
+    if (!device || !device->initial || !game_id || strlen(game_id) != 6 || !pixels || capacity < PRISM_BACKGROUND_BYTES)
+        return 0;
+    for (int i = 0; i < 6; ++i)
+        if (!((game_id[i] >= 'A' && game_id[i] <= 'Z') || (game_id[i] >= '0' && game_id[i] <= '9'))) return 0;
+    if (snprintf(path, sizeof(path), "%sswiss/prism/screenshots/gamecube/%s.bg", device->initial->name, game_id) >= (int)sizeof(path) ||
+        !stream_open(&stream, device, path)) return 0;
+    ok = stream.file.size == 12 + PRISM_BACKGROUND_BYTES && device_read(&stream, 0, header, sizeof(header)) &&
+        !memcmp(header, "PRISMBG1", 8) && header[8] == 64 && header[9] == 1 && header[10] == 240 && header[11] == 0;
+    if (ok) ok = device_read(&stream, 12, pixels, PRISM_BACKGROUND_BYTES);
+    device->closeFile(&stream.file);
+    return ok;
+}

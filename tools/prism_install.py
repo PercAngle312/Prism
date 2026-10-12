@@ -158,6 +158,7 @@ def install(root, project=None, dashboard=True, dashboard_path=None):
             if project.system != 'gamecube':
                 writes.append((destination.lstrip('/') + Path(filename).with_suffix('.roms').name,
                                project.export_rom_index()))
+        writes.extend(project.background_files().items())
     else:
         count = 0
     if not writes:

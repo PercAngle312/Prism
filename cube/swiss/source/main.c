@@ -209,22 +209,32 @@ void config_migration(char* text, int state, int percent) {
 }
 
 /* PRISM's opaque composition uses exact bounds; disposing it reveals Swiss. */
-static uiDrawObj_t *prism_draw_panel(const char *subtitle)
+static uiDrawObj_t *prism_draw_panel_background(const char *subtitle, GXTexObj *background)
 {
     uiDrawObj_t *panel = DrawContainer();
-    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 480, (GXColor){9, 14, 24, 255}));
-    DrawAddChild(panel, DrawSolidBox(PRISM_PANEL_X, PRISM_PANEL_Y,
-        PRISM_PANEL_RIGHT, PRISM_PANEL_BOTTOM, (GXColor){16, 24, 37, 255}));
-    DrawAddChild(panel, DrawSolidBox(42, 44, 46, 84, (GXColor){77, 219, 201, 255}));
-    DrawAddChild(panel, DrawSolidBox(42, 91, 598, 92, (GXColor){44, 61, 80, 255}));
-    DrawAddChild(panel, DrawSolidBox(42, 449, 598, 450, (GXColor){44, 61, 80, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 480, (GXColor){22, 17, 43, 255}));
+    /* Quiet indigo facets, drawn procedurally without Swiss's watermarks. */
+    for (int band = 0; band < 12; ++band) {
+        int inset = band * 18;
+        DrawAddChild(panel, DrawSolidBox(330 + inset, 112 + band * 23, 640,
+            138 + band * 23, (GXColor){35 + band, 27 + band / 2, 64 + band, 255}));
+    }
+    if (background) DrawAddChild(panel, DrawTexObj(background, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
+    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){25, 20, 45, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){17, 13, 32, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){85, 67, 137, 255}));
     DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_LOGO_Y, "PRISM",
-        1.35f, ALIGN_LEFT, (GXColor){233, 241, 247, 255}));
+        0.85f, ALIGN_LEFT, (GXColor){233, 241, 247, 255}));
     DrawAddChild(panel, DrawStyledLabel(585, PRISM_LOGO_Y + 8,
         "Build " GIT_COMMIT, 0.6f, ALIGN_RIGHT, (GXColor){143, 162, 183, 255}));
     DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_SUBTITLE_Y,
         subtitle, 0.72f, ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
     return panel;
+}
+
+static uiDrawObj_t *prism_draw_panel(const char *subtitle)
+{
+    return prism_draw_panel_background(subtitle, NULL);
 }
 
 typedef struct { int width; float scale; } PrismTextMeasure;
@@ -251,6 +261,23 @@ static void prism_draw_wrapped(uiDrawObj_t *panel, const char *text,
     }
 }
 
+static void prism_draw_synopsis(uiDrawObj_t *panel, const char *text, int *scroll)
+{
+    PrismTextMeasure measure = {PRISM_TEXT_WIDTH, 0.68f};
+    const char *cursor = text;
+    char line[128];
+    int lines = 0;
+    while (prism_text_next(&cursor, line, sizeof(line), prism_text_fits, &measure)) ++lines;
+    int maximum = lines > 6 ? lines - 6 : 0;
+    if (*scroll > maximum) *scroll = maximum;
+    cursor = text;
+    for (int skipped = 0; skipped < *scroll; ++skipped)
+        prism_text_next(&cursor, line, sizeof(line), prism_text_fits, &measure);
+    for (int row = 0; row < 6 && prism_text_next(&cursor, line, sizeof(line), prism_text_fits, &measure); ++row)
+        DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_Y + row * 22,
+            line, 0.68f, ALIGN_LEFT, (GXColor){231, 226, 242, 255}));
+}
+
 /* Each hint owns a bounded cell, so long labels cannot collide on a CRT. */
 static void prism_draw_hint(uiDrawObj_t *panel, int x, int y, int width,
                              const char *text, GXColor colour)
@@ -263,11 +290,18 @@ static void prism_draw_hint(uiDrawObj_t *panel, int x, int y, int width,
 
 static void prism_draw_library_hints(uiDrawObj_t *panel, int y, int details)
 {
-    prism_draw_hint(panel, 44, y, 164, "LEFT/RIGHT: Browse", (GXColor){185, 200, 225, 255});
-    prism_draw_hint(panel, 208, y, 74, "L/R: 10", (GXColor){185, 200, 225, 255});
-    prism_draw_hint(panel, 282, y, 100, details ? "X: Covers" : "X: Details", (GXColor){134, 184, 245, 255});
-    prism_draw_hint(panel, 382, y, 138, "A: Game info", (GXColor){113, 223, 181, 255});
-    prism_draw_hint(panel, 520, y, 76, "B: Back", (GXColor){239, 154, 157, 255});
+    if (details) {
+        prism_draw_hint(panel, 44, y, 200, "UP/DOWN: Read", (GXColor){190, 181, 218, 255});
+        prism_draw_hint(panel, 244, y, 180, "A: Start game", (GXColor){165, 229, 204, 255});
+        prism_draw_hint(panel, 424, y, 172, "B: Games", (GXColor){233, 180, 204, 255});
+    } else {
+        prism_draw_hint(panel, 44, y, 154, "LEFT/RIGHT: Browse", (GXColor){190, 181, 218, 255});
+        prism_draw_hint(panel, 198, y, 72, "L/R: 10", (GXColor){190, 181, 218, 255});
+        prism_draw_hint(panel, 270, y, 106, "A: Open", (GXColor){165, 229, 204, 255});
+        prism_draw_hint(panel, 376, y, 98, "Z: Systems", (GXColor){190, 181, 218, 255});
+        prism_draw_hint(panel, 474, y, 122, "START: Settings", (GXColor){233, 180, 204, 255});
+    }
+
 }
 
 static uiDrawObj_t *prism_draw_notice(const char *title, const char *body,
@@ -299,10 +333,6 @@ static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *ga
                                    int x, int y, int width, int height)
 {
     if (!game) return;
-    DrawAddChild(panel, DrawSolidBox(x + 5, y + 5, x + width + 5, y + height + 5,
-        (GXColor){6, 10, 18, 255}));
-    DrawAddChild(panel, DrawSolidBox(x - 1, y - 1, x + width + 1, y + height + 1,
-        (GXColor){56, 76, 94, 255}));
     DrawAddChild(panel, DrawSolidBox(x, y, x + width, y + height,
         (GXColor){28, 41, 58, 255}));
     if (has_cover)
@@ -327,33 +357,23 @@ static void prism_draw_coverflow(uiDrawObj_t *panel, const PrismLibrary *library
     prism_draw_cover_card(panel, prism_library_neighbor(library, 1),
         side_textures[1], side_covers[1], PRISM_FLOW_RIGHT_X, PRISM_FLOW_SIDE_Y,
         PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
-    DrawAddChild(panel, DrawSolidBox(PRISM_FLOW_CENTER_X - 4, PRISM_FLOW_CENTER_Y - 4,
-        PRISM_FLOW_CENTER_X + PRISM_LAYOUT_COVER_WIDTH + 4,
-        PRISM_FLOW_CENTER_Y + PRISM_LAYOUT_COVER_HEIGHT + 4,
-        (GXColor){77, 219, 201, 255}));
     prism_draw_cover_card(panel, prism_library_selected(library),
         texture, has_cover, PRISM_FLOW_CENTER_X, PRISM_FLOW_CENTER_Y,
         PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT);
-    PrismTextMeasure measure = {500, 0.85f};
-    const char *cursor = title;
-    char label[128];
-    if (prism_text_next(&cursor, label, sizeof(label), prism_text_fits, &measure)) {
-        if (*cursor) prism_text_elide(label, sizeof(label), prism_text_fits, &measure);
-        DrawAddChild(panel, DrawStyledLabel(320, PRISM_FLOW_TITLE_Y, label,
-            0.85f, ALIGN_CENTER, (GXColor){225, 235, 255, 255}));
-    }
+    (void)title; /* Covers identify shelf entries; titles stay on the details page. */
+
 }
 
 static uiDrawObj_t *prism_draw_home(uiDrawObj_t *previous, int selection)
 {
-    static const char *titles[] = {"Installed games", "Classic Swiss", "Offline catalog", "About PRISM"};
+    static const char *titles[] = {"Return to games", "Classic Swiss", "Offline catalog", "About PRISM"};
     static const char *descriptions[] = {
         "Browse your games. View details and launch through Swiss.",
         "Open Swiss for devices, settings, cheats and advanced options.",
         "Explore the games and artwork in your offline library pack.",
         "An original GameCube dashboard. Built on Swiss."
     };
-    uiDrawObj_t *panel = prism_draw_panel("YOUR GAME LIBRARY");
+    uiDrawObj_t *panel = prism_draw_panel("SETTINGS");
     for (int tile = 0; tile < 4; ++tile) {
         int x = PRISM_HOME_X + (tile % 2) * PRISM_HOME_STRIDE_X;
         int y = PRISM_HOME_Y + (tile / 2) * PRISM_HOME_STRIDE_Y;
@@ -371,7 +391,7 @@ static uiDrawObj_t *prism_draw_home(uiDrawObj_t *previous, int selection)
     prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 136, "D-Pad: Select", (GXColor){185, 200, 225, 255});
     prism_draw_hint(panel, 180, PRISM_FOOTER_LABELS_Y, 92, "A: Open", (GXColor){113, 223, 181, 255});
     prism_draw_hint(panel, 272, PRISM_FOOTER_LABELS_Y, 114, "Z: Systems", (GXColor){134, 184, 245, 255});
-    prism_draw_hint(panel, 386, PRISM_FOOTER_LABELS_Y, 210, "B/START: Classic Swiss", (GXColor){239, 154, 157, 255});
+    prism_draw_hint(panel, 386, PRISM_FOOTER_LABELS_Y, 210, "B/START: Games", (GXColor){239, 154, 157, 255});
     return DrawRepublish(previous, panel);
 }
 
@@ -382,7 +402,7 @@ static uiDrawObj_t *prism_startup_stage(uiDrawObj_t *previous, const char *stage
 	DrawAddChild(panel, DrawEmptyColouredBox(55, 145, 585, 335,
 		(GXColor){18, 24, 42, 255}));
 	DrawAddChild(panel, DrawStyledLabel(320, 195,
-		"PRISM STARTUP V3", 1.5f, ALIGN_CENTER,
+		"PRISM", 1.5f, ALIGN_CENTER,
 		(GXColor){225, 235, 255, 255}));
 	DrawAddChild(panel, DrawStyledLabel(320, 245, stage, 0.9f, ALIGN_CENTER,
 		(GXColor){170, 194, 229, 255}));
@@ -431,8 +451,11 @@ static void prism_free_cover_cache(PrismRuntimeCoverCache *cache)
 }
 
 /* Raw GameCube images discovered via Swiss on /games.
- * Launch through Swiss's existing file preparation and game-info flow.
+ * Launch through Swiss's existing file preparation with direct game startup.
  */
+static void prism_system_libraries(void);
+static int prism_settings_menu(void);
+
 static int prism_installed_browser(int quiet_if_empty)
 {
     DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CUR];
@@ -443,11 +466,15 @@ static int prism_installed_browser(int quiet_if_empty)
     char pack_path[PATHNAME_MAX];
     int has_pack = 0;
     PrismRuntimeCoverCache *covers = NULL;
+    void *background_pixels = NULL;
+    GXTexObj background_texture;
+    char background_id[7] = "";
+    int has_background = 0;
     uiDrawObj_t *screen = NULL;
     unsigned displayed_slots = 0;
-    int details = 0;
+    int details = 0, systems_selected = 0, synopsis_scroll = 0;
     u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT |
-               BUTTON_X | BUTTON_L | BUTTON_R;
+               BUTTON_X | BUTTON_L | BUTTON_R | BUTTON_Z | BUTTON_UP | BUTTON_DOWN;
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
         if (quiet_if_empty) return 0;
@@ -476,6 +503,11 @@ static int prism_installed_browser(int quiet_if_empty)
         has_pack = prism_pack_device_count(metadata_device, pack_path, &count);
     }
     covers = calloc(1, sizeof(*covers));
+    char storage_info[96] = "Storage information unavailable";
+    device_info *storage = device->info ? device->info(device->initial) : NULL;
+    if (storage && storage->totalSpace)
+        snprintf(storage_info, sizeof(storage_info), "%.1f GiB total  /  %.1f GiB free",
+            (double)storage->totalSpace / 1073741824.0, (double)storage->freeSpace / 1073741824.0);
     /* A failed cache allocation still permits title-only browsing/launching. */
     for (;;) {
         int has_cover = 0;
@@ -516,13 +548,31 @@ static int prism_installed_browser(int quiet_if_empty)
                 }
             }
         }
-        snprintf(heading, sizeof(heading), "INSTALLED GAMES  |  %lu / %lu",
+        snprintf(heading, sizeof(heading), "GAMES  |  %lu / %lu",
             (unsigned long)(library->selected + 1),
             (unsigned long)library->count);
-        panel = prism_draw_panel(heading);
-        DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y,
-            game->id, 0.72f, ALIGN_RIGHT, (GXColor){170, 194, 229, 255}));
-        if (!details) {
+        if (details && strcmp(background_id, game->id)) {
+            /* Details can only be entered from the shelf, whose frame does
+             * not reference this buffer. Keep it alive until frame disposal. */
+            if (!background_pixels) background_pixels = memalign(32, PRISM_BACKGROUND_BYTES);
+            has_background = background_pixels && prism_pack_device_background(metadata_device, game->id,
+                background_pixels, PRISM_BACKGROUND_BYTES);
+            strlcpy(background_id, game->id, sizeof(background_id));
+            if (has_background) {
+                DCFlushRange(background_pixels, PRISM_BACKGROUND_BYTES);
+                GX_InitTexObj(&background_texture, background_pixels, PRISM_BACKGROUND_WIDTH, PRISM_BACKGROUND_HEIGHT,
+                    GX_TF_RGB565, GX_CLAMP, GX_CLAMP, GX_FALSE);
+                GX_InitTexObjLOD(&background_texture, GX_LINEAR, GX_LINEAR, 0, 0, 0, GX_FALSE, GX_FALSE, GX_ANISO_1);
+            }
+        }
+        panel = prism_draw_panel_background(heading, details && has_background ? &background_texture : NULL);
+        DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y, storage_info,
+            0.48f, ALIGN_RIGHT, (GXColor){192, 181, 219, 255}));
+        if (systems_selected) {
+            DrawAddChild(panel, DrawSolidBox(232, 146, 408, 352, (GXColor){62, 46, 103, 255}));
+            DrawAddChild(panel, DrawStyledLabel(320, 226, "SYSTEMS", 1.0f, ALIGN_CENTER, (GXColor){239, 232, 255, 255}));
+            DrawAddChild(panel, DrawStyledLabel(320, 272, "A: Browse platforms", 0.6f, ALIGN_CENTER, (GXColor){202, 190, 226, 255}));
+        } else if (!details) {
             prism_draw_coverflow(panel, library, cover_texture, has_cover,
                 side_textures, side_covers, title);
         } else {
@@ -541,10 +591,7 @@ static int prism_installed_browser(int quiet_if_empty)
                 PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
             DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
                 "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-            prism_draw_wrapped(panel,
-                synopsis[0] ? synopsis : "Metadata not available for this disc.",
-                PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
-                6, 22, (GXColor){204, 218, 239, 255});
+            prism_draw_synopsis(panel, synopsis[0] ? synopsis : "Description not available for this game.", &synopsis_scroll);
         }
         char scan_status[100];
         if (paths->truncated)
@@ -556,15 +603,14 @@ static int prism_installed_browser(int quiet_if_empty)
                 "Partial scan: %u game folders unreadable",
                 paths->unreadable_folders);
         else
-            snprintf(scan_status, sizeof(scan_status),
-                "%s | /games + game folders", device->deviceName);
+            scan_status[0] = '\0';
         float status_scale = GetTextScaleToFitInWidth(scan_status,
             details ? PRISM_STATUS_WIDTH : 500);
         if (status_scale > 0.6f) status_scale = 0.6f;
-        DrawAddChild(panel, DrawStyledLabel(details ? PRISM_STATUS_X : 320,
+        if (scan_status[0]) DrawAddChild(panel, DrawStyledLabel(details ? PRISM_STATUS_X : 320,
             details ? PRISM_STATUS_Y : PRISM_FLOW_STATUS_Y, scan_status, status_scale,
             details ? ALIGN_LEFT : ALIGN_CENTER, (GXColor){170, 194, 229, 255}));
-        prism_draw_library_hints(panel, details ? PRISM_FOOTER_LABELS_Y : PRISM_FLOW_FOOTER_Y, details);
+        prism_draw_library_hints(panel, PRISM_FOOTER_LABELS_Y, details);
         screen = DrawRepublish(screen, panel);
         panel = screen;
         displayed_slots = incoming_slots;
@@ -572,17 +618,37 @@ static int prism_installed_browser(int quiet_if_empty)
             held = padsButtonsHeld();
             pressed = held & ~last;
             last = held;
-            if (pressed & (BUTTON_B | BUTTON_START)) {
-                DrawDispose(panel);
+            if (pressed & BUTTON_B) {
+                if (details) { details = 0; synopsis_scroll = 0; break; }
+            }
+            if (!details && (pressed & BUTTON_Z)) {
+                DrawDispose(screen); screen = NULL; displayed_slots = 0;
+                prism_system_libraries();
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+                break;
+            }
+            if (!details && (pressed & BUTTON_START)) {
+                DrawDispose(screen); screen = NULL; displayed_slots = 0;
+                if (!prism_settings_menu()) {
+                    last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+                    break;
+                }
                 prism_free_cover_cache(covers);
+                free(background_pixels);
                 free(paths);
                 free(library);
-                return 1;
+                return 2;
             }
             if (pressed & BUTTON_A) {
+                if (systems_selected) {
+                    DrawDispose(screen); screen = NULL; displayed_slots = 0;
+                    prism_system_libraries();
+                    last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+                    break;
+                }
+                if (!details) { details = 1; synopsis_scroll = 0; break; }
                 char launch_path[PATHNAME_MAX];
-                /* Recheck identity before entering Swiss, and require a fresh
-                 * A press on its game-info screen (even with saved AutoBoot). */
+                /* Recheck identity before direct native Swiss launch. */
                 if (!prism_installed_resolve(device, paths, game,
                                               launch_path, sizeof(launch_path))) {
                     prism_show_notice("Game changed", "The game file changed or could not be read. Check your game storage before trying again.");
@@ -595,7 +661,7 @@ static int prism_installed_browser(int quiet_if_empty)
                 panel = NULL;
                 while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
                 int auto_boot = swissSettings.autoBoot;
-                swissSettings.autoBoot = 0;
+                swissSettings.autoBoot = 1;
                 int result = find_existing_entry_exact(launch_path, true);
                 swissSettings.autoBoot = auto_boot;
                 if (result != 0) {
@@ -604,20 +670,27 @@ static int prism_installed_browser(int quiet_if_empty)
                 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
                 break; /* Cancellation/errors redraw the same PRISM selection. */
             }
-            if (pressed & BUTTON_X) {
-                details = !details;
-                break;
+            if (details) {
+                if (pressed & BUTTON_DOWN) { if (synopsis_scroll < 512) ++synopsis_scroll; break; }
+                if (pressed & BUTTON_UP) { if (synopsis_scroll) --synopsis_scroll; break; }
+                VIDEO_WaitVSync();
+                continue;
             }
             if (pressed & (BUTTON_L | BUTTON_R)) {
+                systems_selected = 0;
                 prism_library_step(library, (pressed & BUTTON_R) ? 10 : -10);
                 break;
             }
             if (pressed & BUTTON_RIGHT) {
-                prism_library_move(library, 1);
+                if (systems_selected) { systems_selected = 0; library->selected = 0; }
+                else if (library->selected + 1 == library->count) systems_selected = 1;
+                else prism_library_move(library, 1);
                 break;
             }
             if (pressed & BUTTON_LEFT) {
-                prism_library_move(library, -1);
+                if (systems_selected) { systems_selected = 0; library->selected = library->count - 1; }
+                else if (!library->selected) systems_selected = 1;
+                else prism_library_move(library, -1);
                 break;
             }
             VIDEO_WaitVSync();
@@ -626,6 +699,7 @@ static int prism_installed_browser(int quiet_if_empty)
     }
     if (screen) DrawDispose(screen);
     prism_free_cover_cache(covers);
+    free(background_pixels);
     free(paths);
     free(library);
     return 1;
@@ -787,11 +861,11 @@ finished:
 /* Isolated boot UI: always allow direct access to Swiss's original menu.
  * No changes are made to Swiss's device or launch subsystems.
  */
-static void prism_dashboard_bootstrap(void)
+static int prism_settings_menu(void)
 {
 	/* Hardware isolation: render PRISM home first. Installed-game scanning
 	 * remains available through the Games tile, after the UI is proven. */
-	int selection = 0;
+	int selection = 0, classic = 0;
 	u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_Z;
 	uiDrawObj_t *screen = prism_draw_home(NULL, selection);
 	/* Require a new button press after the diagnostic. Holding A/B/START
@@ -816,14 +890,8 @@ static void prism_dashboard_bootstrap(void)
 			screen = prism_draw_home(screen, selection);
 		}
 		if (pressed & BUTTON_A) {
-			if (selection == 1) break;
-			if (selection == 0) {
-				DrawDispose(screen);
-				prism_installed_browser(0);
-				screen = prism_draw_home(NULL, selection);
-				last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
-				continue;
-			}
+			if (selection == 1) { classic = 1; break; }
+			if (selection == 0) break;
 			if (selection == 2) {
 				DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CONFIG];
 				char path[PATHNAME_MAX];
@@ -854,6 +922,16 @@ static void prism_dashboard_bootstrap(void)
 		VIDEO_WaitVSync();
 	}
 	DrawDispose(screen);
+	return classic;
+}
+
+static void prism_dashboard_bootstrap(void)
+{
+    for (;;) {
+        int result = prism_installed_browser(1);
+        if (result == 2) return;
+        if (!result && prism_settings_menu()) return;
+    }
 }
 
 /****************************************************************************
@@ -927,40 +1005,10 @@ int main(int argc, char *argv[])
 	config_init_environ();
 
 	Initialise();
-	/* Diagnostic before all Swiss device init, autoload and config paths. */
-	/* Show an unmistakable first-frame diagnostic before any storage
-	 * scan: distinguishes PRISM startup from the original Swiss menu. */
-	uiDrawObj_t *boot_mark = DrawContainer();
-	DrawAddChild(boot_mark, DrawEmptyColouredBox(55, 145, 585, 335,
-		(GXColor){18, 24, 42, 255}));
-	DrawAddChild(boot_mark, DrawStyledLabel(320, 200,
-		"PRISM BOOT CHECK V3", 1.8f, ALIGN_CENTER,
-		(GXColor){225, 235, 255, 255}));
-	DrawAddChild(boot_mark, DrawStyledLabel(320, 265,
-		swissSettings.cubebootInvoked ?
-		"A: PRISM    X: Continue cubeboot" : "Press A to enter PRISM", 0.9f, ALIGN_CENTER,
-		(GXColor){170, 194, 229, 255}));
-	DrawAddChild(boot_mark, DrawStyledLabel(320, 310,
-		"Build " GIT_COMMIT, 0.8f, ALIGN_CENTER,
-		(GXColor){170, 194, 229, 255}));
-	boot_mark = DrawPublish(boot_mark);
-	/* A timed splash is too easy to miss on a display that resynchronizes
-	 * video as a DOL starts. Require a fresh A press to proceed instead. */
-	u32 boot_buttons = BUTTON_A | (swissSettings.cubebootInvoked ? BUTTON_X : 0);
-	while (padsButtonsHeld() & boot_buttons) VIDEO_WaitVSync();
-	u32 boot_pressed;
-	while (!((boot_pressed = padsButtonsHeld()) & boot_buttons)) VIDEO_WaitVSync();
-	/* A explicitly requests PRISM even if the launching loader supplied
-	 * CUBEBOOT=1. X retains the special Swiss cubeboot path. */
-	if (boot_pressed & BUTTON_A) {
-		if (swissSettings.cubebootInvoked)
-			DrawClassicUI();
-		swissSettings.cubebootInvoked = 0;
-		unsetenv("CUBEBOOT");
-	}
-	int prism_opened = !swissSettings.cubebootInvoked;
-	DrawDispose(boot_mark);
-	while (padsButtonsHeld() & boot_buttons) VIDEO_WaitVSync();
+    if (swissSettings.cubebootInvoked) DrawClassicUI();
+    swissSettings.cubebootInvoked = 0;
+    unsetenv("CUBEBOOT");
+    int prism_opened = 1;
 	uiDrawObj_t *startup = prism_opened ?
 		prism_startup_stage(NULL, "1/4 Detecting boot storage") : NULL;
 	/* Scan only after showing the marker. A missing device will return

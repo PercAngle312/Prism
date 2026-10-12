@@ -1,11 +1,19 @@
-# PRISM Studio 0.5 for Windows
+# PRISM Studio 0.6 for Windows
 
 Studio preserves full descriptions up to 4096 UTF-8 bytes in editable projects.
 The preview uses all available synopsis space and supports mouse-wheel or
-scrollbar reading. The existing GameCube pack still holds a 191-byte summary;
-export shortens long descriptions at a word boundary with an ellipsis while
-retaining the full text and original cover in your saved project. Use Studio
-0.5 or newer to reopen projects containing long descriptions.
+scrollbar reading. GameCube exports now retain the full description. The matching
+new dashboard supports UP/DOWN reading on the synopsis page; older dashboards
+reject packs containing descriptions longer than 191 bytes. Use the bundled
+PRISM.dol with these exports.
+
+Select a GameCube entry and choose **Screenshot…** to attach a local PNG or JPEG.
+Studio keeps the original image in the project, then exports a dimmed 320×240
+RGB565 background. **Install PRISM** installs these automatically under
+`/swiss/prism/screenshots/gamecube/<ID>.bg`. For manual export, copy the generated
+`screenshots` folder beside `/swiss/prism/library.prism`. Screenshots are optional;
+missing images use the abstract purple background. Emulator screenshots are not
+supported in this version.
 
 To merge a mixed Wii/GameCube GameTDB database into your backups project, use
 **Import GameTDB**, choose the XML, and answer **No** to the full-catalog prompt.
@@ -99,9 +107,8 @@ disc region/version, for example `GM8E01`. Changing an ID moves its cover with
 it. **Remove cover** takes effect when you apply the edit. **Delete** removes an
 entry from the project, not from your game storage.
 
-The current pack format allows a title of 96 UTF-8 bytes and synopsis of 191
-UTF-8 bytes. Editable projects keep up to 4096 synopsis bytes. The editor displays
-both the project limit and console summary limit. Unicode characters
+The current pack format allows a title of 96 UTF-8 bytes and synopsis of 4096
+UTF-8 bytes. Editable projects and console exports keep the same full text. Unicode characters
 can use multiple bytes. The reference URL is saved in the project for your
 records; it is not embedded in the current console pack.
 

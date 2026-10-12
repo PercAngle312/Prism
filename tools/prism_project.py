@@ -97,6 +97,7 @@ class LibraryProject:
         self.games = {}
         self.covers = {}
         self.roms = {}
+        self.screenshots = {}
 
     def clone(self):
         result = LibraryProject()
@@ -104,6 +105,7 @@ class LibraryProject:
         result.games = copy.deepcopy(self.games)
         result.covers = dict(self.covers)
         result.roms = copy.deepcopy(self.roms)
+        result.screenshots = dict(self.screenshots)
         return result
 
     def put(self, game, cover=None, old_id=None, remove_cover=False):
@@ -119,13 +121,15 @@ class LibraryProject:
         if remove_cover:
             new_cover = None
         size = sum(len(v) for k, v in self.covers.items() if k not in (old_id, key))
-        if size + (len(new_cover) if new_cover else 0) > MAX_PROJECT_BYTES:
+        if size + (len(new_cover) if new_cover else 0) + sum(map(len, self.screenshots.values())) > MAX_PROJECT_BYTES:
             raise ValueError('Project covers exceed 128 MiB; split the library into smaller projects')
         if old_id and old_id != key:
             self.games.pop(old_id)
             self.covers.pop(old_id, None)
             if old_id in self.roms:
                 self.roms[key] = self.roms.pop(old_id)
+            if old_id in self.screenshots:
+                self.screenshots[key] = self.screenshots.pop(old_id)
         self.games[key] = clean
         if new_cover is not None:
             self.covers[key] = new_cover
@@ -161,6 +165,24 @@ class LibraryProject:
         self.games.pop(key, None)
         self.covers.pop(key, None)
         self.roms.pop(key, None)
+        self.screenshots.pop(key, None)
+
+    def set_screenshot(self, key, raw):
+        if key not in self.games:
+            raise ValueError('Select an existing game before adding a screenshot')
+        if raw is None:
+            self.screenshots.pop(key, None)
+            return
+        image = validate_image(raw)
+        total = sum(map(len, self.covers.values())) + sum(len(v) for k, v in self.screenshots.items() if k != key)
+        if total + len(image) > MAX_PROJECT_BYTES:
+            raise ValueError('Project artwork exceeds 128 MiB')
+        self.screenshots[key] = image
+
+    def background_files(self):
+        from prism_background import convert_background
+        return {f'swiss/prism/screenshots/{self.system}/{key}.bg': convert_background(raw)
+                for key, raw in self.screenshots.items()}
 
     def manifest(self):
         games = []
@@ -168,6 +190,8 @@ class LibraryProject:
             game = dict(self.games[key])
             if key in self.covers:
                 game['cover'] = f'{key}.png'
+            if key in self.screenshots:
+                game['background'] = f'{key}-background.png'
             games.append(game)
         return {'project_version': PROJECT_VERSION, 'system': self.system, 'games': games, 'roms': self.roms}
 
@@ -180,6 +204,8 @@ class LibraryProject:
                 archive.writestr('catalog.json', manifest)
                 for key in sorted(self.covers):
                     archive.writestr(f'{key}.png', self.covers[key])
+                for key in sorted(self.screenshots):
+                    archive.writestr(f'{key}-background.png', self.screenshots[key])
         atomic_write(path, write)
 
     @classmethod
@@ -216,6 +242,12 @@ class LibraryProject:
                         raise ValueError('Project cover exceeds 10 MiB')
                     cover = archive.read(name)
                 result.put(clean, cover)
+                if 'background' in game:
+                    name = game['background']
+                    if name != clean['id'] + '-background.png' or archive.getinfo(name).file_size > MAX_IMAGE_BYTES:
+                        raise ValueError('Invalid project screenshot')
+                    allowed.add(name)
+                    result.set_screenshot(clean['id'], archive.read(name))
             if set(names) != allowed:
                 raise ValueError('Project contains unexpected files')
             from prism_roms import validate_mapping
@@ -232,14 +264,18 @@ class LibraryProject:
 
     def export_library(self, path):
         """Export pack plus emulator path index, restoring originals on failure."""
-        if self.system == 'gamecube':
+        if self.system == 'gamecube' and not self.screenshots:
             return self.export(path)
         path = Path(path)
         index = path.with_suffix('.roms')
         with tempfile.TemporaryDirectory(prefix='prism-export-pair-') as td:
             staged = Path(td) / 'pack.prism'
             self.export(staged)
-            files = [(path, staged.read_bytes()), (index, self.export_rom_index())]
+            files = [(path, staged.read_bytes())]
+            if self.system != 'gamecube':
+                files.append((index, self.export_rom_index()))
+            for relative, data in self.background_files().items():
+                files.append((path.parent / 'screenshots' / self.system / Path(relative).name, data))
             originals = {p: p.read_bytes() if p.exists() else None for p, _ in files}
             changed = []
             try:
@@ -261,10 +297,7 @@ class LibraryProject:
             workspace = Path(folder)
             manifest = workspace/'catalog.json'
             data = self.manifest()
-            # The editable project retains full text; the existing console
-            # format/reader receives a bounded summary without mutating it.
-            for game in data['games']:
-                game['synopsis'] = console_synopsis(game.get('synopsis', ''))
+            # The updated console reader supports the project's full text.
             manifest.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
             for key, raw in self.covers.items():
                 (workspace/f'{key}.png').write_bytes(raw)
@@ -364,7 +397,7 @@ def verify_pack(path):
         if not re.fullmatch(rb'[A-Z0-9]{6}', key) or key <= previous or flags != 0 or offset != expected_offset:
             raise ValueError('Invalid pack record')
         end = offset + title_size + synopsis_size + cover_size
-        if not 1 <= title_size <= 96 or synopsis_size > 191 or end > len(raw):
+        if not 1 <= title_size <= 96 or synopsis_size > MAX_PROJECT_SYNOPSIS or end > len(raw):
             raise ValueError('Invalid pack payload bounds')
         raw[offset:offset+title_size].decode('utf-8')
         raw[offset+title_size:offset+title_size+synopsis_size].decode('utf-8')

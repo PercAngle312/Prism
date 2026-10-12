@@ -129,7 +129,8 @@ class Builder:
         ttk.Entry(editor, textvariable=self.inputs['info_url']).grid(row=8, column=0, sticky='ew')
         coverbar = ttk.Frame(editor)
         coverbar.grid(row=9, column=0, sticky='w', pady=(14, 8))
-        for title, command in [('Choose cover', self.local_cover), ('Remove cover', self.clear_cover)]:
+        for title, command in [('Choose cover', self.local_cover), ('Remove cover', self.clear_cover),
+                               ('Screenshot…', self.local_screenshot), ('Clear screenshot', self.clear_screenshot)]:
             button = ttk.Button(coverbar, text=title, command=command)
             button.pack(side='left', padx=(0, 6))
             self.commands.append(button)
@@ -167,7 +168,7 @@ class Builder:
         root.after(100, self.poll)
 
     def update_count(self, _event=None):
-        self.byte_count.set(f'{len(self.synopsis.get("1.0", "end-1c").encode("utf-8"))} / {MAX_PROJECT_SYNOPSIS} bytes saved | Console summary: 191 bytes')
+        self.byte_count.set(f'{len(self.synopsis.get("1.0", "end-1c").encode("utf-8"))} / {MAX_PROJECT_SYNOPSIS} UTF-8 bytes')
         self.synopsis.edit_modified(False)
 
     def read_form(self):
@@ -210,6 +211,10 @@ class Builder:
             filename = key + '.png'
             (Path(self.preview_work.name)/filename).write_bytes(self.project.covers[key])
             preview_game['cover'] = filename
+        if key in self.project.screenshots:
+            filename = key + '-background.png'
+            (Path(self.preview_work.name)/filename).write_bytes(self.project.screenshots[key])
+            preview_game['background'] = filename
         self.preview.show_game(preview_game, self.preview_work.name)
 
     def choose_system(self, _event=None):
@@ -304,6 +309,36 @@ class Builder:
         url = self.cover_url.get().strip()
         if not self.busy and url:
             self.run_job('Downloading cover…', lambda: validate_image(download_cover(url)), self.accept_cover)
+
+    def local_screenshot(self):
+        if not self.guard_edits() or self.selected not in self.project.games:
+            return
+        if self.project.system != 'gamecube':
+            messagebox.showinfo('GameCube screenshots', 'Screenshot backgrounds currently apply to GameCube details pages.', parent=self.root)
+            return
+        name = filedialog.askopenfilename(parent=self.root, title='Choose a dim background screenshot',
+                                         filetypes=[('Screenshot PNG/JPEG', '*.png *.jpg *.jpeg')])
+        if name:
+            snapshot, key = self.project.clone(), self.selected
+            def operation():
+                path = Path(name)
+                if path.stat().st_size > MAX_IMAGE_BYTES:
+                    raise ValueError('Screenshot exceeds 10 MiB')
+                snapshot.set_screenshot(key, path.read_bytes())
+                return snapshot
+            def accepted(project):
+                self.project = project
+                self.dirty = True
+                self.load_form(key)
+                self.status.set('Screenshot saved. Install PRISM to copy its dim background to your SD card.')
+            self.run_job('Preparing screenshot background…', operation, accepted)
+
+    def clear_screenshot(self):
+        if not self.guard_edits() or self.selected not in self.project.games:
+            return
+        self.project.set_screenshot(self.selected, None)
+        self.dirty = True
+        self.load_form(self.selected)
 
     def clear_cover(self):
         if not self.busy:
@@ -603,7 +638,7 @@ class Builder:
             def accepted(count):
                 self.status.set(f'Exported and verified {count} games. Copy as {destination}{filename} on your config storage.')
                 messagebox.showinfo('Library exported', f'{name}\n\nCopy as {destination}{filename} on Swiss config storage.\n' +
-                    (f'Also copy {Path(name).with_suffix(".roms").name} beside it for ROM presence checks. Choose the ROM inside your emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else ''), parent=self.root)
+                    (f'Also copy {Path(name).with_suffix(".roms").name} beside it for ROM presence checks. Choose the ROM inside your emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else 'If you added screenshots, also copy the exported screenshots folder beside library.prism. Install PRISM handles this automatically.'), parent=self.root)
             self.run_job(f'Converting covers and building {filename}…', export, accepted)
 
     def install_prism(self, candidates=None):
@@ -705,6 +740,7 @@ def smoke_test(output):
             raw = io.BytesIO()
             image.save(raw, 'PNG')
             app.project.put({'id': 'GM8E01', 'title': 'PRISM smoke test', 'synopsis': 'Generated test content.'}, raw.getvalue())
+            app.project.set_screenshot('GM8E01', raw.getvalue())
             app.load_form('GM8E01')
             app.refresh_list()
             root.deiconify()
@@ -714,6 +750,7 @@ def smoke_test(output):
             assert app.preview.winfo_width() >= 640, 'Full console canvas must fit in the window'
             assert app.preview.canvas.winfo_width() == 640
             assert app.preview.image_ref is not None
+            assert app.preview.background_ref is not None
             long_synopsis = '\n'.join(f'Generated preview test line {i}: full text remains readable.' for i in range(30))
             app.preview.render({'id': 'TEST01', 'title': 'Scrolling preview test', 'synopsis': long_synopsis})
             root.update()

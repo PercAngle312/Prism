@@ -45,8 +45,8 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(verify_pack(pack), 1)
         raw = pack.read_bytes()
         _, _, offset, title, synopsis, _ = struct.unpack_from('<6sHIHHI', raw, 16)
-        self.assertLessEqual(synopsis, 191)
-        self.assertTrue(raw[offset+title:offset+title+synopsis].decode('utf-8').endswith('...'))
+        self.assertGreater(synopsis, 191)
+        self.assertEqual(raw[offset+title:offset+title+synopsis].decode('utf-8'), text)
         self.assertEqual(loaded.games['GM8E01']['synopsis'], text)
         self.assertEqual(loaded.covers, self.project.covers)
 

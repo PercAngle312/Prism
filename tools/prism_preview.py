@@ -18,8 +18,8 @@ WIDTH, HEIGHT = LAYOUT["screen"]["width"], LAYOUT["screen"]["height"]
 COVER_X, COVER_Y = LAYOUT["cover"]["x"], LAYOUT["cover"]["y"]
 COVER_W, COVER_H = LAYOUT["cover"]["width"], LAYOUT["cover"]["height"]
 TEXT_X, TEXT_W = LAYOUT["text"]["x"], LAYOUT["text"]["width"]
-BG = "#090e18"
-PANEL = "#101825"
+BG = "#16112b"
+PANEL = "#19142d"
 PALE = "#edf3ff"
 MUTED = "#b4c7e1"
 
@@ -52,6 +52,8 @@ class PrismPreview(tk.Frame):
         self.synopsis_text.bind('<Up>', lambda _event: self.scroll_synopsis(-1))
         self.synopsis_text.bind('<Down>', lambda _event: self.scroll_synopsis(1))
         self.image_ref = None
+        self.background_ref = None
+        self.background_game_id = None
         self.render({"id": "------", "title": "Choose a game",
                      "synopsis": "The selected game's cover and synopsis appear here."})
 
@@ -62,16 +64,19 @@ class PrismPreview(tk.Frame):
     def render(self, game):
         c = self.canvas
         c.delete("all")
-        c.create_rectangle(LAYOUT['panel']['x'], LAYOUT['panel']['y'], LAYOUT['panel']['right'], LAYOUT['panel']['bottom'], fill=PANEL, outline=PANEL, width=0)
-        c.create_rectangle(42, 44, 46, 84, fill="#4ddbc9", outline="")
-        c.create_line(42, 91, 598, 91, fill="#2c3d50")
+        if self.background_ref is not None and self.background_game_id == game.get('id'):
+            c.create_image(0, 0, image=self.background_ref, anchor='nw')
+        else:
+            c.create_rectangle(0, 0, WIDTH, HEIGHT, fill=BG, outline='')
+            for band in range(12):
+                c.create_rectangle(330+band*18,112+band*23,640,138+band*23,fill='#2b224e',outline='')
+        c.create_rectangle(0, 0, WIDTH, 116, fill=PANEL, outline='')
+        c.create_rectangle(0, 417, WIDTH, HEIGHT, fill='#110d20', outline='')
+        c.create_line(0, 417, WIDTH, 417, fill='#554389', width=2)
         c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['logo_y'], text="PRISM", fill=PALE,
                       font=("Arial", 23, "bold"), anchor="nw")
         c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['subtitle_y'], text="GAME DETAILS   /   " + game.get("id", "------"),
                       fill="#92b3df", font=("Arial", 10, "bold"), anchor="nw")
-        c.create_rectangle(COVER_X - 1, COVER_Y - 1,
-                           COVER_X + COVER_W + 1, COVER_Y + COVER_H + 1,
-                           fill="#273650", outline="#566e90", width=1)
         c.create_text(COVER_X + COVER_W / 2, COVER_Y + COVER_H / 2,
                       text="NO COVER", fill=MUTED, font=("Arial", 12, "bold"))
         title = game.get("title") or "Untitled"
@@ -93,16 +98,26 @@ class PrismPreview(tk.Frame):
                         tags='synopsis_view')
         c.create_text(TEXT_X, LAYOUT['status']['y'], text='Mouse wheel / scrollbar: read synopsis',
                       fill=MUTED, font=('Arial', 8), anchor='nw')
-        c.create_line(58, LAYOUT['footer']['line_y'], 582, LAYOUT['footer']['line_y'], fill="#3a526f")
-        c.create_text(58, LAYOUT['footer']['labels_y'], text="A  SELECT", fill="#d8e8fa",
+        c.create_text(58, LAYOUT['footer']['labels_y'], text="A  START GAME", fill="#d8e8fa",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(193, LAYOUT['footer']['labels_y'], text="B  BACK", fill="#d8e8fa",
+        c.create_text(235, LAYOUT['footer']['labels_y'], text="B  GAMES", fill="#d8e8fa",
                       font=("Arial", 10, "bold"), anchor="nw")
-        c.create_text(385, LAYOUT['footer']['labels_y'], text="PRISM  /  CLASSIC SWISS",
+        c.create_text(385, LAYOUT['footer']['labels_y'], text="UP / DOWN: READ",
                       fill="#91a7c6", font=("Arial", 9), anchor="nw")
 
     def show_game(self, game, workspace):
         self.image_ref = None
+        self.background_ref = None
+        self.background_game_id = game.get('id')
+        name = game.get('background')
+        if Image is not None and name and Path(name).name == name:
+            try:
+                with Image.open(Path(workspace)/name) as source:
+                    image = ImageOps.fit(ImageOps.exif_transpose(source).convert('RGB'), (WIDTH,HEIGHT), method=Image.Resampling.LANCZOS)
+                    image = image.point(lambda value: int(value * 0.20))
+                self.background_ref = ImageTk.PhotoImage(image)
+            except (OSError, ValueError, tk.TclError):
+                pass
         self.render(game)
         cover_name = game.get("cover")
         if not cover_name:

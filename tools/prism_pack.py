@@ -35,7 +35,7 @@ def build(manifest: Path, output: Path) -> None:
         ids.add(game_id)
         title = game["title"].encode("utf-8")
         synopsis = game.get("synopsis", "").encode("utf-8")
-        if not 1 <= len(title) <= 96 or len(synopsis) > 191:
+        if not 1 <= len(title) <= 96 or len(synopsis) > 4096:
             raise ValueError(f"invalid text length for {game_id}")
         cover = b""
         if "cover" in game:
@@ -72,3 +72,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

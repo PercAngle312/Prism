@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 source = Path('cube/swiss/source/main.c').read_text()
-menu = source[source.index('static void prism_system_libraries('):source.index('/* Isolated boot UI:')]
+menu = source[source.index('static void prism_system_libraries(void)\n{'):source.index('/* Isolated boot UI:')]
 stub = r'''
 #include <assert.h>
 #include <stdint.h>
