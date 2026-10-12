@@ -17,17 +17,17 @@ from pathlib import Path
 from PIL import ImageGrab, Image
 
 
-def run(dol, output):
+def run(dol, output, boot_only=False, dsp_hle=False):
     dol, output = Path(dol).resolve(), Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     user = output/'user'
     config = user/'Config'
     config.mkdir(parents=True, exist_ok=True)
-    (config/'Dolphin.ini').write_text('''[Core]
+    core_settings = '''[Core]
 CPUCore = 1
 DualCore = False
 MMU = True
-DSPHLE = True
+DSPHLE = False
 SkipIPL = True
 GFXBackend = OGL
 SIDevice0 = 6
@@ -50,7 +50,10 @@ BackgroundInput = True
 Backend = No Audio Output
 [General]
 ShowLag = False
-''')
+'''
+    if dsp_hle:
+        core_settings = core_settings.replace('DSPHLE = False', 'DSPHLE = True')
+    (config/'Dolphin.ini').write_text(core_settings)
     pipes = user/'Pipes'
     pipes.mkdir(parents=True, exist_ok=True)
     controller = pipes/'prism'
@@ -77,7 +80,7 @@ ShowFPS = False
 [Enhancements]
 ForceFiltering = False
 ''')
-    (config/'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 4\n[Logs]\nBOOT = True\nCORE = True\nCOMMON = True\nVideo = True\nAudio = True\nDSPHLE = True\nMEMMAP = True\nPOWERPC = True\nCI = True\n')
+    (config/'Logger.ini').write_text('[Options]\nWriteToFile = True\nWriteToConsole = True\nVerbosity = 4\n[Logs]\nBOOT = True\nCORE = True\nCOMMON = True\nVideo = True\nAudio = True\nDSPHLE = False\nMEMMAP = True\nPOWERPC = True\nCI = True\n')
     log = (output/'dolphin.log').open('w')
     env = dict(os.environ, LIBGL_ALWAYS_SOFTWARE='1', QT_X11_NO_MITSHM='1')
     emulator = ['flatpak', 'run', f'--filesystem={output.parent}', 'org.DolphinEmu.dolphin-emu'] if os.environ.get('PRISM_DOLPHIN_FLATPAK') == '1' else ['dolphin-emu']
@@ -119,6 +122,9 @@ ForceFiltering = False
 
     try:
         wait('01-boot', ['PRISM BOOT CHECK V3'],timeout=60)
+        if boot_only:
+            (output/'result.json').write_text(json.dumps({'status':'passed','emulator':version, 'dsp':'HLE' if dsp_hle else 'LLE','stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot checkpoint only','dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest()},indent=2))
+            return
         tap('x')
         wait('02-home',['YOUR GAME LIBRARY'],timeout=90)
         tap('Right');tap('Down');tap('x')
@@ -133,7 +139,7 @@ ForceFiltering = False
         tap('z')
         wait('09-classic-swiss',['SWISS','SELECT A DEVICE','DEVICE SELECTION'],forbidden='YOUR GAME LIBRARY')
         report={'status':'passed','emulator':version,'dol':dol.name,'dol_sha256':hashlib.sha256(dol.read_bytes()).hexdigest(),
-            'stages':stages,'scope':'Boot, home, D-pad/A/B input, PRISM notices, return to Classic Swiss. No game/storage/hardware test.'}
+            'stages':stages,'dsp':'HLE' if dsp_hle else 'LLE','scope':'Boot, home, D-pad/A/B input, PRISM notices, return to Classic Swiss. No game/storage/hardware test.'}
         (output/'result.json').write_text(json.dumps(report,indent=2))
     except Exception as exc:
         (output/'result.json').write_text(json.dumps({'status':'failed','error':str(exc),'emulator':version,'stages':stages},indent=2))
@@ -157,5 +163,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('dol',type=Path)
     parser.add_argument('output',type=Path)
+    parser.add_argument('--boot-only',action='store_true')
+    parser.add_argument('--dsp-hle',action='store_true')
     args=parser.parse_args()
-    run(args.dol,args.output)
+    run(args.dol,args.output,args.boot_only,args.dsp_hle)
