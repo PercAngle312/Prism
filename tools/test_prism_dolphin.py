@@ -100,7 +100,7 @@ ForceFiltering = False
         stream.seek(0);stream.write(header)
         stream.seek(0x1000);stream.write(struct.pack('>III',0x01000000,0,1))
         stream.seek(0x2000);stream.write(dol.read_bytes())
-    process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol),'-i',str(disc)],stdout=log,stderr=log,env=env)
+    process = subprocess.Popen(emulator+['-b','-u',str(user),'-e',str(dol),'--config',f'Dolphin.Core.DefaultISO={disc}'],stdout=log,stderr=log,env=env)
     stages = []
 
     def capture(name):
