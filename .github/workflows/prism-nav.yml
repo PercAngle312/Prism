@@ -5,6 +5,9 @@ on:
     branches: [feature/prism-dashboard]
   pull_request:
     paths:
+      - 'tools/build_prism_catalog.py'
+      - 'tools/test_prism_catalog.py'
+      - 'tools/prism_gametdb.py'
       - 'cube/swiss/source/gui/prism_rom_index.*'
       - 'cube/swiss/source/gui/prism_pack_device.*'
       - 'tools/prism_default_source.py'
@@ -129,6 +132,7 @@ jobs:
         run: python3 -m pip install Pillow==11.3.0
       - name: Test Studio projects and console-reader export compatibility
         run: |
+          python3 tools/test_prism_catalog.py
           python3 tools/test_prism_packed_background.py
           python3 tools/test_prism_default_source.py
           python3 tools/test_prism_artwork.py

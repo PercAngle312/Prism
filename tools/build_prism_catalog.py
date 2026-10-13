@@ -7,7 +7,6 @@ import csv
 import hashlib
 import json
 from pathlib import Path
-import shutil
 from prism_gametdb import read_gametdb
 from prism_pack import build
 from prism_project import verify_pack
@@ -18,7 +17,10 @@ def assemble(database,collection,output):
     def records(name):
         path=collection/name
         return json.loads(path.read_text()) if path.exists() else []
-    background_sources={r['id']:r for r in records('SOURCES.json')}
+    # Retain provenance for regional copies made by earlier catalog versions.
+    background_sources={r['id']:r['background'] for r in records('PACK-SOURCES.json')
+                        if r.get('background')}
+    background_sources.update({r['id']:r for r in records('SOURCES.json')})
     background_sources.update({r['id']:r for r in records('GENERATED-SOURCES.json')})
     cover_sources={r['id']:r for r in records('COVER-SOURCES.json') if not r.get('missing')}
     # Localized releases with the same three-byte code and maker code are one
@@ -27,13 +29,14 @@ def assemble(database,collection,output):
     for gid,source in background_sources.items():
         path=collection/'Background-Art'/f'{gid}.png'
         if path.exists():families.setdefault(gid[:3]+gid[4:],[]).append((gid,source,path))
+    background_paths={gid:collection/'Background-Art'/f'{gid}.png' for gid in catalog}
     for gid in catalog:
         target=collection/'Background-Art'/f'{gid}.png'
         if target.exists():continue
         choices=families.get(gid[:3]+gid[4:],[])
         identities={s.get('generated_group') or s.get('igdb_id') or i for i,s,_ in choices}
         if len(identities)==1:
-            origin,source,path=choices[0];shutil.copyfile(path,target)
+            origin,source,path=choices[0];background_paths[gid]=path
             background_sources[gid]={**source,'id':gid,'match_method':'regional disc-ID family','source_disc_id':origin}
     games=[];missing=[];sources=[]
     stats={'disc_ids':len(catalog),'synopses':0,'covers':0,'backgrounds':0,'generated_background_ids':0}
@@ -46,12 +49,12 @@ def assemble(database,collection,output):
             game['cover']=f'Covers/{gid}.png';stats['covers']+=1
             if gid in cover_sources:meta['cover_source']=cover_sources[gid]['url']
         else:absent.append('cover')
-        background=collection/'Background-Art'/f'{gid}.png'
+        background=background_paths[gid]
         if background.exists():
-            game['background']=f'Background-Art/{gid}.png';stats['backgrounds']+=1
+            game['background']=str(background.relative_to(collection));stats['backgrounds']+=1
             source=background_sources.get(gid,{})
-            game['background_provider']=source.get('provider','IGDB')
-            game['background_kind']=source.get('kind','artworks')
+            game['background_provider']=source.get('provider','Local artwork')
+            game['background_kind']=source.get('kind','unknown')
             if source.get('url'):game['background_url']=source['url']
             if source.get('kind')=='generated':
                 stats['generated_background_ids']+=1
@@ -76,3 +79,4 @@ if __name__=='__main__':
     import argparse
     p=argparse.ArgumentParser();p.add_argument('database');p.add_argument('collection');p.add_argument('output');a=p.parse_args()
     assemble(a.database,a.collection,a.output)
+
