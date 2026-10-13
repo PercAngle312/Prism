@@ -37,6 +37,8 @@ class ArtworkTests(unittest.TestCase):
             path=Path(td)/'test.prism-project';p.save(path);loaded=LibraryProject.load(path)
             self.assertEqual(loaded.games['GM8E01']['background_url'],downloads[0])
             self.assertNotIn('secret',str(loaded.manifest()))
+        p.put({'id':'GM8E01','title':'Edited title'}, old_id='GM8E01')
+        self.assertEqual(p.games['GM8E01']['background_url'],downloads[0])
         p.set_screenshot('GM8E01',None);self.assertNotIn('background_url',p.games['GM8E01'])
 
     def test_uncertain_titles_and_platforms_never_download(self):

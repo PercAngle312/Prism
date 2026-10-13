@@ -117,6 +117,10 @@ class LibraryProject:
             raise ValueError('The entry being edited no longer exists')
         if key not in self.games and old_id is None and len(self.games) >= MAX_GAMES:
             raise ValueError(f'Project limit is {MAX_GAMES} games')
+        if old_id:
+            for field in ('background_url', 'background_kind', 'background_provider'):
+                if field not in clean and field in self.games[old_id]:
+                    clean[field] = self.games[old_id][field]
         new_cover = validate_image(cover) if cover is not None else self.covers.get(old_id or key)
         if remove_cover:
             new_cover = None
