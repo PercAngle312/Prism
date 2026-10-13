@@ -7,6 +7,8 @@ on:
     paths:
       - 'cube/swiss/source/gui/prism_rom_index.*'
       - 'cube/swiss/source/gui/prism_pack_device.*'
+      - 'tools/prism_artwork.py'
+      - 'tools/test_prism_artwork.py'
       - 'tools/prism_background.py'
       - 'tools/test_prism_background.py'
       - 'tools/test_prism_background_reader.py'
@@ -124,6 +126,7 @@ jobs:
         run: python3 -m pip install Pillow==11.3.0
       - name: Test Studio projects and console-reader export compatibility
         run: |
+          python3 tools/test_prism_artwork.py
           python3 tools/test_prism_background.py
           python3 tools/test_prism_background_reader.py
           python3 tools/test_prism_project.py

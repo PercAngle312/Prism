@@ -14,6 +14,7 @@ from PIL import Image, ImageTk
 from prism_download import download_cover
 from prism_gametdb import import_gametdb
 from prism_scrape import enrich_project
+from prism_artwork import fetch_backgrounds
 from prism_preview import PrismPreview
 from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, MAX_PROJECT_SYNOPSIS, validate_image, verify_pack
 from prism_install import card_candidates, require_card_root, install, dashboard_bytes, DASHBOARD_BUILD
@@ -77,6 +78,7 @@ class Builder:
                                ('Import GameTDB', self.import_gametdb_xml),
                                ('Import covers', self.import_covers_folder),
                                ('Scrape missing', self.scrape_missing),
+                               ('Fetch backgrounds', self.fetch_background_art),
                                ('Export pack', self.package), ('Install PRISM', self.install_prism)]):
             button = ttk.Button(primary_tools if index < 6 else secondary_tools, text=title, command=command)
             button.pack(side='left', padx=3)
@@ -130,7 +132,7 @@ class Builder:
         coverbar = ttk.Frame(editor)
         coverbar.grid(row=9, column=0, sticky='w', pady=(14, 8))
         for title, command in [('Choose cover', self.local_cover), ('Remove cover', self.clear_cover),
-                               ('Screenshot…', self.local_screenshot), ('Clear screenshot', self.clear_screenshot)]:
+                               ('Background art…', self.local_screenshot), ('Clear background', self.clear_screenshot)]:
             button = ttk.Button(coverbar, text=title, command=command)
             button.pack(side='left', padx=(0, 6))
             self.commands.append(button)
@@ -316,8 +318,8 @@ class Builder:
         if self.project.system != 'gamecube':
             messagebox.showinfo('GameCube screenshots', 'Screenshot backgrounds currently apply to GameCube details pages.', parent=self.root)
             return
-        name = filedialog.askopenfilename(parent=self.root, title='Choose a dim background screenshot',
-                                         filetypes=[('Screenshot PNG/JPEG', '*.png *.jpg *.jpeg')])
+        name = filedialog.askopenfilename(parent=self.root, title='Choose game-specific background artwork',
+                                         filetypes=[('Background PNG/JPEG', '*.png *.jpg *.jpeg')])
         if name:
             snapshot, key = self.project.clone(), self.selected
             def operation():
@@ -330,7 +332,7 @@ class Builder:
                 self.project = project
                 self.dirty = True
                 self.load_form(key)
-                self.status.set('Screenshot saved. Install PRISM to copy its dim background to your SD card.')
+                self.status.set('Background art saved. Install PRISM to copy its dim background to your SD card.')
             self.run_job('Preparing screenshot background…', operation, accepted)
 
     def clear_screenshot(self):
@@ -528,6 +530,61 @@ class Builder:
             self.refresh_list()
             self.status.set(f'Imported {count} missing covers. Existing artwork preserved.')
         self.run_job('Importing missing cover artwork…', operation, accepted)
+
+    def fetch_background_art(self):
+        if self.busy or not self.guard_edits():
+            return
+        if self.project.system != 'gamecube' or not self.project.games:
+            messagebox.showinfo('GameCube backgrounds', 'Open or scan a GameCube project first.', parent=self.root)
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title('Fetch missing background art')
+        dialog.geometry('620x330')
+        dialog.transient(self.root)
+        dialog.grab_set()
+        panel = ttk.Frame(dialog, padding=18)
+        panel.pack(fill='both', expand=True)
+        ttk.Label(panel, text='Find artwork for every game in this project. Existing backgrounds stay unchanged. '
+                  'Only exact, unique GameCube title matches are used; review the results in the preview.',
+                  wraplength=570).pack(anchor='w', pady=(0,12))
+        values = {}
+        for key, label in [('client', 'IGDB / Twitch Client ID'), ('token', 'IGDB / Twitch access token')]:
+            line = ttk.Frame(panel); line.pack(fill='x', pady=5)
+            ttk.Label(line, text=label, width=29).pack(side='left')
+            value = tk.StringVar(); values[key] = value
+            ttk.Entry(line, textvariable=value, show='*' if key == 'token' else '').pack(side='left', fill='x', expand=True)
+        fallback = tk.BooleanVar(value=True)
+        ttk.Checkbutton(panel, text='Use game screenshots when poster/background artwork is missing',
+                        variable=fallback).pack(anchor='w', pady=8)
+        ttk.Label(panel, text='Credentials are used only for this fetch and are never saved. Sources are kept in '
+                  'the project. Save afterward; Install PRISM copies the dimmed artwork to your SD card.',
+                  wraplength=570).pack(anchor='w', pady=8)
+        def start():
+            client, token = values['client'].get().strip(), values['token'].get().strip()
+            if not client or not token:
+                messagebox.showinfo('Credentials required', 'Enter your IGDB Client ID and access token.', parent=dialog)
+                return
+            allow_screenshots = fallback.get()
+            dialog.destroy()
+            snapshot = self.project.clone()
+            def job():
+                return snapshot, fetch_backgrounds(snapshot, client, token, screenshots=allow_screenshots,
+                                                   progress=self.progress_events.put)
+            def accepted(result):
+                self.project, stats = result
+                self.dirty |= bool(stats['added'])
+                self.refresh_list()
+                if self.selected in self.project.games:
+                    self.load_form(self.selected)
+                self.status.set(f"Background fetch: {stats['added']} added; {stats['preserved']} kept; "
+                                f"{len(stats['missing'])} missing; {len(stats['ambiguous'])} uncertain; {len(stats['errors'])} errors.")
+                messagebox.showinfo('Background fetch finished',
+                    f"Added {stats['added']} backgrounds. Existing art was preserved.\n"
+                    f"Missing IDs: {', '.join(stats['missing'][:20]) or 'none'}\n"
+                    f"Uncertain IDs: {', '.join(stats['ambiguous'][:20]) or 'none'}\n\n"
+                    'Review the preview, save your project, then Install PRISM.', parent=self.root)
+            self.run_job('Fetching missing game backgrounds…', job, accepted)
+        ttk.Button(panel, text='Fetch missing backgrounds', command=start).pack(anchor='e', pady=8)
 
     def scrape_missing(self):
         if not self.guard_edits():

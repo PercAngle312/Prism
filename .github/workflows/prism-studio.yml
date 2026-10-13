@@ -5,6 +5,7 @@ on:
     branches: [feature/prism-dashboard]
     paths:
       - 'tools/prism_*.py'
+      - 'tools/test_prism_artwork.py'
       - 'tools/test_prism_project.py'
       - 'tools/test_prism_gametdb.py'
       - 'tools/test_prism_scrape.py'
@@ -18,6 +19,7 @@ on:
   pull_request:
     paths:
       - 'tools/prism_*.py'
+      - 'tools/test_prism_artwork.py'
       - 'tools/test_prism_project.py'
       - 'tools/test_prism_install.py'
       - 'tools/test_prism_roms.py'
@@ -96,6 +98,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
       - name: Test project roundtrip, header scan and safe exports
         run: python tools/test_prism_project.py
+      - name: Test bulk background artwork matching
+        run: python tools/test_prism_artwork.py
       - name: Test screenshot projects and SD export
         run: python tools/test_prism_background.py
       - name: Test GameTDB offline metadata imports

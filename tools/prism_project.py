@@ -42,7 +42,7 @@ def validate_game(game):
     if not isinstance(game_id, str) or not re.fullmatch(r'[A-Z0-9]{6}', game_id):
         raise ValueError('Game ID must be six uppercase letters/digits')
     clean = {'id': game_id}
-    for key, limit in [('title', 96), ('synopsis', MAX_PROJECT_SYNOPSIS), ('info_url', 2048)]:
+    for key, limit in [('title', 96), ('synopsis', MAX_PROJECT_SYNOPSIS), ('info_url', 2048), ('background_url', 2048), ('background_kind', 32), ('background_provider', 64)]:
         value = game.get(key, '')
         if not isinstance(value, str) or '\0' in value or len(value.encode('utf-8')) > limit:
             raise ValueError(f'{game_id}: {key} must be text of at most {limit} UTF-8 bytes')
@@ -171,12 +171,16 @@ class LibraryProject:
         if key not in self.games:
             raise ValueError('Select an existing game before adding a screenshot')
         if raw is None:
+            for field in ('background_url', 'background_kind', 'background_provider'):
+                self.games[key].pop(field, None)
             self.screenshots.pop(key, None)
             return
         image = validate_image(raw)
         total = sum(map(len, self.covers.values())) + sum(len(v) for k, v in self.screenshots.items() if k != key)
         if total + len(image) > MAX_PROJECT_BYTES:
             raise ValueError('Project artwork exceeds 128 MiB')
+        for field in ('background_url', 'background_kind', 'background_provider'):
+            self.games[key].pop(field, None)
         self.screenshots[key] = image
 
     def background_files(self):
@@ -248,6 +252,7 @@ class LibraryProject:
                         raise ValueError('Invalid project screenshot')
                     allowed.add(name)
                     result.set_screenshot(clean['id'], archive.read(name))
+                    result.games[clean['id']] = clean  # Restore saved provenance after image validation.
             if set(names) != allowed:
                 raise ValueError('Project contains unexpected files')
             from prism_roms import validate_mapping

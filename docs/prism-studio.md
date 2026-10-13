@@ -7,7 +7,7 @@ new dashboard supports UP/DOWN reading on the synopsis page; older dashboards
 reject packs containing descriptions longer than 191 bytes. Use the bundled
 PRISM.dol with these exports.
 
-Select a GameCube entry and choose **Screenshot…** to attach a local PNG or JPEG.
+Select a GameCube entry and choose **Background art…** to attach a local PNG or JPEG.
 Studio keeps the original image in the project, then exports a dimmed 320×240
 RGB565 background. **Install PRISM** installs these automatically under
 `/swiss/prism/screenshots/gamecube/<ID>.bg`. For manual export, copy the generated
@@ -230,3 +230,26 @@ the background operation runs. The final status reports how many still
 lack a synopsis. A completed synopsis is not a guarantee that artwork
 is present. Real API behavior and the packaged GUI still require CI
 and user testing.
+
+
+## Bulk background artwork
+
+**Fetch backgrounds** searches every GameCube entry in the current project using
+[IGDB's official API](https://api-docs.igdb.com/). Enter your IGDB/Twitch Client ID
+and access token; credentials are used for that lookup only and never saved.
+Only unique exact-title matches with GameCube platform ID 21 are accepted.
+Landscape artwork is preferred; screenshot fallback is optional. No fuzzy
+matching, remaster substitution or generated artwork is used. Missing or
+ambiguous IDs are reported, and existing backgrounds, covers and synopses stay
+unchanged. Review downloaded backgrounds in the preview.
+
+Fetched images are fitted to 320×240 before project storage, matching the native
+background texture. Source URL, provider and artwork/screenshot type are retained
+in the project. Save your project and use Install PRISM for the console files.
+Large catalog projects remain subject to the combined 128 MiB artwork limit;
+split them into smaller projects if needed. Availability is not guaranteed for
+every game, and IGDB artwork is not necessarily official publisher art.
+
+The background fetch tests use controlled API/image fixtures. A live full-library
+fetch has not been performed; it requires credentials and your actual project.
+Native and Windows release packaging remain blocked by GitHub CI job startup.
