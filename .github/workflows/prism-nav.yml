@@ -8,6 +8,8 @@ on:
       - 'tools/collect_prism_catalog_extras.py'
       - 'tools/test_prism_catalog_extras.py'
       - 'tools/test_prism_coverflow.py'
+      - 'tools/test_prism_autoscroll.py'
+      - 'cube/swiss/source/gui/prism_autoscroll.h'
       - 'tools/test_prism_theme.py'
       - 'tools/prism_theme.py'
       - 'cube/swiss/source/gui/prism_theme.h'
@@ -131,6 +133,8 @@ jobs:
         run: |
           python3 tools/test_prism_roms.py
           python3 tools/test_prism_roms.py --console-reader
+      - name: Verify timed synopsis reading and manual override
+        run: python3 tools/test_prism_autoscroll.py
       - name: Verify shelf, details, Systems and Settings controls
         run: python3 tools/test_prism_library_flow.py
       - name: Verify native theme bounds, GX tiling and desktop parity

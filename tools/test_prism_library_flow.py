@@ -19,6 +19,10 @@ stub = r'''
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "prism_autoscroll.h"
+static uint64_t fake_ms;
+static uint64_t gettime(void) {return fake_ms;}
+#define ticks_to_millisecs(t) (t)
 typedef unsigned u32;
 #define BUTTON_A 1u
 #define BUTTON_B 2u
@@ -37,9 +41,9 @@ typedef struct {unsigned count,selected;} Library;
 static struct {int autoBoot;} swissSettings;
 static const u32 *tape;static unsigned cursor;
 static int settings_count, systems_count, launches, notices, resolve_ok=1;
-static int result_details,result_systems,result_selection;
+static int result_details,result_systems,result_selection,result_scroll;
 static u32 padsButtonsHeld(void) {assert(cursor<12);return tape[cursor++];}
-static void VIDEO_WaitVSync(void) {}
+static void VIDEO_WaitVSync(void) {fake_ms+=1000;}
 static void DrawDispose(void*p) {(void)p;}
 static void prism_free_cover_cache(void*p) {(void)p;}
 static int prism_settings_menu(void) {++settings_count;return 0;}
@@ -55,13 +59,14 @@ static void prism_library_step(Library*l,int amount) {l->selected=(unsigned)((in
 static void prism_library_move(Library*l,int amount) {prism_library_step(l,amount);}
 static int run(int initial_details,int initial_systems,unsigned selection,const u32 *input) {
  tape=input;cursor=0;settings_count=systems_count=launches=notices=0;swissSettings.autoBoot=7;
- int details=initial_details,systems_selected=initial_systems,synopsis_scroll=0;
+ int details=initial_details,systems_selected=initial_systems,synopsis_scroll=0,synopsis_maximum=2;
+ fake_ms=0;PrismAutoScroll synopsis_auto;prism_scroll_begin(&synopsis_auto,fake_ms);
  Library *library=malloc(sizeof(*library));library->count=3;library->selected=selection;
  void *device=NULL,*game=NULL,*paths=malloc(1),*covers=NULL,*background_pixels=NULL;
  uiDrawObj_t*screen=NULL,*panel=NULL;unsigned displayed_slots=0;u32 last=0,held,pressed;
 '''
 after = r'''
- result_details=details;result_systems=systems_selected;result_selection=(int)library->selected;
+ result_scroll=synopsis_scroll;result_details=details;result_systems=systems_selected;result_selection=(int)library->selected;
  assert(swissSettings.autoBoot==7);free(library);free(paths);
  (void)panel;(void)displayed_slots;return 1;
 }
@@ -76,12 +81,14 @@ int main(void) {
  run(0,1,2,right);assert(!result_systems && result_selection==0);
  u32 left[12]={BUTTON_LEFT};run(0,0,0,left);assert(result_systems==1);
  run(0,1,0,left);assert(!result_systems && result_selection==2);
+ u32 idle[12]={0};run(1,0,1,idle);assert(result_scroll==1 && result_details && !launches && result_selection==1);
+ u32 down[12]={BUTTON_DOWN};run(1,0,1,down);assert(result_scroll==1 && !launches);
  resolve_ok=0;u32 fail[12]={BUTTON_A,0,BUTTON_B};run(1,0,1,fail);assert(!launches && notices==1 && !result_details);
  return 0;
 }
 '''
 with tempfile.TemporaryDirectory() as td:
     td=Path(td); (td/'flow.c').write_text(stub+loop+after)
-    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-Wno-sign-compare','-fsanitize=undefined',str(td/'flow.c'),'-o',str(td/'flow')],check=True)
+    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-Wno-sign-compare','-fsanitize=undefined','-Icube/swiss/source/gui',str(td/'flow.c'),'-o',str(td/'flow')],check=True)
     subprocess.run([str(td/'flow')],check=True)
 print('Actual PRISM input loop: A details/start, B same selection, X ignored, Settings, Systems and safe launch passed')

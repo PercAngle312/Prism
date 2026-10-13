@@ -5,6 +5,7 @@
 #include <ogc/dvdlow.h>
 #include <ogc/exi.h>
 #include <ogc/lwp.h>
+#include <ogc/lwp_watchdog.h>
 #include <ogc/usbgecko.h>
 #include <ogc/video_types.h>
 #include <sdcard/card_cmn.h>
@@ -38,6 +39,7 @@
 #include "gui/prism_enrich.h"
 #include "gui/prism_layout.h"
 #include "gui/prism_theme.h"
+#include "gui/prism_autoscroll.h"
 #include "gui/prism_text.h"
 #include "gui/prism_cover_cache.h"
 #include "gui/IPLFontWrite.h"
@@ -268,7 +270,7 @@ static void prism_draw_wrapped(uiDrawObj_t *panel, const char *text,
     }
 }
 
-static void prism_draw_synopsis(uiDrawObj_t *panel, const char *text, int *scroll)
+static int prism_draw_synopsis(uiDrawObj_t *panel, const char *text, int *scroll)
 {
     PrismTextMeasure measure = {PRISM_TEXT_WIDTH, 0.68f};
     const char *cursor = text;
@@ -290,6 +292,7 @@ static void prism_draw_synopsis(uiDrawObj_t *panel, const char *text, int *scrol
         DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_STATUS_Y + 18,
             position, 0.5f, ALIGN_LEFT, (GXColor){190, 181, 218, 255}));
     }
+    return maximum;
 }
 
 /* Each hint owns a bounded cell, so long labels cannot collide on a CRT. */
@@ -514,7 +517,8 @@ static int prism_installed_browser(int quiet_if_empty)
     int has_background = 0;
     uiDrawObj_t *screen = NULL;
     unsigned displayed_slots = 0;
-    int details = 0, systems_selected = 0, synopsis_scroll = 0;
+    int details = 0, systems_selected = 0, synopsis_scroll = 0, synopsis_maximum = 0;
+    PrismAutoScroll synopsis_auto = {0};
     u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT |
                BUTTON_X | BUTTON_L | BUTTON_R | BUTTON_Z | BUTTON_UP | BUTTON_DOWN;
     if (!device || !device->initial ||
@@ -631,7 +635,7 @@ static int prism_installed_browser(int quiet_if_empty)
                 PRISM_TEXT_WIDTH, 0.9f, 2, 25, (GXColor){225, 235, 255, 255});
             DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_HEADING_Y,
                 "SYNOPSIS", 0.72f, ALIGN_LEFT, (GXColor){170, 194, 229, 255}));
-            prism_draw_synopsis(panel, synopsis[0] ? synopsis : "Description not available for this game.", &synopsis_scroll);
+            synopsis_maximum = prism_draw_synopsis(panel, synopsis[0] ? synopsis : "Description not available for this game.", &synopsis_scroll);
         }
         char scan_status[100];
         if (paths->truncated)
@@ -686,7 +690,11 @@ static int prism_installed_browser(int quiet_if_empty)
                     last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
                     break;
                 }
-                if (!details) { details = 1; synopsis_scroll = 0; break; }
+                if (!details) {
+                    details = 1; synopsis_scroll = 0;
+                    prism_scroll_begin(&synopsis_auto, ticks_to_millisecs(gettime()));
+                    break;
+                }
                 char launch_path[PATHNAME_MAX];
                 /* Recheck identity before direct native Swiss launch. */
                 if (!prism_installed_resolve(device, paths, game,
@@ -711,8 +719,19 @@ static int prism_installed_browser(int quiet_if_empty)
                 break; /* Cancellation/errors redraw the same PRISM selection. */
             }
             if (details) {
-                if (pressed & BUTTON_DOWN) { if (synopsis_scroll < 512) ++synopsis_scroll; break; }
-                if (pressed & BUTTON_UP) { if (synopsis_scroll) --synopsis_scroll; break; }
+                if (pressed & BUTTON_DOWN) {
+                    if (synopsis_scroll < synopsis_maximum) ++synopsis_scroll;
+                    prism_scroll_manual(&synopsis_auto, ticks_to_millisecs(gettime()));
+                    break;
+                }
+                if (pressed & BUTTON_UP) {
+                    if (synopsis_scroll) --synopsis_scroll;
+                    prism_scroll_manual(&synopsis_auto, ticks_to_millisecs(gettime()));
+                    break;
+                }
+                if (!(held & (BUTTON_UP | BUTTON_DOWN)) &&
+                    prism_scroll_tick(&synopsis_auto, ticks_to_millisecs(gettime()),
+                                      synopsis_maximum, &synopsis_scroll)) break;
                 VIDEO_WaitVSync();
                 continue;
             }
