@@ -6,6 +6,7 @@ Pillow provides JPEG support; PNG also works with Tk's built-in decoder.
 import tkinter as tk
 from pathlib import Path
 from prism_layout import load_layout
+from prism_theme import make_theme_image
 
 LAYOUT = load_layout()
 
@@ -54,6 +55,7 @@ class PrismPreview(tk.Frame):
         self.image_ref = None
         self.background_ref = None
         self.background_game_id = None
+        self.theme_ref = ImageTk.PhotoImage(make_theme_image()) if Image is not None else None
         self.render({"id": "------", "title": "Choose a game",
                      "synopsis": "The selected game's cover and synopsis appear here."})
 
@@ -68,12 +70,8 @@ class PrismPreview(tk.Frame):
             c.create_image(0, 0, image=self.background_ref, anchor='nw')
         else:
             c.create_rectangle(0, 0, WIDTH, HEIGHT, fill=BG, outline='')
-            for band in range(12):
-                color = '#%02x%02x%02x' % (24+band//2,43+band,64+band)
-                c.create_rectangle(330+band*18,112+band*23,640,138+band*23,fill=color,outline='')
-            for band in range(6):
-                color = '#%02x%02x%02x' % (26+band,32+band,57+band*2)
-                c.create_rectangle(0,294+band*18,172-band*24,312+band*18,fill=color,outline='')
+            if self.theme_ref is not None:
+                c.create_image(0, 0, image=self.theme_ref, anchor='nw')
         c.create_rectangle(0, 0, WIDTH, 116, fill=PANEL, outline='')
         footer_y = LAYOUT['footer']['line_y']
         c.create_rectangle(0, footer_y, WIDTH, HEIGHT, fill='#17303a', outline='')

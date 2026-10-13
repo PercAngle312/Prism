@@ -37,6 +37,7 @@
 #include "gui/prism_installed.h"
 #include "gui/prism_enrich.h"
 #include "gui/prism_layout.h"
+#include "gui/prism_theme.h"
 #include "gui/prism_text.h"
 #include "gui/prism_cover_cache.h"
 #include "gui/IPLFontWrite.h"
@@ -213,15 +214,18 @@ static uiDrawObj_t *prism_draw_panel_background(const char *subtitle, GXTexObj *
 {
     uiDrawObj_t *panel = DrawContainer();
     DrawAddChild(panel, DrawSolidBox(0, 0, 640, 480, (GXColor){17, 24, 43, 255}));
-    /* Blue and teal facets keep the GameCube palette quiet behind covers. */
-    for (int band = 0; band < 12; ++band) {
-        int inset = band * 18;
-        DrawAddChild(panel, DrawSolidBox(330 + inset, 112 + band * 23, 640,
-            138 + band * 23, (GXColor){24 + band / 2, 43 + band, 64 + band, 255}));
+    static u16 theme_pixels[PRISM_THEME_SIZE * PRISM_THEME_SIZE] __attribute__((aligned(32)));
+    static GXTexObj theme_texture;
+    static int theme_ready;
+    if (!theme_ready) {
+        prism_theme_fill(theme_pixels);
+        DCFlushRange(theme_pixels, sizeof(theme_pixels));
+        GX_InitTexObj(&theme_texture, theme_pixels, PRISM_THEME_SIZE, PRISM_THEME_SIZE,
+            GX_TF_RGB565, GX_CLAMP, GX_CLAMP, GX_FALSE);
+        GX_InitTexObjLOD(&theme_texture, GX_LINEAR, GX_LINEAR, 0, 0, 0, GX_FALSE, GX_FALSE, GX_ANISO_1);
+        theme_ready = 1;
     }
-    for (int band = 0; band < 6; ++band)
-        DrawAddChild(panel, DrawSolidBox(0, 294 + band * 18, 172 - band * 24,
-            312 + band * 18, (GXColor){26 + band, 32 + band, 57 + band * 2, 255}));
+    DrawAddChild(panel, DrawTexObj(&theme_texture, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
     if (background) DrawAddChild(panel, DrawTexObj(background, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
     DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){20, 25, 43, 255}));
     DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){23, 48, 58, 255}));

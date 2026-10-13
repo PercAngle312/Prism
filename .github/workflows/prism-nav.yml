@@ -8,6 +8,9 @@ on:
       - 'tools/collect_prism_catalog_extras.py'
       - 'tools/test_prism_catalog_extras.py'
       - 'tools/test_prism_coverflow.py'
+      - 'tools/test_prism_theme.py'
+      - 'tools/prism_theme.py'
+      - 'cube/swiss/source/gui/prism_theme.h'
       - 'tools/recover_prism_regions.py'
       - 'tools/test_prism_regions.py'
       - 'tools/build_prism_catalog.py'
@@ -128,6 +131,8 @@ jobs:
           python3 tools/test_prism_roms.py --console-reader
       - name: Verify shelf, details, Systems and Settings controls
         run: python3 tools/test_prism_library_flow.py
+      - name: Verify native theme bounds, GX tiling and desktop parity
+        run: python3 tools/test_prism_theme.py
       - name: Verify cover reflections and footer bounds
         run: python3 tools/test_prism_coverflow.py
       - name: Verify exact Swiss launch and cancellation guards
