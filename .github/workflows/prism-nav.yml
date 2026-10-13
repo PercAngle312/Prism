@@ -5,6 +5,9 @@ on:
     branches: [feature/prism-dashboard]
   pull_request:
     paths:
+      - 'tools/collect_prism_catalog_extras.py'
+      - 'tools/test_prism_catalog_extras.py'
+      - 'tools/test_prism_coverflow.py'
       - 'tools/build_prism_catalog.py'
       - 'tools/test_prism_catalog.py'
       - 'tools/prism_gametdb.py'
@@ -123,6 +126,8 @@ jobs:
           python3 tools/test_prism_roms.py --console-reader
       - name: Verify shelf, details, Systems and Settings controls
         run: python3 tools/test_prism_library_flow.py
+      - name: Verify cover reflections and footer bounds
+        run: python3 tools/test_prism_coverflow.py
       - name: Verify exact Swiss launch and cancellation guards
         run: python3 tools/test_prism_launch.py
       - name: Generate deterministic example offline pack
@@ -133,6 +138,7 @@ jobs:
       - name: Test Studio projects and console-reader export compatibility
         run: |
           python3 tools/test_prism_catalog.py
+          python3 tools/test_prism_catalog_extras.py
           python3 tools/test_prism_packed_background.py
           python3 tools/test_prism_default_source.py
           python3 tools/test_prism_artwork.py

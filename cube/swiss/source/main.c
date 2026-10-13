@@ -276,6 +276,13 @@ static void prism_draw_synopsis(uiDrawObj_t *panel, const char *text, int *scrol
     for (int row = 0; row < 6 && prism_text_next(&cursor, line, sizeof(line), prism_text_fits, &measure); ++row)
         DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_Y + row * 22,
             line, 0.68f, ALIGN_LEFT, (GXColor){231, 226, 242, 255}));
+    if (maximum) {
+        char position[64];
+        int last_line = *scroll + 6 < lines ? *scroll + 6 : lines;
+        snprintf(position, sizeof(position), "Lines %d-%d of %d", *scroll + 1, last_line, lines);
+        DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_STATUS_Y + 18,
+            position, 0.5f, ALIGN_LEFT, (GXColor){190, 181, 218, 255}));
+    }
 }
 
 /* Each hint owns a bounded cell, so long labels cannot collide on a CRT. */
@@ -335,9 +342,27 @@ static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *ga
     if (!game) return;
     DrawAddChild(panel, DrawSolidBox(x, y, x + width, y + height,
         (GXColor){28, 41, 58, 255}));
-    if (has_cover)
+    if (has_cover) {
         DrawAddChild(panel, DrawTexObj(texture, x, y, width, height,
             0, 0.0f, 1.0f, 0.0f, 1.0f, 0));
+        /* Reuse the pinned cover pixels. Reflect only the bottom of the
+         * artwork, and fade it before the footer without allocating textures. */
+        int reflection_y = y + height + 2;
+        int reflection_height = 40;
+        if (reflection_y + reflection_height > PRISM_FOOTER_LINE_Y - 8)
+            reflection_height = PRISM_FOOTER_LINE_Y - 8 - reflection_y;
+        if (reflection_height > 0) {
+            DrawAddChild(panel, DrawTexObj(texture, x, reflection_y, width, reflection_height,
+                0, 0.0f, 1.0f, 1.0f, 1.0f - reflection_height / (float)height, 0));
+            for (int band = 0; band < 4; ++band) {
+                int alpha = 190 + band * 20;
+                /* Swiss uses premultiplied alpha for these solid fills. */
+                GXColor fade = {22 * alpha / 255, 17 * alpha / 255, 43 * alpha / 255, alpha};
+                DrawAddChild(panel, DrawSolidBox(x, reflection_y + band * reflection_height / 4,
+                    x + width, reflection_y + (band + 1) * reflection_height / 4, fade));
+            }
+        }
+    }
     else {
         prism_draw_wrapped(panel, game->title, x + 8, y + 28, width - 16,
             0.65f, 4, 18, (GXColor){204, 218, 239, 255});

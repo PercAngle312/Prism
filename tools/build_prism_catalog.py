@@ -23,6 +23,7 @@ def assemble(database,collection,output):
     background_sources.update({r['id']:{'provider':'IGDB',**r} for r in records('SOURCES.json')})
     background_sources.update({r['id']:r for r in records('GENERATED-SOURCES.json')})
     cover_sources={r['id']:r for r in records('COVER-SOURCES.json') if not r.get('missing')}
+    extras={r['id']:r for r in records('CATALOG-EXTRAS.json')}
     # Localized releases with the same three-byte code and maker code are one
     # game family. Reuse only when one known background is available.
     families={}
@@ -42,6 +43,10 @@ def assemble(database,collection,output):
     stats={'disc_ids':len(catalog),'synopses':0,'covers':0,'backgrounds':0,'generated_background_ids':0}
     for gid,game in sorted(catalog.items()):
         game=dict(game);meta=dict(game.get('metadata',{}));absent=[]
+        if not game['synopsis'] and extras.get(gid,{}).get('synopsis'):
+            game['synopsis']=extras[gid]['synopsis']
+            meta['synopsis_source']=extras[gid]['synopsis_source']
+            meta['synopsis_igdb_id']=extras[gid]['igdb_id']
         if game['synopsis']:stats['synopses']+=1
         else:absent.append('synopsis')
         cover=collection/'Covers'/f'{gid}.png'
