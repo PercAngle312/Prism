@@ -7,6 +7,8 @@ card=source[source.index('static void prism_draw_cover_card'):source.index('stat
 stub=r'''
 #include <assert.h>
 #include <stddef.h>
+#include "prism_theme.h"
+typedef uint16_t u16;
 typedef struct {unsigned char r,g,b,a;} GXColor;
 typedef int uiDrawObj_t;
 typedef int GXTexObj;
@@ -36,9 +38,9 @@ test=r'''
 int main(void) {
  PrismLibraryGame game={{0}};GXTexObj texture=0;original=&texture;
  prism_draw_cover_card(&dummy,&game,&texture,1,232,126,176,240);
- assert(calls==2 && boxes==5 && reflection_y==368 && reflection_h==40);
+ assert(calls==2 && boxes==9 && reflection_y==368 && reflection_h==40);
  calls=boxes=0;prism_draw_cover_card(&dummy,&game,&texture,1,96,166,132,180);
- assert(calls==2 && boxes==5 && reflection_y==348 && reflection_h==40);
+ assert(calls==2 && boxes==9 && reflection_y==348 && reflection_h==40);
  calls=boxes=0;prism_draw_cover_card(&dummy,&game,NULL,0,232,126,176,240);
  assert(calls==0 && boxes==1);
  return 0;
@@ -46,6 +48,6 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory() as temporary:
  root=Path(temporary);(root/'card.c').write_text(stub+card+test)
- subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-pedantic','-fsanitize=undefined',str(root/'card.c'),'-o',str(root/'card')],check=True)
+ subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-pedantic','-fsanitize=undefined','-Icube/swiss/source/gui',str(root/'card.c'),'-o',str(root/'card')],check=True)
  subprocess.run([str(root/'card')],check=True)
 print('Actual cover-card reflection: pinned pixel reuse, flipped crop, footer bounds and no-art fallback passed')

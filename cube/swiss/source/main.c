@@ -363,9 +363,18 @@ static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *ga
             for (int band = 0; band < 4; ++band) {
                 int alpha = 190 + band * 20;
                 /* Swiss uses premultiplied alpha for these solid fills. */
-                GXColor fade = {17 * alpha / 255, 24 * alpha / 255, 43 * alpha / 255, alpha};
-                DrawAddChild(panel, DrawSolidBox(x, reflection_y + band * reflection_height / 4,
-                    x + width, reflection_y + (band + 1) * reflection_height / 4, fade));
+                for (int column = 0; column < 2; ++column) {
+                    int sample_x = x + (column * 2 + 1) * width / 4;
+                    if (sample_x < 0) sample_x = 0;
+                    if (sample_x > 639) sample_x = 639;
+                    int sample_y = reflection_y + (band * 2 + 1) * reflection_height / 8;
+                    u16 theme = prism_theme_pixel(sample_x * 63 / 639, sample_y * 63 / 479);
+                    GXColor fade = {(theme >> 11) * 255 / 31 * alpha / 255,
+                        ((theme >> 5) & 63) * 255 / 63 * alpha / 255,
+                        (theme & 31) * 255 / 31 * alpha / 255, alpha};
+                    DrawAddChild(panel, DrawSolidBox(x + column * width / 2, reflection_y + band * reflection_height / 4,
+                        x + (column + 1) * width / 2, reflection_y + (band + 1) * reflection_height / 4, fade));
+                }
             }
         }
     }
