@@ -73,6 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install cover conversion test dependency
+        run: python3 -m pip install Pillow==11.3.0
       - name: Build navigation unit test
         run: cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o /tmp/prism-nav-test tests/prism_nav_test.c cube/swiss/source/gui/prism_nav.c
       - name: Run navigation unit test
@@ -128,8 +130,6 @@ jobs:
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library.prism
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library2.prism
           cmp /tmp/library.prism /tmp/library2.prism
-      - name: Install cover conversion test dependency
-        run: python3 -m pip install Pillow==11.3.0
       - name: Test Studio projects and console-reader export compatibility
         run: |
           python3 tools/test_prism_catalog.py
