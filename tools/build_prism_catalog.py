@@ -20,7 +20,7 @@ def assemble(database,collection,output):
     # Retain provenance for regional copies made by earlier catalog versions.
     background_sources={r['id']:r['background'] for r in records('PACK-SOURCES.json')
                         if r.get('background')}
-    background_sources.update({r['id']:r for r in records('SOURCES.json')})
+    background_sources.update({r['id']:{'provider':'IGDB',**r} for r in records('SOURCES.json')})
     background_sources.update({r['id']:r for r in records('GENERATED-SOURCES.json')})
     cover_sources={r['id']:r for r in records('COVER-SOURCES.json') if not r.get('missing')}
     # Localized releases with the same three-byte code and maker code are one

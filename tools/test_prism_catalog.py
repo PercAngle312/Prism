@@ -15,9 +15,12 @@ with tempfile.TemporaryDirectory() as folder:
     database = root / 'database.xml'
     database.write_text('<datafile>' + ''.join(
         f'<game name="Fixture"><id>{gid}</id><type>GameCube</type></game>'
-        for gid in ('GAAE01', 'GAAP01', 'GZZE01')) + '</datafile>')
+        for gid in ('GAAE01', 'GAAP01', 'GZZE01', 'GIGE01')) + '</datafile>')
     Image.new('RGB', (320, 240), 'blue').save(collection / 'Background-Art/GAAE01.png')
     Image.new('RGB', (320, 240), 'green').save(collection / 'Background-Art/GZZE01.png')
+    Image.new('RGB', (320, 240), 'red').save(collection / 'Background-Art/GIGE01.png')
+    (collection / 'SOURCES.json').write_text(json.dumps([
+        {'id':'GIGE01', 'igdb_id':123, 'kind':'artworks', 'url':'https://images.igdb.com/example.jpg'}]))
     provenance = {'id': 'GAAE01', 'provider': 'Generated original artwork',
                   'kind': 'generated', 'generated_group': 'GAAE01', 'prompt': 'Fixture scene'}
     (collection / 'GENERATED-SOURCES.json').write_text(json.dumps([provenance]))
@@ -33,6 +36,9 @@ with tempfile.TemporaryDirectory() as folder:
     local, _, _ = source.game('GZZE01')
     assert local['background_provider'] == 'Local artwork'
     assert local['background_kind'] == 'unknown'
+    sourced, _, _ = source.game('GIGE01')
+    assert sourced['background_provider'] == 'IGDB'
+    assert sourced['background_kind'] == 'artworks'
     second = assemble(database, collection, pack)
     assert first == second, 'Unchanged catalog rebuild must be byte-identical'
     # Earlier assemblers made physical regional copies. Their saved source
