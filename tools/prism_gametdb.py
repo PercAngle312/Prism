@@ -79,7 +79,8 @@ def read_gametdb(path, language='EN'):
             'developer': _text(game, 'developer'), 'publisher': _text(game, 'publisher'),
             'genres': [g.strip() for g in genre.split(',') if g.strip()],
             'release_date': dict(date.attrib) if date is not None else {},
-            'languages': [e.get('lang','') for e in locales if e.get('lang')],
+            'languages': [value.upper() for value in re.split(r'[\s,]+', _text(game, 'languages')) if value],
+            'localized_title_languages': [e.get('lang','') for e in locales if e.get('lang')],
             'metadata_source': 'https://www.gametdb.com/Wii/' + gid,
         }.items() if v}
         controls = _child(game, 'input')

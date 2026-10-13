@@ -8,7 +8,9 @@ from prism_project import LibraryProject
 XML = b'''<?xml version="1.0"?>
 <datafile>
   <game name="Fallback"><id>GM8E01</id>
+    <languages>EN</languages>
     <locale lang="EN"><title>Metroid Prime</title><synopsis>Explore Tallon IV.</synopsis></locale>
+    <locale lang="KO"><title>Translated title</title></locale>
   </game>
   <game name="Second"><id>GZLE01</id>
     <locale lang="EN"><title>Wind Waker</title><synopsis>Explore the sea.</synopsis></locale>
@@ -27,6 +29,9 @@ with tempfile.TemporaryDirectory() as tmp:
     path.write_bytes(XML)
     catalog = read_gametdb(path)
     assert set(catalog) == {'GM8E01', 'GZLE01', 'D43E01'}
+    assert catalog['GM8E01']['metadata']['languages'] == ['EN']
+    assert catalog['GM8E01']['metadata']['localized_title_languages'] == ['EN', 'KO']
+    assert 'languages' not in catalog['GZLE01']['metadata']
     p = LibraryProject()
     p.put({'id': 'GM8E01', 'title': 'Custom title', 'synopsis': ''})
     result = import_gametdb(p, path, full_catalog=False)
