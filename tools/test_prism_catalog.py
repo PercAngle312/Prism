@@ -50,3 +50,33 @@ with tempfile.TemporaryDirectory() as folder:
     assert regional['background_provider'] == 'Generated original artwork'
     assert regional['background_kind'] == 'generated'
 print('Catalog rebuild and legacy regional-copy provenance: passed')
+
+with tempfile.TemporaryDirectory() as folder:
+    root=Path(folder);collection=root/'collection';collection.mkdir()
+    database=root/'database.xml'
+    database.write_text('<datafile>'
+        '<game name="Original"><id>GORE01</id><type>GameCube</type></game>'
+        '<game name="Curated"><id>GCUE01</id><type>GameCube</type><locale lang="EN"><synopsis>Curated text stays.</synopsis></locale></game>'
+        '<game name="Sourced"><id>GSRE01</id><type>GameCube</type></game></datafile>')
+    original='Explore an original adventure. Plan your next move and face the challenge ahead.'
+    rows=[{'id':gid,'synopsis':original,'fact_sources':['https://example.org/facts']} for gid in ('GORE01','GCUE01','GSRE01')]
+    (collection/'PRISM-SYNOPSES.json').write_text(json.dumps(rows))
+    (collection/'CATALOG-EXTRAS.json').write_text(json.dumps([{'id':'GSRE01','synopsis':'Sourced text stays.','synopsis_source':'https://example.org/source','igdb_id':123}]))
+    pack=root/'library.prism';stats=assemble(database,collection,pack)
+    assert stats['synopses']==3 and stats['original_synopses']==1
+    source=PackSource(pack)
+    game,_,_=source.game('GORE01')
+    assert game['synopsis']==original
+    assert game['metadata']['synopsis_kind']=='original'
+    assert game['metadata']['synopsis_provider']=='PRISM original synopsis'
+    assert game['metadata']['synopsis_fact_sources']==['https://example.org/facts']
+    assert 'synopsis_igdb_id' not in game['metadata']
+    assert source.game('GCUE01')[0]['synopsis']=='Curated text stays.'
+    assert source.game('GSRE01')[0]['synopsis']=='Sourced text stays.'
+    rows[0]['synopsis']='x'*4097
+    (collection/'PRISM-SYNOPSES.json').write_text(json.dumps(rows))
+    try: assemble(database,collection,pack)
+    except ValueError: pass
+    else: raise AssertionError('Oversized original synopsis accepted')
+    assert PackSource(pack).game('GORE01')[0]['synopsis']==original
+print('Original synopses: provenance, curated/source preservation, bounds and readable pack passed')

@@ -24,6 +24,10 @@ def assemble(database,collection,output):
     background_sources.update({r['id']:r for r in records('GENERATED-SOURCES.json')})
     cover_sources={r['id']:r for r in records('COVER-SOURCES.json') if not r.get('missing')}
     extras={r['id']:r for r in records('CATALOG-EXTRAS.json')}
+    authored_path=collection/'PRISM-SYNOPSES.json'
+    if not authored_path.exists():
+        authored_path=Path(__file__).resolve().parents[1]/'assets/prism/original-synopses.json'
+    authored={r['id']:r for r in json.loads(authored_path.read_text())} if authored_path.exists() else {}
     # Localized releases with the same three-byte code and maker code are one
     # game family. Reuse only when one known background is available.
     families={}
@@ -40,13 +44,24 @@ def assemble(database,collection,output):
             origin,source,path=choices[0];background_paths[gid]=path
             background_sources[gid]={**source,'id':gid,'match_method':'regional disc-ID family','source_disc_id':origin}
     games=[];missing=[];sources=[]
-    stats={'disc_ids':len(catalog),'synopses':0,'covers':0,'backgrounds':0,'generated_background_ids':0}
+    stats={'disc_ids':len(catalog),'synopses':0,'covers':0,'backgrounds':0,'generated_background_ids':0,'original_synopses':0}
     for gid,game in sorted(catalog.items()):
         game=dict(game);meta=dict(game.get('metadata',{}));absent=[]
         if not game['synopsis'] and extras.get(gid,{}).get('synopsis'):
             game['synopsis']=extras[gid]['synopsis']
             meta['synopsis_source']=extras[gid]['synopsis_source']
             meta['synopsis_igdb_id']=extras[gid]['igdb_id']
+        if not game['synopsis'] and authored.get(gid,{}).get('synopsis'):
+            record=authored[gid]
+            text=record['synopsis']
+            if not isinstance(text,str) or not 1<=len(text.encode('utf-8'))<=4096:
+                raise ValueError('Invalid original synopsis for '+gid)
+            game['synopsis']=text
+            meta['synopsis_provider']='PRISM original synopsis'
+            meta['synopsis_kind']='original'
+            meta['synopsis_author']='PRISM'
+            meta['synopsis_fact_sources']=record.get('fact_sources',[])
+            stats['original_synopses']+=1
         if game['synopsis']:stats['synopses']+=1
         else:absent.append('synopsis')
         cover=collection/'Covers'/f'{gid}.png'
