@@ -21,7 +21,9 @@ def exact_matches(catalog, games):
             if key: names.setdefault(key, set()).add(game['id'])
     selected = {}
     for gid, game in catalog.items():
-        matches = names.get(catalog_name(game['title']), set())
+        matches = set()
+        for title in [game['title'], *game.get('aliases', [])]:
+            matches.update(names.get(catalog_name(title), set()))
         if len(matches) == 1: selected[gid] = next(iter(matches))
     families = {}
     for gid, match in selected.items(): families.setdefault(gid[:3] + gid[4:], set()).add(match)
@@ -68,6 +70,9 @@ def apply_extras(catalog, selected, records, output, download=download_provider_
 
 def collect(database, output, credentials):
     output = Path(output); catalog = read_gametdb(database)
+    for language in ('JA', 'FR', 'DE', 'ES', 'IT'):
+        for gid, game in read_gametdb(database, language).items():
+            catalog[gid].setdefault('aliases', []).append(game['title'])
     selected = exact_matches(catalog, json.loads((output / 'igdb-catalog.json').read_text()))
     needed = sorted({match for gid, match in selected.items()
                      if not catalog[gid]['synopsis'] or not (output / 'Covers' / f'{gid}.png').exists()})

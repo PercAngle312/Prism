@@ -12,6 +12,8 @@ games=[{'id':1,'name':'Fixture','platforms':[21]}, {'id':2,'name':'Ambiguous','p
        {'id':3,'name':'Ambiguous','platforms':[21]}]
 selected=exact_matches(catalog,games)
 assert selected=={'GAAE01':1,'GAAP01':1}
+assert exact_matches({'GAAJ13':{'title':'Localized','aliases':['Fixture'],'synopsis':''}},games)=={'GAAJ13':1}
+assert exact_matches({'GAAJ13':{'title':'Localized','aliases':['Fixture','Ambiguous'],'synopsis':''}},games)=={}
 with tempfile.TemporaryDirectory() as temporary:
     root=Path(temporary);(root/'Covers').mkdir();(root/'Background-Art').mkdir()
     out=io.BytesIO();Image.new('RGB',(176,240),'red').save(out,'PNG');raw=out.getvalue()

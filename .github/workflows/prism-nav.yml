@@ -8,6 +8,8 @@ on:
       - 'tools/collect_prism_catalog_extras.py'
       - 'tools/test_prism_catalog_extras.py'
       - 'tools/test_prism_coverflow.py'
+      - 'tools/recover_prism_regions.py'
+      - 'tools/test_prism_regions.py'
       - 'tools/build_prism_catalog.py'
       - 'tools/test_prism_catalog.py'
       - 'tools/prism_gametdb.py'
@@ -139,6 +141,7 @@ jobs:
         run: |
           python3 tools/test_prism_catalog.py
           python3 tools/test_prism_catalog_extras.py
+          python3 tools/test_prism_regions.py
           python3 tools/test_prism_packed_background.py
           python3 tools/test_prism_default_source.py
           python3 tools/test_prism_artwork.py
