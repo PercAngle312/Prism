@@ -79,7 +79,11 @@ def fill_missing(project,path):
         game,cover,background=item;current=dict(pending.games[gid]);stats['matched']+=1
         if not current.get('synopsis') and game['synopsis']:
             current['synopsis']=game['synopsis'];stats['synopses']+=1
-        if not current.get('metadata') and game.get('metadata'):current['metadata']=game['metadata']
+        source_metadata=game.get('metadata',{})
+        artwork_fields=('generated_background','generated_prompt')
+        if source_metadata:
+            current['metadata']={**{k:v for k,v in source_metadata.items() if k not in artwork_fields},
+                                 **current.get('metadata',{})}
         if gid in pending.covers:cover=None
         if cover:stats['covers']+=1
         pending.put(current,cover,old_id=gid)
@@ -88,6 +92,10 @@ def fill_missing(project,path):
             current=dict(pending.games[gid])
             for key in ('background_url','background_provider','background_kind'):
                 if game.get(key):current[key]=game[key]
+            if any(key in source_metadata for key in artwork_fields):
+                metadata=dict(current.get('metadata',{}))
+                metadata.update({key:source_metadata[key] for key in artwork_fields if key in source_metadata})
+                current['metadata']=metadata
             pending.put(current,old_id=gid)
     project.games,project.covers,project.screenshots=pending.games,pending.covers,pending.screenshots
     return stats

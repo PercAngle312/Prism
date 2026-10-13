@@ -179,18 +179,23 @@ class LibraryProject:
     def set_screenshot(self, key, raw):
         if key not in self.games:
             raise ValueError('Select an existing game before adding a screenshot')
-        if raw is None:
-            for field in ('background_url', 'background_kind', 'background_provider'):
-                self.games[key].pop(field, None)
-            self.screenshots.pop(key, None)
-            return
-        image = validate_image(raw)
-        total = sum(map(len, self.covers.values())) + sum(len(v) for k, v in self.screenshots.items() if k != key)
-        if total + len(image) > MAX_PROJECT_BYTES:
-            raise ValueError('Project artwork exceeds 128 MiB')
+        image = None
+        if raw is not None:
+            image = validate_image(raw)
+            total = sum(map(len, self.covers.values())) + sum(len(v) for k, v in self.screenshots.items() if k != key)
+            if total + len(image) > MAX_PROJECT_BYTES:
+                raise ValueError('Project artwork exceeds 128 MiB')
         for field in ('background_url', 'background_kind', 'background_provider'):
             self.games[key].pop(field, None)
-        self.screenshots[key] = image
+        if self.games[key].get('metadata'):
+            metadata = dict(self.games[key]['metadata'])
+            for field in ('generated_background', 'generated_prompt'):
+                metadata.pop(field, None)
+            self.games[key]['metadata'] = metadata
+        if image is None:
+            self.screenshots.pop(key, None)
+        else:
+            self.screenshots[key] = image
 
     def background_files(self):
         from prism_background import convert_background
