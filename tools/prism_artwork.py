@@ -9,7 +9,7 @@ import time
 import unicodedata
 from PIL import Image, ImageOps
 from urllib.error import HTTPError
-from prism_download import download_cover
+from prism_download import download_provider_image
 from prism_project import validate_image
 from prism_scrape import _json_request
 
@@ -38,7 +38,7 @@ def _candidates(game, screenshots):
 
 
 def fetch_backgrounds(project, client_id, token, *, screenshots=True,
-                      request=_json_request, download=download_cover,
+                      request=_json_request, download=download_provider_image,
                       sleep=time.sleep, progress=None):
     if project.system != 'gamecube':
         raise ValueError('Background fetching currently supports GameCube projects')

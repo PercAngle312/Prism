@@ -50,6 +50,11 @@ def validate_game(game):
             raise ValueError(f'{game_id}: title is required')
         if value or key in ('title', 'synopsis'):
             clean[key] = value
+    if game.get('metadata'):
+        if not isinstance(game['metadata'], dict): raise ValueError('Metadata must be an object')
+        encoded = json.dumps(game['metadata'], ensure_ascii=False, allow_nan=False).encode('utf-8')
+        if len(encoded)>12000: raise ValueError('Metadata exceeds project limit')
+        clean['metadata'] = copy.deepcopy(game['metadata'])
     return clean
 
 
@@ -118,7 +123,7 @@ class LibraryProject:
         if key not in self.games and old_id is None and len(self.games) >= MAX_GAMES:
             raise ValueError(f'Project limit is {MAX_GAMES} games')
         if old_id:
-            for field in ('background_url', 'background_kind', 'background_provider'):
+            for field in ('background_url', 'background_kind', 'background_provider', 'metadata'):
                 if field not in clean and field in self.games[old_id]:
                     clean[field] = self.games[old_id][field]
         new_cover = validate_image(cover) if cover is not None else self.covers.get(old_id or key)
@@ -273,7 +278,7 @@ class LibraryProject:
 
     def export_library(self, path):
         """Export pack plus emulator path index, restoring originals on failure."""
-        if self.system == 'gamecube' and not self.screenshots:
+        if self.system == 'gamecube':
             return self.export(path)
         path = Path(path)
         index = path.with_suffix('.roms')
@@ -308,6 +313,8 @@ class LibraryProject:
             data = self.manifest()
             # The updated console reader supports the project's full text.
             manifest.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+            for key, raw in self.screenshots.items():
+                (workspace/f'{key}-background.png').write_bytes(raw)
             for key, raw in self.covers.items():
                 (workspace/f'{key}.png').write_bytes(raw)
             def write(target):
@@ -403,7 +410,7 @@ def verify_pack(path):
     expected_offset = 16 + count*ENTRY.size
     for pos in range(count):
         key, flags, offset, title_size, synopsis_size, cover_size = ENTRY.unpack_from(raw, index + pos*ENTRY.size)
-        if not re.fullmatch(rb'[A-Z0-9]{6}', key) or key <= previous or flags != 0 or offset != expected_offset:
+        if not re.fullmatch(rb'[A-Z0-9]{6}', key) or key <= previous or flags not in (0,1) or offset != expected_offset:
             raise ValueError('Invalid pack record')
         end = offset + title_size + synopsis_size + cover_size
         if not 1 <= title_size <= 96 or synopsis_size > MAX_PROJECT_SYNOPSIS or end > len(raw):
@@ -412,6 +419,16 @@ def verify_pack(path):
         raw[offset+title_size:offset+title_size+synopsis_size].decode('utf-8')
         if cover_size and not validate_cover(raw[end-cover_size:end]):
             raise ValueError('Invalid pack cover')
+        if flags:
+            if end+8>len(raw): raise ValueError('Invalid pack extension')
+            background_size, metadata_size = struct.unpack_from('<II',raw,end)
+            start=end+8; end=start+background_size+metadata_size
+            if background_size not in (0,153612) or metadata_size>16384 or end>len(raw):
+                raise ValueError('Invalid pack background/metadata bounds')
+            if background_size and raw[start:start+12] != b'PRISMBG2\x40\x01\xf0\x00':
+                raise ValueError('Invalid packed background')
+            if metadata_size and not isinstance(json.loads(raw[end-metadata_size:end].decode('utf-8')),dict):
+                raise ValueError('Invalid pack metadata')
         previous, expected_offset = key, end
     if expected_offset != len(raw):
         raise ValueError('Pack has trailing data')

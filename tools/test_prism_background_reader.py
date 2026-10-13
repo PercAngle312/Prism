@@ -8,6 +8,7 @@ import io
 
 source=Path('cube/swiss/source/gui/prism_pack_device.c').read_text()
 loader=source[source.index('int prism_pack_device_background('):]
+loader='static int packed_background(DEVICEHANDLER_INTERFACE *d,const char *id,void *p,size_t c) { (void)d;(void)id;(void)p;(void)c;return 0; }\n'+loader
 stub=r'''
 #include <assert.h>
 #include <stdint.h>

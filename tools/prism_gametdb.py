@@ -73,6 +73,16 @@ def read_gametdb(path, language='EN'):
         synopsis = _text(preferred, 'synopsis') if preferred is not None else ''
         games[gid] = {'id': gid, 'title': _short(title, 96) or gid,
                       'synopsis': _short(synopsis, MAX_PROJECT_SYNOPSIS)}
+        date = _child(game, 'date')
+        genre = _text(game, 'genre')
+        metadata = {k: v for k, v in {
+            'developer': _text(game, 'developer'), 'publisher': _text(game, 'publisher'),
+            'genres': [g.strip() for g in genre.split(',') if g.strip()],
+            'release_date': dict(date.attrib) if date is not None else {},
+            'languages': [e.get('lang','') for e in locales if e.get('lang')],
+            'metadata_source': 'https://www.gametdb.com/Wii/' + gid,
+        }.items() if v}
+        games[gid]['metadata'] = metadata
     return games
 
 

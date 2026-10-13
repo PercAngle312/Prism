@@ -253,3 +253,26 @@ every game, and IGDB artwork is not necessarily official publisher art.
 The background fetch tests use controlled API/image fixtures. A live full-library
 fetch has not been performed; it requires credentials and your actual project.
 Native and Windows release packaging remain blocked by GitHub CI job startup.
+
+
+## One-file source library
+
+GameCube exports now embed bright 320×240 background textures and source metadata
+inside `library.prism`. The dashboard dims selected background pixels on load.
+No screenshot folder is needed with the updated dashboard. Older loose `.bg`
+backgrounds remain a fallback. Legacy flag-zero packs remain readable.
+
+The optional Windows source reader accepts this same consolidated pack. Choose
+**Use source pack** to fill missing covers, background art, descriptions and
+metadata by exact disc ID while preserving edited fields. A `library.prism`
+beside the packaged executable is detected as its default offline source and
+is used automatically after scanning GameCube backups. Release packaging may
+include it at `assets/prism/default-library.prism`; credentials are not required
+for offline use. The completed source data and refreshed Windows/native binaries
+still need to be packaged; the current released Studio does not contain this code.
+
+Packed extensions: a flag-1 index entry appends `<u32 background_length,
+u32 metadata_length>` after title, synopsis and cover. Background is a 12-byte
+PRISMBG2 header plus a bright tiled RGB565 texture. Metadata is UTF-8 JSON,
+bounded to 16 KiB. Native callers read only the matched record and selected
+texture. The full database is not loaded into GameCube RAM.

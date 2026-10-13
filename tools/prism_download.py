@@ -50,3 +50,35 @@ def download_cover(url: str) -> bytes:
     finally:
         connection.close()
 
+
+
+def download_provider_image(url: str, *, timeout=20) -> bytes:
+    """Fetch only known public provider CDNs, including through system HTTPS proxies.
+
+    This separate path never accepts arbitrary hosts, queries, credentials or
+    redirects. General user-entered URLs retain the pinned-DNS downloader.
+    """
+    from urllib.request import Request, build_opener, HTTPRedirectHandler
+    import re
+    parsed = urlsplit(url)
+    if (parsed.scheme != 'https' or parsed.username or parsed.password or parsed.port not in (None,443)
+            or parsed.query or parsed.fragment):
+        raise ValueError('Invalid provider image URL')
+    allowed = ((parsed.hostname == 'images.igdb.com' and
+                re.fullmatch(r'/igdb/image/upload/t_(?:720p|cover_big)/[A-Za-z0-9_]+\.jpg', parsed.path)) or
+               (parsed.hostname == 'art.gametdb.com' and
+                re.fullmatch(r'/wii/cover/[A-Z]{2}/[A-Z0-9]{6}\.png', parsed.path)))
+    if not allowed:
+        raise ValueError('Unsupported provider image endpoint')
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise ValueError('Provider image redirects are not followed')
+    opener = build_opener(NoRedirect())
+    with opener.open(Request(url, headers={'User-Agent':'PRISM-Studio/0.6'}), timeout=timeout) as response:
+        mime=response.headers.get('Content-Type','').split(';')[0].lower()
+        if mime not in ('image/png','image/jpeg'):
+            raise ValueError('Provider response is not a PNG or JPEG image')
+        raw=response.read(MAX_DOWNLOAD+1)
+    if len(raw)>MAX_DOWNLOAD:
+        raise ValueError('Provider image exceeds import limit')
+    return raw

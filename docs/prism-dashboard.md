@@ -511,3 +511,14 @@ ten-slot cache pins both five-card frames during disjoint page jumps (844,800
 bytes maximum for cover pixels). Reflections and animated background polish
 remain pending native build and rendering verification. GameCube controls and
 the requested title-free shelf are retained.
+
+
+## Consolidated catalog assets
+
+The extended PRISMPK1 pack embeds background art and provenance/general metadata
+in flag-1 records, while flag-zero records retain their original layout. Native
+background loading first searches `/swiss/prism/library.prism` by exact disc ID,
+dims the matched bright RGB565 pixels to 20 percent, and then falls back to the
+older optional per-ID `.bg` files. Host tests execute the actual C pack reader
+and native adapter against an exported pack. Native CI remains required before
+shipping the new dashboard.

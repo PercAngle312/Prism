@@ -10,6 +10,8 @@ import argparse
 import json
 import re
 import struct
+import tempfile
+import shutil
 from pathlib import Path
 from prism_cover import convert_cover, validate_cover
 
@@ -28,38 +30,40 @@ def build(manifest: Path, output: Path) -> None:
     ids = set()
     for game in games:
         game_id = game["id"]
-        if not isinstance(game_id, str) or not re.fullmatch(r"[A-Z0-9]{6}", game_id):
-            raise ValueError(f"invalid GameCube ID: {game_id!r}")
-        if game_id in ids:
-            raise ValueError(f"duplicate ID: {game_id}")
+        if not isinstance(game_id, str) or not re.fullmatch(r"[A-Z0-9]{6}", game_id) or game_id in ids:
+            raise ValueError("invalid or duplicate GameCube ID")
         ids.add(game_id)
-        title = game["title"].encode("utf-8")
-        synopsis = game.get("synopsis", "").encode("utf-8")
-        if not 1 <= len(title) <= 96 or len(synopsis) > 4096:
-            raise ValueError(f"invalid text length for {game_id}")
-        cover = b""
-        if "cover" in game:
-            cover_path = manifest.parent / game["cover"]
-            cover = cover_path.read_bytes()
-            if not validate_cover(cover):
-                cover = convert_cover(cover_path)
-            if len(cover) > MAX_COVER:
-                raise ValueError(f"cover too large: {game_id}")
-        records.append((game_id.encode("ascii"), title, synopsis, cover))
-    records.sort(key=lambda item: item[0])
-    offset = 16 + ENTRY.size * len(records)
-    index = bytearray()
-    payload = bytearray()
-    for game_id, title, synopsis, cover in records:
-        index += ENTRY.pack(game_id, 0, offset, len(title), len(synopsis), len(cover))
-        record = title + synopsis + cover
-        payload += record
-        offset += len(record)
-        if offset > 0xFFFFFFFF:
-            raise ValueError("pack exceeds 4 GiB limit")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(MAGIC + struct.pack("<II", len(records), 16) + index + payload)
-    print(f"Built {output} ({len(records)} games, {offset} bytes)")
+    offset = 16 + ENTRY.size * len(games)
+    with tempfile.TemporaryFile() as payload:
+        for game in sorted(games, key=lambda g: g['id']):
+            title = game['title'].encode('utf-8')
+            synopsis = game.get('synopsis', '').encode('utf-8')
+            if not 1 <= len(title) <= 96 or len(synopsis) > 4096:
+                raise ValueError('invalid text length')
+            cover = b''
+            if game.get('cover'):
+                path = manifest.parent / game['cover']
+                cover = path.read_bytes()
+                if not validate_cover(cover): cover = convert_cover(path)
+                if len(cover) > MAX_COVER: raise ValueError('cover too large')
+            background = b''
+            if game.get('background'):
+                from prism_background import convert_background
+                background = convert_background((manifest.parent/game['background']).read_bytes(), dim=False)
+            metadata = {k: game[k] for k in ('metadata','info_url','background_url','background_kind','background_provider') if game.get(k)}
+            metadata = json.dumps(metadata,ensure_ascii=False,separators=(',',':')).encode('utf-8') if metadata else b''
+            if len(metadata)>16384: raise ValueError('metadata exceeds 16 KiB')
+            flags = int(bool(background or metadata))
+            record = title + synopsis + cover
+            if flags: record += struct.pack('<II',len(background),len(metadata)) + background + metadata
+            records.append(ENTRY.pack(game['id'].encode('ascii'),flags,offset,len(title),len(synopsis),len(cover)))
+            payload.write(record); offset += len(record)
+            if offset>0xffffffff: raise ValueError('pack exceeds 4 GiB')
+        output.parent.mkdir(parents=True,exist_ok=True)
+        with output.open('wb') as target:
+            target.write(MAGIC+struct.pack('<II',len(games),16)+b''.join(records))
+            payload.seek(0);shutil.copyfileobj(payload,target)
+    print(f"Built {output} ({len(games)} games, {offset} bytes)")
 
 
 def main() -> None:

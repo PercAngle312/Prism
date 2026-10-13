@@ -19,9 +19,12 @@ with tempfile.TemporaryDirectory() as td:
     clone=loaded.clone();clone.put({'id':'GM8P01','title':'Renamed'},old_id='GM8E01')
     assert 'GM8P01' in clone.screenshots and 'GM8E01' not in clone.screenshots
     loaded.export_library(td/'library.prism')
-    assert (td/'screenshots/gamecube/GM8E01.bg').read_bytes()==background
+    assert not (td/'screenshots').exists()
+    from prism_default_source import PackSource
+    assert PackSource(td/'library.prism').game('GM8E01')[2]
     card=td/'card';card.mkdir();result=install(card,loaded,dashboard=False)
-    assert (card/'swiss/prism/screenshots/gamecube/GM8E01.bg').read_bytes()==background
+    assert PackSource(card/'swiss/prism/library.prism').game('GM8E01')[2]
+    assert not (card/'swiss/prism/screenshots').exists()
     assert loaded.games['GM8E01']['synopsis']=='Full text. '*70
     loaded.remove('GM8E01');assert not loaded.screenshots
 print('Screenshot source preservation, ID moves, 20-percent RGB565 dimming, export and SD install passed')

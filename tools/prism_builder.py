@@ -15,6 +15,7 @@ from prism_download import download_cover
 from prism_gametdb import import_gametdb
 from prism_scrape import enrich_project
 from prism_artwork import fetch_backgrounds
+from prism_default_source import default_source, fill_missing
 from prism_preview import PrismPreview
 from prism_project import LibraryProject, SYSTEMS, MAX_IMAGE_BYTES, MAX_PROJECT_SYNOPSIS, validate_image, verify_pack
 from prism_install import card_candidates, require_card_root, install, dashboard_bytes, DASHBOARD_BUILD
@@ -79,6 +80,7 @@ class Builder:
                                ('Import covers', self.import_covers_folder),
                                ('Scrape missing', self.scrape_missing),
                                ('Fetch backgrounds', self.fetch_background_art),
+                               ('Use source pack', self.use_source_pack),
                                ('Export pack', self.package), ('Install PRISM', self.install_prism)]):
             button = ttk.Button(primary_tools if index < 6 else secondary_tools, text=title, command=command)
             button.pack(side='left', padx=3)
@@ -460,6 +462,9 @@ class Builder:
             snapshot = self.project.clone()
             def scan():
                 stats = snapshot.scan_games(folder)
+                source = default_source()
+                if source:
+                    fill_missing(snapshot, source)
                 return snapshot, stats
             def accepted(result):
                 self.project, (added, skipped, invalid) = result
@@ -530,6 +535,27 @@ class Builder:
             self.refresh_list()
             self.status.set(f'Imported {count} missing covers. Existing artwork preserved.')
         self.run_job('Importing missing cover artwork…', operation, accepted)
+
+    def use_source_pack(self):
+        if self.busy or not self.guard_edits():
+            return
+        source = default_source()
+        if source is None:
+            source = filedialog.askopenfilename(parent=self.root, title='Choose your complete PRISM source library',
+                filetypes=[('PRISM source library', '*.prism')])
+        if not source:
+            return
+        snapshot = self.project.clone()
+        def job():
+            return snapshot, fill_missing(snapshot, source)
+        def accepted(result):
+            self.project, stats = result
+            self.dirty |= bool(stats['covers'] or stats['backgrounds'] or stats['synopses'])
+            self.refresh_list()
+            if self.selected in self.project.games: self.load_form(self.selected)
+            self.status.set(f"Source pack: {stats['matched']} matches; {stats['covers']} covers, "
+                            f"{stats['backgrounds']} backgrounds and {stats['synopses']} synopses added. Existing edits preserved.")
+        self.run_job('Matching your games to the offline source library…', job, accepted)
 
     def fetch_background_art(self):
         if self.busy or not self.guard_edits():
@@ -695,7 +721,7 @@ class Builder:
             def accepted(count):
                 self.status.set(f'Exported and verified {count} games. Copy as {destination}{filename} on your config storage.')
                 messagebox.showinfo('Library exported', f'{name}\n\nCopy as {destination}{filename} on Swiss config storage.\n' +
-                    (f'Also copy {Path(name).with_suffix(".roms").name} beside it for ROM presence checks. Choose the ROM inside your emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else 'If you added screenshots, also copy the exported screenshots folder beside library.prism. Install PRISM handles this automatically.'), parent=self.root)
+                    (f'Also copy {Path(name).with_suffix(".roms").name} beside it for ROM presence checks. Choose the ROM inside your emulator; direct ROM launch is not yet supported.' if snapshot.system != 'gamecube' else 'Covers, synopsis, metadata and background art are all included in this single library.prism.'), parent=self.root)
             self.run_job(f'Converting covers and building {filename}…', export, accepted)
 
     def install_prism(self, candidates=None):

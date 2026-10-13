@@ -25,8 +25,17 @@ typedef struct {
     uint16_t title_length;
     uint16_t synopsis_length;
     uint32_t cover_length;
+    uint32_t background_offset, background_length;
+    uint32_t metadata_offset, metadata_length;
 } PrismPackEntry;
 
+#define PRISM_BACKGROUND_WIDTH 320u
+#define PRISM_BACKGROUND_HEIGHT 240u
+#define PRISM_BACKGROUND_BYTES (PRISM_BACKGROUND_WIDTH * PRISM_BACKGROUND_HEIGHT * 2u)
+/* Flag 1 appends an 8-byte background/metadata length header after the cover.
+ * Packed PRISMBG2 textures are bright; the device adapter dims them at load. */
+int prism_pack_read_background(PrismPackRead read, void *ctx, uint32_t file_size,
+                              const PrismPackEntry *entry, void *texture, size_t capacity);
 /* Read only header/index entries; never allocate or load the entire pack. */
 int prism_pack_count(PrismPackRead read, void *ctx, uint32_t file_size,
                      uint32_t *count);
