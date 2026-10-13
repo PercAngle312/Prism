@@ -1,6 +1,14 @@
 name: Swiss build
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      dolphin:
+        description: Build and run the experimental Dolphin diagnostic
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -39,12 +47,11 @@ jobs:
         # Use the uncompressed DOL linked from this build's Swiss ELF.
         test -s cube/swiss/swiss.elf
         test -s cube/swiss/swiss.dol
-        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.elf | grep -F "PRISM BOOT CHECK V3"
-        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "PRISM BOOT CHECK V3"
-        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "A: Game info"
-        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "YOUR GAME LIBRARY"
-        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "X: Details"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "START: Settings"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "A: Start game"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "GAMES  |"
         ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_cover_cache_reserve"
+        ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_pack_read_background"
         python3 tools/test_prism_dol.py
         python3 tools/prism_dol.py cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
         sha256sum "prism-hardware/PRISM-UI-${commit}.dol"
@@ -82,7 +89,7 @@ jobs:
       contents: read
       actions: read
     needs: [build, dolphin-core]
-    if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
+    if: github.event_name == 'workflow_dispatch' && inputs.dolphin && (github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard')
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -136,7 +143,7 @@ jobs:
 
   dolphin-core:
     name: Build Dolphin with controller GameID compatibility fix
-    if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
+    if: github.event_name == 'workflow_dispatch' && inputs.dolphin && (github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:

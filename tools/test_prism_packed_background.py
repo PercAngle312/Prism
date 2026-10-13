@@ -29,8 +29,9 @@ static int device_read(void *ctx,uint32_t offset,void *dest,size_t size) {
 '''
 main=r'''
 int main(int argc,char **argv) {
- assert(argc==2); file=fopen(argv[1],"rb");assert(file);fseek(file,0,SEEK_END);length=(uint32_t)ftell(file);
+ assert(argc==2 || argc==3); file=fopen(argv[1],"rb");assert(file);fseek(file,0,SEEK_END);length=(uint32_t)ftell(file);
  PrismPackEntry entry;unsigned char pixels[PRISM_BACKGROUND_BYTES];
+ if(argc==3) { assert(!prism_pack_find(device_read,NULL,length,"GM8E01",&entry));fclose(file);return 0; }
  assert(prism_pack_find(device_read,NULL,length,"GM8E01",&entry));assert(entry.metadata_length>0);
  assert(prism_pack_read_background(device_read,NULL,length,&entry,pixels,sizeof(pixels)));
  for(unsigned i=0;i<sizeof(pixels);i+=2) assert(pixels[i]==0xf8 && pixels[i+1]==0);
@@ -51,4 +52,15 @@ with tempfile.TemporaryDirectory() as td:
     subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-pedantic','-fsanitize=undefined',
         '-Icube/swiss/source/gui',str(td/'test.c'),'cube/swiss/source/gui/prism_pack.c','-o',str(td/'test')],check=True)
     subprocess.run([str(td/'test'),str(td/'library.prism')],check=True)
+    import struct
+    raw=(td/'library.prism').read_bytes()
+    extension=36+len('Fixture')+4096
+    variants=[]
+    bad=bytearray(raw);struct.pack_into('<H',bad,22,2);variants.append(bad)
+    bad=bytearray(raw);struct.pack_into('<I',bad,extension,153611);variants.append(bad)
+    bad=bytearray(raw);struct.pack_into('<I',bad,extension+4,16385);variants.append(bad)
+    variants.append(raw[:-10])
+    for bad in variants:
+        (td/'bad.prism').write_bytes(bad)
+        subprocess.run([str(td/'test'),str(td/'bad.prism'),'invalid'],check=True)
 print('Integrated background/metadata pack: real C lookup, bright texture, bounded reads and native 20-percent dimming passed')
