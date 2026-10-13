@@ -8,7 +8,7 @@
     "x": 22,
     "y": 34,
     "right": 618,
-    "bottom": 446
+    "bottom": 470
   },
   "cover": {
     "x": 58,
@@ -24,8 +24,8 @@
     "synopsis_y": 236
   },
   "footer": {
-    "line_y": 417,
-    "labels_y": 426
+    "line_y": 440,
+    "labels_y": 450
   },
   "header": {
     "logo_x": 58,
@@ -47,7 +47,7 @@
     "center_y": 126,
     "title_y": 390,
     "status_y": 411,
-    "footer_y": 432
+    "footer_y": 450
   },
   "home": {
     "x": 54,

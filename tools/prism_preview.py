@@ -18,8 +18,8 @@ WIDTH, HEIGHT = LAYOUT["screen"]["width"], LAYOUT["screen"]["height"]
 COVER_X, COVER_Y = LAYOUT["cover"]["x"], LAYOUT["cover"]["y"]
 COVER_W, COVER_H = LAYOUT["cover"]["width"], LAYOUT["cover"]["height"]
 TEXT_X, TEXT_W = LAYOUT["text"]["x"], LAYOUT["text"]["width"]
-BG = "#16112b"
-PANEL = "#19142d"
+BG = "#11182b"
+PANEL = "#14192b"
 PALE = "#edf3ff"
 MUTED = "#b4c7e1"
 
@@ -69,10 +69,15 @@ class PrismPreview(tk.Frame):
         else:
             c.create_rectangle(0, 0, WIDTH, HEIGHT, fill=BG, outline='')
             for band in range(12):
-                c.create_rectangle(330+band*18,112+band*23,640,138+band*23,fill='#2b224e',outline='')
+                color = '#%02x%02x%02x' % (24+band//2,43+band,64+band)
+                c.create_rectangle(330+band*18,112+band*23,640,138+band*23,fill=color,outline='')
+            for band in range(6):
+                color = '#%02x%02x%02x' % (26+band,32+band,57+band*2)
+                c.create_rectangle(0,294+band*18,172-band*24,312+band*18,fill=color,outline='')
         c.create_rectangle(0, 0, WIDTH, 116, fill=PANEL, outline='')
-        c.create_rectangle(0, 417, WIDTH, HEIGHT, fill='#110d20', outline='')
-        c.create_line(0, 417, WIDTH, 417, fill='#554389', width=2)
+        footer_y = LAYOUT['footer']['line_y']
+        c.create_rectangle(0, footer_y, WIDTH, HEIGHT, fill='#17303a', outline='')
+        c.create_line(0, footer_y, WIDTH, footer_y, fill='#508896', width=2)
         c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['logo_y'], text="PRISM", fill=PALE,
                       font=("Arial", 23, "bold"), anchor="nw")
         c.create_text(LAYOUT['header']['logo_x'], LAYOUT['header']['subtitle_y'], text="GAME DETAILS   /   " + game.get("id", "------"),

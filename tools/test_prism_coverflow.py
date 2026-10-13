@@ -11,7 +11,7 @@ typedef struct {unsigned char r,g,b,a;} GXColor;
 typedef int uiDrawObj_t;
 typedef int GXTexObj;
 typedef struct {char title[32];} PrismLibraryGame;
-#define PRISM_FOOTER_LINE_Y 417
+#define PRISM_FOOTER_LINE_Y 440
 #define ALIGN_CENTER 1
 static int calls,boxes,reflection_y,reflection_h;
 static GXTexObj* original;

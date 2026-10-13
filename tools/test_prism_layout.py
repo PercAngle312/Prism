@@ -57,6 +57,6 @@ home = layout['home']
 assert home['x'] - 2 >= layout['panel']['x']
 assert home['y'] > layout['header']['subtitle_y'] + 25
 assert home['x'] + home['stride_x'] + home['width'] + 2 <= layout['panel']['right']
-assert home['y'] + home['stride_y'] + home['height'] + 2 < 417
+assert home['y'] + home['stride_y'] + home['height'] + 2 < layout['footer']['line_y']
 assert home['stride_x'] > home['width'] + 4
 assert home['stride_y'] > home['height'] + 4

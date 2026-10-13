@@ -212,21 +212,24 @@ void config_migration(char* text, int state, int percent) {
 static uiDrawObj_t *prism_draw_panel_background(const char *subtitle, GXTexObj *background)
 {
     uiDrawObj_t *panel = DrawContainer();
-    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 480, (GXColor){22, 17, 43, 255}));
-    /* Quiet indigo facets, drawn procedurally without Swiss's watermarks. */
+    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 480, (GXColor){17, 24, 43, 255}));
+    /* Blue and teal facets keep the GameCube palette quiet behind covers. */
     for (int band = 0; band < 12; ++band) {
         int inset = band * 18;
         DrawAddChild(panel, DrawSolidBox(330 + inset, 112 + band * 23, 640,
-            138 + band * 23, (GXColor){35 + band, 27 + band / 2, 64 + band, 255}));
+            138 + band * 23, (GXColor){24 + band / 2, 43 + band, 64 + band, 255}));
     }
+    for (int band = 0; band < 6; ++band)
+        DrawAddChild(panel, DrawSolidBox(0, 294 + band * 18, 172 - band * 24,
+            312 + band * 18, (GXColor){26 + band, 32 + band, 57 + band * 2, 255}));
     if (background) DrawAddChild(panel, DrawTexObj(background, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
-    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){25, 20, 45, 255}));
-    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){17, 13, 32, 255}));
-    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){85, 67, 137, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){20, 25, 43, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){23, 48, 58, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){80, 136, 150, 255}));
     DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_LOGO_Y, "PRISM",
         0.85f, ALIGN_LEFT, (GXColor){233, 241, 247, 255}));
     DrawAddChild(panel, DrawStyledLabel(585, PRISM_LOGO_Y + 8,
-        "Build " GIT_COMMIT, 0.6f, ALIGN_RIGHT, (GXColor){143, 162, 183, 255}));
+        "Build " GIT_COMMIT, 0.45f, ALIGN_RIGHT, (GXColor){143, 162, 183, 255}));
     DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_SUBTITLE_Y,
         subtitle, 0.72f, ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
     return panel;
@@ -302,11 +305,10 @@ static void prism_draw_library_hints(uiDrawObj_t *panel, int y, int details)
         prism_draw_hint(panel, 244, y, 180, "A: Start game", (GXColor){165, 229, 204, 255});
         prism_draw_hint(panel, 424, y, 172, "B: Games", (GXColor){233, 180, 204, 255});
     } else {
-        prism_draw_hint(panel, 44, y, 154, "LEFT/RIGHT: Browse", (GXColor){190, 181, 218, 255});
-        prism_draw_hint(panel, 198, y, 72, "L/R: 10", (GXColor){190, 181, 218, 255});
-        prism_draw_hint(panel, 270, y, 106, "A: Open", (GXColor){165, 229, 204, 255});
-        prism_draw_hint(panel, 376, y, 98, "Z: Systems", (GXColor){190, 181, 218, 255});
-        prism_draw_hint(panel, 474, y, 122, "START: Settings", (GXColor){233, 180, 204, 255});
+        prism_draw_hint(panel, 44, y, 184, "LEFT/RIGHT: Browse", (GXColor){190, 210, 218, 255});
+        prism_draw_hint(panel, 228, y, 110, "A: Open", (GXColor){165, 229, 204, 255});
+        prism_draw_hint(panel, 338, y, 120, "Z: Systems", (GXColor){190, 210, 218, 255});
+        prism_draw_hint(panel, 458, y, 138, "START: Settings", (GXColor){233, 180, 204, 255});
     }
 
 }
@@ -357,7 +359,7 @@ static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *ga
             for (int band = 0; band < 4; ++band) {
                 int alpha = 190 + band * 20;
                 /* Swiss uses premultiplied alpha for these solid fills. */
-                GXColor fade = {22 * alpha / 255, 17 * alpha / 255, 43 * alpha / 255, alpha};
+                GXColor fade = {17 * alpha / 255, 24 * alpha / 255, 43 * alpha / 255, alpha};
                 DrawAddChild(panel, DrawSolidBox(x, reflection_y + band * reflection_height / 4,
                     x + width, reflection_y + (band + 1) * reflection_height / 4, fade));
             }
@@ -782,8 +784,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                 rom_status == 0 ? "Mapped ROM missing on config storage" : "No ROM mapping / choose inside the emulator") :
                 "Catalog entry / not an installed-game check", 0.55f,
             ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
-        prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 240, "LEFT/RIGHT: Browse", (GXColor){185, 200, 225, 255});
-        prism_draw_hint(panel, 284, PRISM_FOOTER_LABELS_Y, 100, "L/R: 10", (GXColor){185, 200, 225, 255});
+        prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 340, "LEFT/RIGHT: Browse", (GXColor){185, 200, 225, 255});
         if (emulator_path) {
             prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 120, "A: Emulator", (GXColor){113, 223, 181, 255});
             prism_draw_hint(panel, 504, PRISM_FOOTER_LABELS_Y, 92, "B: Return", (GXColor){239, 154, 157, 255});
