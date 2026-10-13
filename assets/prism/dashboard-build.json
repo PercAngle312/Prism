@@ -1,0 +1,16 @@
+{
+  "commit": "1090744d293ec8e187f71ade96c85625fa93483f",
+  "sdk_manifest": "sha256:2651e3c3e06d1083d64fbe3e12cdfaed8de8e33af166929d2d5206933943e2b2",
+  "revision_label": "local",
+  "source_hashes": {
+    "cube/swiss/source/main.c": "0c21c1923b2a06309e480b84bd26ad498afb15553b8dd96d95eb84cc9d6c2d49",
+    "cube/swiss/source/gui/prism_pack.c": "e4abf8ac04fe4443715f00cabdb5e52f82939ed4ffc411f13e69c5739f83b219",
+    "cube/swiss/source/gui/prism_pack_device.c": "d1f5d44badb50ac723227b8d8a549915dc089c172e30c74a23ef8660392c7f73",
+    "cube/swiss/source/gui/prism_pack.h": "fe55a70c73f0c1374bbe0abbfb7c92aa0418e6409610e4a280d18088c0a9cb52",
+    "cube/swiss/source/gui/prism_cover_cache.h": "715d63f2c33d955a72137dcc500e1e309d585a1f77fa5023aa9cc3f41c09f9c5",
+    "cube/swiss/source/gui/prism_layout.h": "a9ed149648d91c48d849da30f0f7d7b73ba2cf9074d6215bb10069ad33c6bcdd"
+  },
+  "bytes": 3948808,
+  "identity_checks": "passed",
+  "hardware_tested": false
+}

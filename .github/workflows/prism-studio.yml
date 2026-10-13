@@ -65,24 +65,19 @@ jobs:
                   (out/name).write_bytes(z.read('SOURCE-AND-LICENSES/' + name))
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
-      - uses: actions/download-artifact@v4
-        with:
-          name: PRISM-UI-baec828345ba
-          run-id: 38318251784
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: dashboard-native
-      - name: Verify the ROM-aware GameCube dashboard
+      - name: Verify the bundled consolidated-pack dashboard
         run: |
           @'
-          import hashlib, pathlib
-          raw = pathlib.Path('dashboard-native/PRISM-UI-baec828345ba.dol').read_bytes()
-          assert hashlib.sha256(raw).hexdigest() == '14352817ddc4a57a449338d66a474b7dc94e52ab6385df4b0a9dba0547415c89'
-          pathlib.Path('assets/prism/dashboard.dol').write_bytes(raw)
+          import hashlib, pathlib, json
+          raw = pathlib.Path('assets/prism/dashboard.dol').read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == 'd086e250110f44c7b843cb7afe254a9223e8586a4129f00c5754c60a237594cc'
+          proof = json.loads(pathlib.Path('assets/prism/dashboard-build.json').read_text())
+          assert proof['commit'] == '1090744d293ec8e187f71ade96c85625fa93483f' and proof['identity_checks'] == 'passed'
           '@ | python -
-          if ($LASTEXITCODE -ne 0) { throw 'ROM-aware dashboard verification failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
       - uses: actions/checkout@v4
         with:
-          ref: baec828345ba10992f085bf9d35f68ae4bba21c8
+          ref: 1090744d293ec8e187f71ade96c85625fa93483f
           path: dashboard-tree
       - name: Archive the matching GameCube source
         run: |
@@ -93,7 +88,7 @@ jobs:
           assert synopsis_limit('cube/swiss/source/gui/prism_pack.h') == synopsis_limit('dashboard-tree/cube/swiss/source/gui/prism_pack.h'), 'Refresh bundled native dashboard before publishing new-format Studio exports'
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard pack compatibility check failed' }
-          $archive = Join-Path $PWD 'dashboard-source/PRISM-baec828345ba-source.zip' 
+          $archive = Join-Path $PWD 'dashboard-source/PRISM-1090744d293e-source.zip' 
           git -C dashboard-tree archive --format=zip --output=$archive HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
       - name: Test project roundtrip, header scan and safe exports
@@ -142,7 +137,7 @@ jobs:
           Copy-Item -Recurse dashboard-source dist/PRISM-Studio/dashboard-source
           git archive --format=zip --output=dist/PRISM-Studio/PRISM-Studio-source.zip HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Studio source archive failed' }
-          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.5`nSource: $commit`nDashboard build: baec828345ba`nWindows x64 portable build"
+          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.6`nSource: $commit`nDashboard build: 1090744d293e`nWindows x64 portable build"
           $hash = (Get-FileHash dist/PRISM-Studio/PRISM-Studio.exe -Algorithm SHA256).Hash.ToLower()
           Set-Content dist/PRISM-Studio/SHA256.txt "$hash  PRISM-Studio.exe"
           Write-Output "commit=$commit" >> $env:GITHUB_OUTPUT
