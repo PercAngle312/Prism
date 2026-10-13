@@ -42,8 +42,8 @@ assert status["x"] >= cover["x"] + cover["width"] + 20
 assert status["y"] > layout["text"]["synopsis_y"] + 5 * 22 + 20
 assert layout["footer"]["labels_y"] >= cover["y"] + cover["height"] + 35
 assert flow["left_x"] - 10 >= layout["panel"]["x"]
-assert flow["left_x"] + flow["side_width"] + 20 < flow["center_x"]
-assert flow["center_x"] + cover["width"] + 20 < flow["right_x"]
+assert flow["left_x"] + flow["side_width"] + 4 <= flow["center_x"]
+assert flow["center_x"] + cover["width"] + 4 <= flow["right_x"]
 assert flow["right_x"] + flow["side_width"] + 10 <= layout["panel"]["right"]
 assert flow["title_y"] >= flow["center_y"] + cover["height"] + 22
 assert flow["status_y"] >= flow["title_y"] + 20

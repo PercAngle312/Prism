@@ -504,3 +504,10 @@ screenshots appear only behind details, dimmed to 20 percent brightness.
 Host controller tapes verify these transitions and launch restoration; native
 CI compilation is required. Rendering and game startup still need confirmation
 on GameCube hardware for each new build.
+
+The supplied Aurora reference is the main shelf composition target: a continuous
+five-cover row with clipped outer cards and a larger central selection. The
+ten-slot cache pins both five-card frames during disjoint page jumps (844,800
+bytes maximum for cover pixels). Reflections and animated background polish
+remain pending native build and rendering verification. GameCube controls and
+the requested title-free shelf are retained.

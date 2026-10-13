@@ -6,8 +6,8 @@
 int main(void)
 {
     PrismCoverCache cache;
-    int load, slots[6];
-    const char *ids[] = {"GA0000", "GA0001", "GA0002", "GB0000", "GB0001", "GB0002"};
+    int load, slots[10];
+    const char *ids[] = {"GA0000", "GA0001", "GA0002", "GB0000", "GB0001", "GB0002", "GB0003", "GB0004", "GB0005", "GB0006"};
     unsigned old = 0, incoming = 0;
     prism_cover_cache_init(&cache);
     for (int i = 0; i < 3; ++i) {
@@ -16,7 +16,7 @@ int main(void)
         old |= 1u << slots[i];
         prism_cover_cache_complete(&cache, slots[i], 1);
     }
-    for (int i = 3; i < 6; ++i) {
+    for (int i = 3; i < PRISM_COVER_CACHE_SLOTS; ++i) {
         slots[i] = prism_cover_cache_reserve(&cache, ids[i], old | incoming, &load);
         assert(slots[i] >= 0 && load);
         incoming |= 1u << slots[i];
@@ -36,15 +36,15 @@ int main(void)
     assert(prism_cover_cache_reserve(&cache, "GC0000", incoming, &load) == replacement && load);
     prism_cover_cache_complete(&cache, replacement, 1);
     assert(prism_cover_cache_reserve(&cache, "GC0000", incoming, &load) == replacement && !load);
-    for (int i = 3; i < 6; ++i) assert(!strcmp(cache.entries[slots[i]].id, ids[i]));
+    for (int i = 3; i < PRISM_COVER_CACHE_SLOTS; ++i) assert(!strcmp(cache.entries[slots[i]].id, ids[i]));
     assert(prism_cover_cache_reserve(&cache, "bad", 0, &load) == -1);
     assert(prism_cover_cache_reserve(&cache, "GA00000", 0, &load) == -1);
     assert(prism_cover_cache_reserve(NULL, ids[0], 0, &load) == -1);
     prism_cover_cache_complete(&cache, -1, 1);
-    prism_cover_cache_complete(&cache, 6, 1);
+    prism_cover_cache_complete(&cache, PRISM_COVER_CACHE_SLOTS, 1);
     prism_cover_cache_init(&cache);
     assert(prism_cover_cache_reserve(&cache, ids[4], 0, &load) >= 0 && load);
-    /* Simulate repeated disjoint three-card page jumps while the old frame
+    /* Simulate repeated disjoint five-card page jumps while the old frame
      * is live, including missing covers. Incoming slots must never overwrite it. */
     prism_cover_cache_init(&cache);
     unsigned displayed = 0;
@@ -53,7 +53,7 @@ int main(void)
         unsigned next = 0;
         for (int i = 0; i < PRISM_COVER_CACHE_SLOTS; ++i)
             memcpy(old_ids[i], cache.entries[i].id, 7);
-        for (unsigned position = 0; position < 3; ++position) {
+        for (unsigned position = 0; position < 5; ++position) {
             char id[7];
             unsigned number = (frame * 10u + position) % 97u;
             snprintf(id, sizeof(id), "GC%04u", number);

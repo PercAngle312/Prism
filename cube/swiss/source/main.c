@@ -347,21 +347,23 @@ static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *ga
 }
 
 static void prism_draw_coverflow(uiDrawObj_t *panel, const PrismLibrary *library,
-                                  GXTexObj *texture, int has_cover,
-                                  GXTexObj *side_textures[2], int side_covers[2],
-                                  const char *title)
+                                  GXTexObj *textures[5], int available[5])
 {
-    prism_draw_cover_card(panel, prism_library_neighbor(library, -1),
-        side_textures[0], side_covers[0], PRISM_FLOW_LEFT_X, PRISM_FLOW_SIDE_Y,
-        PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
-    prism_draw_cover_card(panel, prism_library_neighbor(library, 1),
-        side_textures[1], side_covers[1], PRISM_FLOW_RIGHT_X, PRISM_FLOW_SIDE_Y,
-        PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
-    prism_draw_cover_card(panel, prism_library_selected(library),
-        texture, has_cover, PRISM_FLOW_CENTER_X, PRISM_FLOW_CENTER_Y,
+    /* Aurora-style continuous shelf: five covers, clipped edge cards and a
+     * prominent centre. Draw the selected card last without adding frames. */
+    const int side_x[] = {PRISM_FLOW_LEFT_X - PRISM_FLOW_SIDE_WIDTH - 4,
+        PRISM_FLOW_LEFT_X, PRISM_FLOW_RIGHT_X,
+        PRISM_FLOW_RIGHT_X + PRISM_FLOW_SIDE_WIDTH + 4};
+    const int positions[] = {0, 1, 3, 4};
+    for (int side = 0; side < 4; ++side) {
+        int position = positions[side];
+        prism_draw_cover_card(panel, prism_library_neighbor(library, position - 2),
+            textures[position], available[position], side_x[side], PRISM_FLOW_SIDE_Y,
+            PRISM_FLOW_SIDE_WIDTH, PRISM_FLOW_SIDE_HEIGHT);
+    }
+    prism_draw_cover_card(panel, prism_library_selected(library), textures[2], available[2],
+        PRISM_FLOW_CENTER_X, PRISM_FLOW_CENTER_Y,
         PRISM_LAYOUT_COVER_WIDTH, PRISM_LAYOUT_COVER_HEIGHT);
-    (void)title; /* Covers identify shelf entries; titles stay on the details page. */
-
 }
 
 static uiDrawObj_t *prism_draw_home(uiDrawObj_t *previous, int selection)
@@ -511,10 +513,10 @@ static int prism_installed_browser(int quiet_if_empty)
     /* A failed cache allocation still permits title-only browsing/launching. */
     for (;;) {
         int has_cover = 0;
-        int slots[3] = {-1, -1, -1};
-        int side_covers[2] = {0, 0};
+        int slots[5] = {-1, -1, -1, -1, -1};
+        int shelf_covers[5] = {0, 0, 0, 0, 0};
         GXTexObj *cover_texture = NULL;
-        GXTexObj *side_textures[2] = {NULL, NULL};
+        GXTexObj *shelf_textures[5] = {NULL, NULL, NULL, NULL, NULL};
         unsigned incoming_slots = 0;
         const PrismLibraryGame *game = prism_library_selected(library);
         char title[PRISM_PACK_TITLE_MAX + 1];
@@ -528,26 +530,25 @@ static int prism_installed_browser(int quiet_if_empty)
                                     title, sizeof(title), synopsis, sizeof(synopsis)))
             break;
         if (has_pack && covers) {
-            for (int position = 0; position < 3; ++position) {
-                if (details && position != 1) continue;
-                const PrismLibraryGame *candidate = prism_library_neighbor(library, position - 1);
+            for (int position = 0; position < 5; ++position) {
+                if (details && position != 2) continue;
+                const PrismLibraryGame *candidate = prism_library_neighbor(library, position - 2);
                 if (!candidate) continue;
                 slots[position] = prism_cached_cover(covers, metadata_device, pack_path,
                     candidate->id, displayed_slots | incoming_slots);
                 if (slots[position] >= 0) incoming_slots |= 1u << slots[position];
             }
-            if (slots[1] >= 0) {
-                cover_texture = &covers->textures[slots[1]];
-                has_cover = covers->policy.entries[slots[1]].state == PRISM_CACHE_READY;
-            }
-            for (int side = 0; side < 2; ++side) {
-                int slot = slots[side ? 2 : 0];
+            for (int position = 0; position < 5; ++position) {
+                int slot = slots[position];
                 if (slot >= 0) {
-                    side_textures[side] = &covers->textures[slot];
-                    side_covers[side] = covers->policy.entries[slot].state == PRISM_CACHE_READY;
+                    shelf_textures[position] = &covers->textures[slot];
+                    shelf_covers[position] = covers->policy.entries[slot].state == PRISM_CACHE_READY;
                 }
             }
+            cover_texture = shelf_textures[2];
+            has_cover = shelf_covers[2];
         }
+
         snprintf(heading, sizeof(heading), "GAMES  |  %lu / %lu",
             (unsigned long)(library->selected + 1),
             (unsigned long)library->count);
@@ -573,8 +574,7 @@ static int prism_installed_browser(int quiet_if_empty)
             DrawAddChild(panel, DrawStyledLabel(320, 226, "SYSTEMS", 1.0f, ALIGN_CENTER, (GXColor){239, 232, 255, 255}));
             DrawAddChild(panel, DrawStyledLabel(320, 272, "A: Browse platforms", 0.6f, ALIGN_CENTER, (GXColor){202, 190, 226, 255}));
         } else if (!details) {
-            prism_draw_coverflow(panel, library, cover_texture, has_cover,
-                side_textures, side_covers, title);
+            prism_draw_coverflow(panel, library, shelf_textures, shelf_covers);
         } else {
             DrawAddChild(panel, DrawSolidBox(PRISM_COVER_X, PRISM_COVER_Y,
                 PRISM_COVER_X + PRISM_LAYOUT_COVER_WIDTH, PRISM_COVER_Y + PRISM_LAYOUT_COVER_HEIGHT,

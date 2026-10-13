@@ -57,22 +57,22 @@ int main(void) {
     assert(cache->policy.entries[missing].state == PRISM_CACHE_MISSING);
     assert(prism_cached_cover(cache, &device, "pack", "GA0001", pinned) == missing && reads == 2);
     pinned |= 1u << missing;
-    const char *ids[] = {"GB0002", "GB0003", "GB0004", "GB0005"};
-    for (int i = 0; i < 4; ++i) {
+    const char *ids[] = {"GB0002", "GB0003", "GB0004", "GB0005", "GB0006", "GB0007", "GB0008", "GB0009"};
+    for (int i = 0; i < 8; ++i) {
         int slot = prism_cached_cover(cache, &device, "pack", ids[i], pinned);
         assert(slot >= 0); pinned |= 1u << slot;
         assert(((unsigned char *)cache->pixels[ready])[0] == '0');
     }
-    assert(allocations == 6 && reads == 6 && flushes == 5);
-    assert(prism_cached_cover(cache, &device, "pack", "GC0006", pinned) == -1 && reads == 6);
-    assert(prism_cached_cover(cache, NULL, "pack", "GC0006", 0) == -1 && reads == 6);
+    assert(allocations == 10 && reads == 10 && flushes == 9);
+    assert(prism_cached_cover(cache, &device, "pack", "GC0006", pinned) == -1 && reads == 10);
+    assert(prism_cached_cover(cache, NULL, "pack", "GC0006", 0) == -1 && reads == 10);
     prism_free_cover_cache(cache);
     cache = calloc(1, sizeof(*cache)); assert(cache);
     fail_allocation = 1;
-    assert(prism_cached_cover(cache, &device, "pack", "GD0007", 0) == -1 && reads == 6);
+    assert(prism_cached_cover(cache, &device, "pack", "GD0007", 0) == -1 && reads == 10);
     fail_allocation = 0;
-    assert(prism_cached_cover(cache, &device, "pack", "GD0007", 0) >= 0 && reads == 7);
-    assert(prism_cached_cover(cache, &device, "pack", "GD0007", 0) >= 0 && reads == 7);
+    assert(prism_cached_cover(cache, &device, "pack", "GD0007", 0) >= 0 && reads == 11);
+    assert(prism_cached_cover(cache, &device, "pack", "GD0007", 0) >= 0 && reads == 11);
     prism_free_cover_cache(cache);
     prism_free_cover_cache(NULL);
     return 0;
