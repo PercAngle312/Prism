@@ -70,14 +70,14 @@ jobs:
           @'
           import hashlib, pathlib, json
           raw = pathlib.Path('assets/prism/dashboard.dol').read_bytes()
-          assert hashlib.sha256(raw).hexdigest() == 'd086e250110f44c7b843cb7afe254a9223e8586a4129f00c5754c60a237594cc'
+          assert hashlib.sha256(raw).hexdigest() == '51277794f2bd3314ad13f12a7115899f37f003e070ff088408e04bcf476c833e'
           proof = json.loads(pathlib.Path('assets/prism/dashboard-build.json').read_text())
-          assert proof['commit'] == '1090744d293ec8e187f71ade96c85625fa93483f' and proof['identity_checks'] == 'passed'
+          assert proof['commit'] == '0d9ead4dec0ce9bdbda5dedc9dbc7854921ac9ac' and proof['identity_checks'] == 'passed'
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
       - uses: actions/checkout@v4
         with:
-          ref: 1090744d293ec8e187f71ade96c85625fa93483f
+          ref: 0d9ead4dec0ce9bdbda5dedc9dbc7854921ac9ac
           path: dashboard-tree
       - name: Archive the matching GameCube source
         run: |
@@ -88,7 +88,7 @@ jobs:
           assert synopsis_limit('cube/swiss/source/gui/prism_pack.h') == synopsis_limit('dashboard-tree/cube/swiss/source/gui/prism_pack.h'), 'Refresh bundled native dashboard before publishing new-format Studio exports'
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard pack compatibility check failed' }
-          $archive = Join-Path $PWD 'dashboard-source/PRISM-1090744d293e-source.zip' 
+          $archive = Join-Path $PWD 'dashboard-source/PRISM-0d9ead4dec0c-source.zip' 
           git -C dashboard-tree archive --format=zip --output=$archive HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
       - name: Test project roundtrip, header scan and safe exports
@@ -137,7 +137,7 @@ jobs:
           Copy-Item -Recurse dashboard-source dist/PRISM-Studio/dashboard-source
           git archive --format=zip --output=dist/PRISM-Studio/PRISM-Studio-source.zip HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Studio source archive failed' }
-          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.6`nSource: $commit`nDashboard build: 1090744d293e`nWindows x64 portable build"
+          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.6`nSource: $commit`nDashboard build: 0d9ead4dec0c`nWindows x64 portable build"
           $hash = (Get-FileHash dist/PRISM-Studio/PRISM-Studio.exe -Algorithm SHA256).Hash.ToLower()
           Set-Content dist/PRISM-Studio/SHA256.txt "$hash  PRISM-Studio.exe"
           Write-Output "commit=$commit" >> $env:GITHUB_OUTPUT
