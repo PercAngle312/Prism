@@ -1,6 +1,6 @@
 # PRISM Studio 0.6 for Windows
 
-Studio preserves full descriptions up to 4096 UTF-8 bytes in editable projects.
+Studio source preserves full descriptions up to 4096 UTF-8 bytes in editable projects.
 The preview uses all available synopsis space and supports mouse-wheel or
 scrollbar reading. GameCube exports now retain the full description. The matching
 new dashboard supports UP/DOWN reading on the synopsis page; older dashboards
@@ -8,10 +8,9 @@ reject packs containing descriptions longer than 191 bytes. Use the bundled
 PRISM.dol with these exports.
 
 Select a GameCube entry and choose **Background art…** to attach a local PNG or JPEG.
-Studio keeps the original image in the project, then exports a dimmed 320×240
-RGB565 background. **Install PRISM** installs these automatically under
-`/swiss/prism/screenshots/gamecube/<ID>.bg`. For manual export, copy the generated
-`screenshots` folder beside `/swiss/prism/library.prism`. Screenshots are optional;
+Studio keeps the original image in the project, then embeds a bright 320×240
+RGB565 background inside `library.prism`. The dashboard dims it when showing
+details. **Install PRISM** copies this one pack to `/swiss/prism/library.prism`. Screenshots are optional;
 missing images use the abstract purple background. Emulator screenshots are not
 supported in this version.
 
@@ -276,3 +275,25 @@ u32 metadata_length>` after title, synopsis and cover. Background is a 12-byte
 PRISMBG2 header plus a bright tiled RGB565 texture. Metadata is UTF-8 JSON,
 bounded to 16 KiB. Native callers read only the matched record and selected
 texture. The full database is not loaded into GameCube RAM.
+
+
+## Native build and current catalog checkpoint
+
+The dashboard bundled in the repository is source-verified native build
+`1090744d293e`. It was cross-compiled using the official libogc2 SDK image
+`sha256:2651e3c3e06d1083d64fbe3e12cdfaed8de8e33af166929d2d5206933943e2b2`,
+with a local revision label. Source hashes, compiled UI strings, exported pack
+reader symbols and DOL bounds/padding were checked. Hardware rendering and
+startup have not been tested for this build. GitHub jobs remain blocked before
+startup, so the updated Windows executable has not yet been packaged/tested.
+
+The first standalone catalog checkpoint contains 1,708 disc IDs, 1,585 covers,
+1,551 synopses and 1,257 backgrounds (15 IDs use original generated artwork).
+It is not complete artwork coverage. Every record has provenance/general
+metadata and explicitly records missing assets. The actual portable C reader
+was used to scan and validate every text and image record in the real pack.
+
+Place `library.prism` in `/swiss/prism/` on Swiss config storage, alongside the
+new background-aware PRISM DOL at the SD root. This catalog is optional for
+launching backups; PRISM still scans `/games` and only displays installed games.
+The same pack can later serve as the Windows app's offline default source.

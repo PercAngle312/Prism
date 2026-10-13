@@ -82,6 +82,18 @@ def read_gametdb(path, language='EN'):
             'languages': [e.get('lang','') for e in locales if e.get('lang')],
             'metadata_source': 'https://www.gametdb.com/Wii/' + gid,
         }.items() if v}
+        controls = _child(game, 'input')
+        network = _child(game, 'wi-fi')
+        case = _child(game, 'case')
+        metadata.update({k: v for k, v in {
+            'region': _text(game, 'region'),
+            'players': controls.get('players', '') if controls is not None else '',
+            'controllers': [dict(c.attrib) for c in controls] if controls is not None else [],
+            'ratings': [dict(c.attrib) for c in game if _local(c.tag) == 'rating'],
+            'network': dict(network.attrib) if network is not None else {},
+            'disc_revisions': [dict(c.attrib) for c in game if _local(c.tag) == 'rom'],
+            'case': dict(case.attrib) if case is not None else {},
+        }.items() if v})
         games[gid]['metadata'] = metadata
     return games
 
