@@ -227,9 +227,9 @@ static uiDrawObj_t *prism_draw_panel_background(const char *subtitle, GXTexObj *
     }
     DrawAddChild(panel, DrawTexObj(&theme_texture, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
     if (background) DrawAddChild(panel, DrawTexObj(background, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
-    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){20, 25, 43, 255}));
-    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){23, 48, 58, 255}));
-    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){80, 136, 150, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){42, 47, 76, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){42, 78, 112, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){115, 176, 212, 255}));
     DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_LOGO_Y, "PRISM",
         0.85f, ALIGN_LEFT, (GXColor){233, 241, 247, 255}));
     DrawAddChild(panel, DrawStyledLabel(585, PRISM_LOGO_Y + 8,

@@ -20,10 +20,10 @@ int main(void) {
     assert(guarded.pixels[16]==prism_theme_pixel(4,0));
     assert(guarded.pixels[256]==prism_theme_pixel(0,4));
     assert(guarded.pixels[4095]==prism_theme_pixel(63,63));
-    uint16_t purple=prism_theme_pixel(0,0),orange=prism_theme_pixel(17,47),grey=prism_theme_pixel(63,0);
+    uint16_t purple=prism_theme_pixel(0,0),orange=prism_theme_pixel(17,47),grey=prism_theme_pixel(63,63);
     assert(b(purple)>r(purple) && r(purple)>g(purple));
     assert(r(orange)>g(orange) && g(orange)>b(orange));
-    assert(b(grey)-r(grey)<20 && r(grey)>70);
+    assert(b(grey)-r(grey)<20 && r(grey)>120);
     puts("P3\n64 64\n255");
     for (int y=0;y<64;++y) for(int x=0;x<64;++x) {
         uint16_t p=prism_theme_pixel(x,y);printf("%d %d %d\n",r(p),g(p),b(p));
