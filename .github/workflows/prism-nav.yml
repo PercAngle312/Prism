@@ -13,6 +13,8 @@ on:
       - 'cube/swiss/source/gui/prism_theme.h'
       - 'tools/recover_prism_regions.py'
       - 'tools/test_prism_regions.py'
+      - 'tools/enrich_prism_catalog.py'
+      - 'tools/test_prism_enrich_catalog.py'
       - 'tools/build_prism_catalog.py'
       - 'tools/test_prism_catalog.py'
       - 'tools/prism_gametdb.py'
@@ -145,6 +147,7 @@ jobs:
       - name: Test Studio projects and console-reader export compatibility
         run: |
           python3 tools/test_prism_catalog.py
+          python3 tools/test_prism_enrich_catalog.py
           python3 tools/test_prism_catalog_extras.py
           python3 tools/test_prism_regions.py
           python3 tools/test_prism_packed_background.py
