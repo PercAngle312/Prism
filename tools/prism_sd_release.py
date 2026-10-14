@@ -12,7 +12,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 SYSTEMS = ("n64", "nes", "snes", "gb", "gbc", "gba", "megadrive")
 ROM_FOLDERS = tuple("roms/" + system + "/" for system in SYSTEMS)
 DOL_ROOT = "swiss/prism/emulators/"
-REQUIRED = ("n64", "nes", "snes", "gb", "gba", "megadrive")
+REQUIRED = SYSTEMS
 
 
 def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True):
