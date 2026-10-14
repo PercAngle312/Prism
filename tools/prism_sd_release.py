@@ -15,13 +15,14 @@ DOL_ROOT = "swiss/prism/emulators/"
 REQUIRED = SYSTEMS
 
 
-def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True):
+def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True, require_catalogs=False):
     destination, dashboard, library, emulators = map(Path, (destination, dashboard, library, emulators))
     catalogs = Path(catalogs) if catalogs else None
     if not dashboard.is_file() or not library.is_file():
         raise ValueError("A compiled PRISM DOL and verified default library.prism are required")
     entries = {"PRISM.dol": dashboard, "swiss/prism/library.prism": library}
     missing = []
+    missing_catalogs = []
     for system in SYSTEMS:
         dol = emulators / (system + ".dol")
         if dol.is_file() and dol.stat().st_size:
@@ -30,10 +31,16 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
             missing.append(system)
         if catalogs is not None:
             pack = catalogs / (system + ".prism")
-            if pack.is_file():
+            if pack.is_file() and pack.stat().st_size:
                 entries[DOL_ROOT + pack.name] = pack
+            else:
+                missing_catalogs.append(system)
+        elif require_catalogs:
+            missing_catalogs.append(system)
     if require_emulators and missing:
         raise ValueError("Required licensed emulator DOL(s) missing: " + ", ".join(missing))
+    if require_catalogs and missing_catalogs:
+        raise ValueError("Required emulator catalog(s) missing: " + ", ".join(missing_catalogs))
     for path, src in entries.items():
         if not src.is_file() or src.stat().st_size == 0:
             raise ValueError("Empty release entry: " + path)
@@ -46,6 +53,7 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
         hashes[path] = digest.hexdigest()
     manifest = {"format": 1, "type": "sd-root", "files_sha256": hashes,
                 "emulator_dols_missing": missing,
+                "emulator_catalogs_missing": missing_catalogs,
                 "note": "No copyrighted game ROMs supplied; ROM autoboot is not implied."}
     destination.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(destination, "w", compression=ZIP_DEFLATED, compresslevel=6) as archive:
@@ -68,12 +76,14 @@ def main():
     parser.add_argument("--library", required=True)
     parser.add_argument("--emulators", required=True)
     parser.add_argument("--catalogs")
+    parser.add_argument("--require-catalogs", action="store_true",
+                        help="Fail release if any of the seven emulator libraries is missing")
     parser.add_argument("--output", required=True)
     parser.add_argument("--allow-missing-emulators", action="store_true",
                         help="Development scaffold only; NOT a full final release")
     args = parser.parse_args()
     manifest = build(args.output, args.dashboard, args.library, args.emulators,
-                     args.catalogs, not args.allow_missing_emulators)
+                     args.catalogs, not args.allow_missing_emulators, args.require_catalogs)
     print(json.dumps({"output": args.output, "missing_emulators": manifest["emulator_dols_missing"]}))
 
 
