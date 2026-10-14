@@ -29,6 +29,7 @@ typedef unsigned u32;
 #define BUTTON_START 4u
 #define BUTTON_Z 8u
 #define BUTTON_X 16u
+#define BUTTON_Y 2048u
 #define BUTTON_UP 32u
 #define BUTTON_DOWN 64u
 #define BUTTON_L 128u
@@ -45,8 +46,7 @@ static int result_details,result_systems,result_selection,result_scroll;
 static u32 padsButtonsHeld(void) {assert(cursor<12);return tape[cursor++];}
 static void VIDEO_WaitVSync(void) {fake_ms+=1000;}
 static void DrawDispose(void*p) {(void)p;}
-static void prism_free_cover_cache(void*p) {(void)p;}
-static int prism_settings_menu(void) {++settings_count;return 0;}
+static void prism_native_settings(void) {++settings_count;}
 static void prism_system_libraries(void) {++systems_count;}
 static void prism_show_notice(const char*a,const char*b) {(void)a;(void)b;++notices;}
 static int prism_installed_resolve(void*d,void*p,void*g,char*out,size_t n) {
@@ -62,7 +62,7 @@ static int run(int initial_details,int initial_systems,unsigned selection,const 
  int details=initial_details,systems_selected=initial_systems,synopsis_scroll=0,synopsis_maximum=2;
  fake_ms=0;PrismAutoScroll synopsis_auto;prism_scroll_begin(&synopsis_auto,fake_ms);
  Library *library=malloc(sizeof(*library));library->count=3;library->selected=selection;
- void *device=NULL,*game=NULL,*paths=malloc(1),*covers=NULL,*background_pixels=NULL;
+ void *device=NULL,*game=NULL,*paths=malloc(1);
  uiDrawObj_t*screen=NULL,*panel=NULL;unsigned displayed_slots=0;u32 last=0,held,pressed;
 '''
 after = r'''
@@ -74,7 +74,7 @@ int main(void) {
  u32 a[12]={BUTTON_A,0};run(0,0,1,a);assert(result_details==1 && !launches && result_selection==1);
  u32 b[12]={BUTTON_B};run(1,0,1,b);assert(!result_details && !launches && result_selection==1);
  run(1,0,2,a);assert(launches==1 && result_selection==2);
- u32 x[12]={BUTTON_X,0,BUTTON_START,0};run(0,0,1,x);assert(!result_details && settings_count==1 && !launches);
+ u32 start_settings[12]={BUTTON_START,0};run(0,0,1,start_settings);assert(!result_details && settings_count==1 && !launches);
  run(0,1,2,a);assert(systems_count==1 && !launches && result_selection==2);
  u32 z[12]={BUTTON_Z,0};run(0,0,1,z);assert(systems_count==1 && result_selection==1);
  u32 right[12]={BUTTON_RIGHT};run(0,0,2,right);assert(result_systems==1);
@@ -91,4 +91,4 @@ with tempfile.TemporaryDirectory() as td:
     td=Path(td); (td/'flow.c').write_text(stub+loop+after)
     subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-Wno-sign-compare','-fsanitize=undefined','-Icube/swiss/source/gui',str(td/'flow.c'),'-o',str(td/'flow')],check=True)
     subprocess.run([str(td/'flow')],check=True)
-print('Actual PRISM input loop: A details/start, B same selection, X ignored, Settings, Systems and safe launch passed')
+print('Actual PRISM input loop: A details/start, B same selection, START native Settings, Systems and safe launch passed')
