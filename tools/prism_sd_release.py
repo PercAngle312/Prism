@@ -14,6 +14,10 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 SYSTEMS = ("n64", "nes", "snes", "gb", "gbc", "gba", "megadrive")
 ROM_FOLDERS = tuple("roms/" + system + "/" for system in SYSTEMS)
+SAVE_FOLDERS = ('wii64/', 'wii64/saves/', 'fceugx/', 'fceugx/saves/',
+                'snes9xgx/', 'snes9xgx/saves/', 'vbagx/',
+                'vbagx/gb/', 'vbagx/gb/saves/', 'vbagx/gbc/', 'vbagx/gbc/saves/',
+                'vbagx/gba/', 'vbagx/gba/saves/', 'genplus/', 'genplus/saves/')
 DOL_ROOT = "swiss/prism/emulators/"
 REQUIRED = SYSTEMS
 
@@ -151,7 +155,7 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
     with tempfile.TemporaryDirectory(dir=destination.parent) as staging:
         pending = Path(staging) / 'release.zip'
         with ZipFile(pending, "w", compression=ZIP_DEFLATED, compresslevel=6) as archive:
-            for folder in ("games/", "swiss/prism/", DOL_ROOT, *ROM_FOLDERS):
+            for folder in ("games/", "swiss/prism/", DOL_ROOT, *ROM_FOLDERS, *SAVE_FOLDERS):
                 archive.writestr(folder, "")
             for path, src in entries.items():
                 archive.write(src, path)

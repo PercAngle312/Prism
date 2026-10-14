@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from zipfile import ZipFile
 
-from prism_sd_release import REQUIRED, ROM_FOLDERS, build, valid_gamecube_dol
+from prism_sd_release import REQUIRED, ROM_FOLDERS, SAVE_FOLDERS, build, valid_gamecube_dol
 
 
 def dol_fixture():
@@ -70,8 +70,9 @@ class SDReleaseTests(unittest.TestCase):
         with ZipFile(self.output) as z:
             self.assertIsNone(z.testzip())
             names = set(z.namelist())
-            for folder in ROM_FOLDERS:
+            for folder in (*ROM_FOLDERS, *SAVE_FOLDERS):
                 self.assertIn(folder, names)
+                self.assertEqual(z.read(folder), b'')
             for name in REQUIRED:
                 self.assertIn("swiss/prism/emulators/" + name + ".dol", names)
             self.assertEqual(z.read("swiss/prism/library.prism"), self.library.read_bytes())

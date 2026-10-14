@@ -88,7 +88,7 @@ jobs:
           assert synopsis_limit('cube/swiss/source/gui/prism_pack.h') == synopsis_limit('dashboard-tree/cube/swiss/source/gui/prism_pack.h'), 'Refresh bundled native dashboard before publishing new-format Studio exports'
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard pack compatibility check failed' }
-          $archive = Join-Path $PWD 'dashboard-source/PRISM-d0c848546236-source.zip' 
+          $archive = Join-Path $PWD 'dashboard-source/PRISM-d0c848546236-source.zip'
           git -C dashboard-tree archive --format=zip --output=$archive HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
       - name: Test project roundtrip, header scan and safe exports
