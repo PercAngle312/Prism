@@ -20,6 +20,7 @@ SYSTEMS = {
     'nes': ('NES', 'nes.prism', '/swiss/prism/emulators/'),
     'snes': ('Super Nintendo', 'snes.prism', '/swiss/prism/emulators/'),
     'gb': ('Game Boy', 'gb.prism', '/swiss/prism/emulators/'),
+    'gbc': ('Game Boy Color', 'gbc.prism', '/swiss/prism/emulators/'),
     'gba': ('Game Boy Advance', 'gba.prism', '/swiss/prism/emulators/'),
     'megadrive': ('Mega Drive', 'megadrive.prism', '/swiss/prism/emulators/'),
 }
