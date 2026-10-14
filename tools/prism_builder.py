@@ -870,7 +870,7 @@ def smoke_test(output):
             assert not result['backups']
             raw_roms = folder / 'roms'; raw_roms.mkdir()
             (raw_roms / 'Synthetic.z64').write_bytes(b'\x80\x37\x12\x40' + bytes(range(60)))
-            assert app.project.scan_roms(raw_roms, 'wii64/roms')[0] == 1
+            assert app.project.scan_roms(raw_roms, 'roms/n64')[0] == 1
             app.project.save(folder / 'roms.prism-project')
             scanned = LibraryProject.load(folder / 'roms.prism-project')
             assert scanned.roms == app.project.roms
