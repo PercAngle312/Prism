@@ -37,11 +37,13 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
     for path, src in entries.items():
         if not src.is_file() or src.stat().st_size == 0:
             raise ValueError("Empty release entry: " + path)
-        if path.endswith(".dol") and src.read_bytes()[:4] != b"\x00\x00\x01\x00":
-            # GC DOL files contain offsets; the initial bytes are not a magic.
-            # Do not assert a made-up magic signature here.
-            pass
-    hashes = {path: hashlib.sha256(src.read_bytes()).hexdigest() for path, src in entries.items()}
+    hashes = {}
+    for path, src in entries.items():
+        digest = hashlib.sha256()
+        with src.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        hashes[path] = digest.hexdigest()
     manifest = {"format": 1, "type": "sd-root", "files_sha256": hashes,
                 "emulator_dols_missing": missing,
                 "note": "No copyrighted game ROMs supplied; ROM autoboot is not implied."}
