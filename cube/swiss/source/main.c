@@ -35,6 +35,7 @@
 #include "stub_bin.h"
 #include "gui/FrameBufferMagic.h"
 #include "gui/prism_pack_device.h"
+#include "gui/prism_emulator_launch.h"
 #include "gui/prism_installed.h"
 #include "gui/prism_enrich.h"
 #include "gui/prism_layout.h"
@@ -922,15 +923,18 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         prism_draw_wrapped(panel, synopsis[0] ? synopsis : "Description not available for this game.",
             PRISM_TEXT_X, PRISM_SYNOPSIS_Y, PRISM_TEXT_WIDTH, 0.68f,
             6, 22, (GXColor){204, 218, 239, 255});
-        int rom_status = emulator_path ? prism_pack_device_rom_status(device, path, entry.id) : -1;
+        char rom_path[PATHNAME_MAX];
+        PrismEmulatorLaunch rom_launch;
+        int rom_status = emulator_path ? prism_pack_device_rom_path(device, path, entry.id, rom_path, sizeof(rom_path)) : -1;
+        int direct_rom = rom_status > 0 && prism_emulator_arguments(emulator_path, rom_path, &rom_launch);
         DrawAddChild(panel, DrawStyledLabel(PRISM_STATUS_X, PRISM_STATUS_Y,
-            emulator_path ? (rom_status > 0 ? "ROM file found / choose inside the emulator" :
+            emulator_path ? (rom_status > 0 ? (direct_rom ? "ROM file found / ready to start" : "ROM file found / choose inside the emulator") :
                 rom_status == 0 ? "Mapped ROM missing on config storage" : "No ROM mapping / choose inside the emulator") :
                 "Catalog entry / not an installed-game check", 0.55f,
             ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
         prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 340, "LEFT/RIGHT: Browse", (GXColor){185, 200, 225, 255});
         if (emulator_path) {
-            prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 120, "A: Emulator", (GXColor){113, 223, 181, 255});
+            prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 120, direct_rom ? "A: Play" : "A: Emulator", (GXColor){113, 223, 181, 255});
             prism_draw_hint(panel, 504, PRISM_FOOTER_LABELS_Y, 92, "B: Return", (GXColor){239, 154, 157, 255});
         } else
             prism_draw_hint(panel, 384, PRISM_FOOTER_LABELS_Y, 212, "B/START: Return", (GXColor){239, 154, 157, 255});
@@ -942,12 +946,26 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
             last = held;
             if (pressed & (BUTTON_B | BUTTON_START)) goto done;
             if (emulator_path && (pressed & BUTTON_A)) {
-                /* Native Swiss owns DOL validation and chainloading. These
-                 * entries deliberately open its menu, never fake ROM autoboot. */
+                /* Resolve again at launch; removal must not select another ROM. */
                 DrawDispose(screen); screen = NULL;
                 prism_free_cover_cache(covers); covers = NULL;
                 displayed_slots = 0;
-                int error = prism_launch_emulator(emulator_path);
+                int error;
+                if (direct_rom) {
+                    if (prism_pack_device_rom_path(device, path, entry.id, rom_path, sizeof(rom_path)) != 1 ||
+                        !prism_emulator_arguments(emulator_path, rom_path, &rom_launch)) {
+                        prism_show_notice("ROM unavailable", "The mapped ROM is missing. Check the file on your SD card.");
+                        error = 0;
+                    } else {
+                        while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+                        int saved_auto_boot = swissSettings.autoBoot;
+                        swissSettings.autoBoot = 0;
+                        char target[PATHNAME_MAX];
+                        snprintf(target, sizeof(target), "%s", emulator_path);
+                        error = find_existing_dol_exact(target, rom_launch.argc, rom_launch.argv);
+                        swissSettings.autoBoot = saved_auto_boot;
+                    }
+                } else error = prism_launch_emulator(emulator_path);
                 if (error)
                     prism_show_notice("Emulator unavailable", "Copy the GameCube emulator DOL to the matching system name in /swiss/prism/emulators/ on your config storage.");
                 covers = calloc(1, sizeof(*covers));

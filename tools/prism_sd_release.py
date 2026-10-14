@@ -150,6 +150,9 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
                 "emulator_catalogs_missing": missing_catalogs,
                 "emulator_provenance": provenance_records,
                 "note": "No copyrighted game ROMs supplied; ROM autoboot is not implied."}
+    candidates = sorted(system for system, record in provenance_records.items()
+                        if record.get('modifications', {}).get('selected_rom_autoboot') == 'SD2SP2 hardware-test candidate')
+    manifest['selected_rom_autoboot_candidates'] = candidates
     destination.parent.mkdir(parents=True, exist_ok=True)
     # Keep any previous release intact until CRC and every file hash pass readback.
     with tempfile.TemporaryDirectory(dir=destination.parent) as staging:
@@ -170,8 +173,12 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
                 "Place your own ROMs in /roms/n64, nes, snes, gb, gbc, gba or megadrive as appropriate.\n"
                 "Fresh emulator defaults use these folders; previously saved preferences may override them.\n"
                 "GB/GBC/GBA use independent vbagx/<system>/ saves and settings. Import old saves manually if needed.\n"
-                "Optional <system>.prism packs add covers/descriptions; absent catalogs do not block launching.\n"
-                "GameCube emulator builds open their own ROM browser. Selected-ROM autoboot is NOT promised.\n"
+                "Optional <system>.prism packs add covers/descriptions; absent catalogs do not block launching.\n" +
+                ("Mapped ROMs on SD2SP2: A: Play passes the exact ROM to the rebuilt emulator. Hardware validation pending.\n"
+                 "Requires an ID-matched <system>.roms companion from Studio beside <system>.prism.\n"
+                 "Catalog-only packs have no mapping and continue to open the ROM browser. Other storage uses the browser.\n"
+                 "Cube64 and Genesis use their sd:/ mount: test with SD2SP2 as the only FAT game storage.\n" if candidates else
+                 "GameCube emulator builds open their own ROM browser. Selected-ROM autoboot is NOT promised.\n") +
                 "No game ROMs or BIOS files included. Keep SOURCE-AND-LICENSES with any redistribution.\n"
                 "Genesis Plus GX is noncommercial-only: do not sell this bundle.\n"
                 "TEST: boot -> same GameCube shelf -> A synopsis -> B same game -> A synopsis -> A launch.\n"

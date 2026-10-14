@@ -7,6 +7,76 @@ ROOT=Path(__file__).resolve().parents[1]
 def specifications():
     return json.loads((ROOT/'assets/prism/emulator-builds.json').read_text())
 
+def prepare_autoboot(root, system):
+    """Enable upstream loaders on GameCube; no preference-file writes."""
+    root=Path(root);changes=[]
+    def replace(path,old,new):
+        target=root/path;data=target.read_text()
+        if data.count(old)!=1:raise ValueError('Upstream autoboot source changed: '+path)
+        target.write_text(data.replace(old,new));changes.append(path)
+    if system=='megadrive':
+        return changes  # upstream accepts directory + filename on GameCube
+    if system=='n64':
+        replace('Makefile.gc','OBJ\t\t+= \\\n','OBJ\t\t+= main/Autoboot.o\nOBJ\t\t+= \\\n')
+        replace('main/main_gc-menu2.cpp','#include "Autoboot.h"\n#endif','#endif\n#include "Autoboot.h"')
+        replace('main/main_gc-menu2.cpp','\tload_config("sd");\n#endif',
+                '\tload_config("sd");\n\tif (argc > 1 && argv && argv[1]) Autoboot::setPath(argv[1]);\n#endif')
+        replace('menu/LoadRomFrame.cpp','#ifdef HW_RVL\n#include "../main/Autoboot.h"',
+                '#include "../main/Autoboot.h"\n#ifdef HW_RVL')
+        replace('menu/LoadRomFrame.cpp','LoadRomFrame::LoadRomFrame()\n{\n#ifdef HW_RVL',
+                'LoadRomFrame::LoadRomFrame()\n{\n#if defined(HW_RVL) || defined(HW_DOL)')
+    else:
+        main={'nes':'fceugx','snes':'snes9xgx'}.get(system,'vbagx')
+        startup='''#ifdef HW_DOL
+    // PRISM: explicit native mount; leave save device/preferences unchanged.
+    if (argc == 3 && argv && argv[1] && argv[2]) {
+        LoadPrefs();
+        int device = DEVICE_AUTO;
+        if (FindDevice(argv[1], &device)) {
+            EmuSettings.loadDevice = device;
+            EmuSettings.autoloadGame = AutoloadGame(argv[1], argv[2]);
+            autoboot = EmuSettings.autoloadGame;
+        }
+    }
+#endif
+
+'''
+        replace('source/'+main+'.cpp','\twhile (!platform->shouldExit()) // main loop',
+                startup+'\twhile (!platform->shouldExit()) // main loop')
+        path='source/filebrowser.cpp';data=(root/path).read_text()
+        start=data.index('bool AutoloadGame(char* filepath, char* filename) {')
+        end=data.index('\n}',start)+2
+        old=data[start:end]
+        if 'strcasestr(browserList[i].filename, filename)' not in old:
+            raise ValueError('Upstream autoload matching changed')
+        new='''bool AutoloadGame(char* filepath, char* filename) {
+    if (!filepath || !filename || !filename[0]) return false;
+    ResetBrowser();
+    selectLoadedFile = 1; // require the complete directory, not the first batch
+    const char *folder = StripDevice(filepath);
+    if (!folder || strlen(folder) >= sizeof(EmuSettings.loadFolder)) return false;
+    strcpy(EmuSettings.loadFolder, folder);
+    OpenGameList();
+    // A missing directory must not fall back to a same-named file at root.
+    char requested[sizeof(browser.dir)];
+    if (strlen(filepath) >= sizeof(requested)) return false;
+    strcpy(requested, filepath);
+    CleanupPath(requested);
+    if (strcmp(browser.dir, requested) != 0) return false;
+    for (int i = 0; i < browser.numEntries; ++i) {
+        if (strcmp(browserList[i].filename, filename) != 0) continue;
+        browser.selIndex = i;
+        if (IsSz()) {
+            BrowserLoadSz();
+            browser.selIndex = 1;
+        }
+        return BrowserLoadFile() > 0;
+    }
+    return false; // a missing mapping never loads the first/similar title
+}'''
+        replace(path,old,new)
+    return sorted(set(changes))
+
 def prepare(root,system):
     root=Path(root);spec=specifications()['systems'][system]
     changes=[]
@@ -55,6 +125,10 @@ def build(root,system,destination):
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
     if commit!=spec['commit']:raise ValueError('Upstream checkout does not match pinned commit')
     note=prepare(root,system)
+    note['modified_files']=sorted(set(note['modified_files']+prepare_autoboot(root,system)))
+    note['scope']='Folder defaults plus native GameCube argv autoboot; exact filename selection. Core unchanged.'
+    note['selected_rom_autoboot']='SD2SP2 hardware-test candidate'
+    (root/'PRISM-MODIFICATIONS.json').write_text(json.dumps(note,indent=2))
     subprocess.run(['make','-f',spec['makefile'],'-j3'],cwd=root,check=True)
     raw=padded_dol((root/spec['output']).read_bytes())
     dol=destination/(system+'.dol');dol.write_bytes(raw)

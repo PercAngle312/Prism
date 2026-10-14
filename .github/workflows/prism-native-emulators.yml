@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Python
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3 gcc g++
       - uses: actions/checkout@v4
         with:
           repository: ${{ matrix.repository }}
@@ -48,6 +48,9 @@ jobs:
           git -C libsmb2-source archive --format=zip --output="$GITHUB_WORKSPACE/emulator-dist/libsmb2-source.zip" HEAD
       - name: Apply reviewed folder defaults and build native GameCube DOL
         run: python3 tools/prism_emulator_build.py ${{ matrix.system }} emulator-source emulator-dist
+      - name: Exercise exact upstream autoload filename matching
+        if: matrix.system != 'n64' && matrix.system != 'megadrive'
+        run: python3 tools/test_prism_autoboot.py --source emulator-source
       - uses: actions/upload-artifact@v4
         with:
           name: PRISM-Native-Emulator-${{ matrix.system }}

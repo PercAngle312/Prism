@@ -18,9 +18,21 @@ mapping**. This is a file-existence check, not an on-console checksum or ROM
 compatibility test. Covers and synopsis still come from the six-character
 metadata key in the `.prism` pack.
 
-**A: Emulator** continues to use Swiss's native exact-path DOL loader. Pick the
-ROM inside the emulator. Direct selected-ROM launch and cross-device ROM lookup
-remain future work. No emulator settings, ROMs or save files are modified.
+With the rebuilt native argv test candidates, a valid mapped ROM on SD2SP2
+displays **A: Play**. PRISM checks the path again at launch and passes the exact
+file through Swiss's existing DOL argv loader. NES/SNES/VBA use `port2:/`;
+Cube64 and Genesis use `sd:/`. These are emulator mount names, not Swiss paths.
+Use SD2SP2 as the only FAT game-storage device when testing Cube64/Genesis.
+Other storage, unsupported path lengths and catalog-only packs retain
+**A: Emulator** and ROM selection in the emulator browser. Cross-device ROM
+lookup remains future work. Startup adapters do not save preference changes.
+Normal emulator save handling remains active.
+
+The seven downloaded IGDB catalogs contain no ROM mappings. Studio-exported
+ROM projects supply a `.roms` companion with matching metadata keys; filenames
+are never guessed from titles. Replacing a project's pack with a provider
+catalog can change those keys, so retain matching `.prism` and `.roms` files.
+Native CI compilation and host tests do not certify real GameCube gameplay.
 
 The `PRISMRI1` companion format is little-endian: 16-byte header (8-byte magic,
 entry count, total size), followed by sorted 16-byte records (6-byte metadata

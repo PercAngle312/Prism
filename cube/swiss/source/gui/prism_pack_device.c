@@ -114,16 +114,18 @@ int prism_pack_device_text(DEVICEHANDLER_INTERFACE *device,
     return ok;
 }
 
-int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
-                                 const char *pack_path, const char *game_id)
+int prism_pack_device_rom_path(DEVICEHANDLER_INTERFACE *device,
+                               const char *pack_path, const char *game_id,
+                               char *absolute, size_t capacity)
 {
     PrismDeviceStream stream;
     char index[PATHNAME_MAX], relative[PRISM_ROM_PATH_MAX + 1];
     file_handle rom;
     size_t length;
     int found;
-    if (!device || !device->initial || !pack_path || !game_id)
+    if (!device || !device->initial || !pack_path || !game_id || !absolute || !capacity)
         return -1;
+    absolute[0] = 0;
     length = strlen(pack_path);
     if (length < 6 || length >= sizeof(index) || strcmp(pack_path + length - 6, ".prism"))
         return -1;
@@ -143,7 +145,15 @@ int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
         return 0;
     found = !(rom.fileAttrib & ATTRIB_DIRECTORY) && rom.size > 0;
     device->closeFile(&rom);
+    if (found && snprintf(absolute, capacity, "%s", rom.name) >= (int)capacity) return 0;
     return found;
+}
+
+int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
+                                 const char *pack_path, const char *game_id)
+{
+    char absolute[PATHNAME_MAX];
+    return prism_pack_device_rom_path(device, pack_path, game_id, absolute, sizeof(absolute));
 }
 
 static int packed_background(DEVICEHANDLER_INTERFACE *device, const char *id, void *pixels, size_t capacity)

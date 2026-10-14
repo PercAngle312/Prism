@@ -143,6 +143,8 @@ jobs:
         run: python3 tools/test_prism_coverflow.py
       - name: Verify exact Swiss launch and cancellation guards
         run: python3 tools/test_prism_launch.py
+      - name: Verify native emulator argv and path limits
+        run: python3 tools/test_prism_autoboot.py
       - name: Generate deterministic example offline pack
         run: |
           python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library.prism

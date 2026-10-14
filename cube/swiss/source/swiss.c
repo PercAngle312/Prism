@@ -1387,6 +1387,8 @@ void boot_dol(file_handle* file, int argc, char *argv[])
 	char *argz = getExternalPath(imageFile->fileType == IS_FILE ? imageFile->name : file->name);
 	size_t argz_len = strlen(argz) + 1;
 
+	/* Explicit ROM handoffs take priority over sidecar launch parameters. */
+	if (argc <= 1) {
 	// .cli argument file
 	file_handle *cliArgFile = calloc(1, sizeof(file_handle));
 	snprintf(cliArgFile->name, PATHNAME_MAX, "%s.cli", fileName);
@@ -1439,6 +1441,7 @@ void boot_dol(file_handle* file, int argc, char *argv[])
 	}
 	devices[DEVICE_CUR]->closeFile(dcpArgFile);
 	free(dcpArgFile);
+	}
 
 	for(i = 1; i < argc; i++) {
 		argz_add(&argz, &argz_len, argv[i]);

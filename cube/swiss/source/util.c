@@ -284,7 +284,7 @@ bool is_recent_entry(char *entry) {
 	return false;
 }
 
-static int find_entry(char *entry, bool load, bool wildcard) {
+static int find_entry(char *entry, bool load, bool wildcard, int argc, char *argv[]) {
 	// get the device handler for it
 	DEVICEHANDLER_INTERFACE *entryDevice = getDeviceFromPath(entry);
 	if(entryDevice) {
@@ -326,6 +326,10 @@ static int find_entry(char *entry, bool load, bool wildcard) {
 					if(dirEntries[i].fileType == IS_FILE && load) {
 						populate_meta(&dirEntries[i]);
 						memcpy(&curFile, &dirEntries[i], sizeof(file_handle));
+						if (argc > 1) {
+							boot_dol(&curFile, argc, argv);
+							return RECENT_ERR_BOOT_FAILED;
+						}
 						load_file();
 						memcpy(&dirEntries[i], &curFile, sizeof(file_handle));
 					}
@@ -345,13 +349,19 @@ static int find_entry(char *entry, bool load, bool wildcard) {
 
 /* Legacy callers (recent list and automatic updaters) retain glob support. */
 int find_existing_entry(char *entry, bool load) {
-	return find_entry(entry, load, true);
+	return find_entry(entry, load, true, 0, NULL);
 }
 
 /* PRISM owns an exact scanned path; brackets and other glob characters in
  * game filenames must never match a different entry. */
 int find_existing_entry_exact(char *entry, bool load) {
-	return find_entry(entry, load, false);
+	return find_entry(entry, load, false, 0, NULL);
+}
+
+int find_existing_dol_exact(char *entry, int argc, char *argv[]) {
+	if (!entry || !endsWith(entry, ".dol") || argc < 2 || !argv)
+		return RECENT_ERR_BOOT_FAILED;
+	return find_entry(entry, true, false, argc, argv);
 }
 
 bool deleteFileOrDir(file_handle* entry) {

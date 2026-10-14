@@ -19,6 +19,7 @@ stub = r'''
 #define ON_FILLIST 1
 #define RECENT_ERR_ENT_MISSING 1
 #define RECENT_ERR_DEV_MISSING 2
+#define RECENT_ERR_BOOT_FAILED 3
 typedef struct { char name[1024]; int fileType; } file_handle;
 typedef struct device { const char *deviceName; file_handle *initial;
     int (*init)(file_handle *); int (*deinit)(file_handle *); } DEVICEHANDLER_INTERFACE;
@@ -53,6 +54,12 @@ static int getCurrentDirEntryCount(void) { return 2; }
 static void populate_meta(file_handle *file) { (void)file; }
 static int getSortedDirEntryIndex(file_handle *file) { return (int)(file - entries); }
 static void load_file(void) { strcpy(loaded, curFile.name); ++load_count; }
+static int argument_count;
+static char argument_rom[1024];
+static void boot_dol(file_handle *file, int argc, char *argv[]) {
+    strcpy(loaded,file->name); ++load_count;
+    argument_count=argc;strcpy(argument_rom,argv[1]);
+}
 '''
 test = r'''
 int main(void) {
@@ -69,6 +76,14 @@ int main(void) {
     assert(find_existing_entry_exact(wrong_device, true) == RECENT_ERR_DEV_MISSING);
     assert(load_count == 2);
     assert(find_existing_entry_exact(literal, false) == 0 && load_count == 2);
+    char dol[] = "sdc:/games/emu [1].dol";
+    strcpy(entries[1].name,dol);
+    char *args[]={dol,"port2:/roms/nes/", "Game [1].nes",NULL};
+    assert(find_existing_dol_exact(dol,3,args)==RECENT_ERR_BOOT_FAILED);
+    assert(argument_count==3 && !strcmp(argument_rom,args[1]));
+    assert(curSelection==1 && load_count==3 && !strcmp(loaded,dol));
+    assert(find_existing_dol_exact(literal,3,args)==RECENT_ERR_BOOT_FAILED);
+    assert(load_count==3);
     return 0;
 }
 '''
