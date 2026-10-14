@@ -92,5 +92,5 @@ assert 'displayed_slots | incoming_slots' in browser
 assert 'DrawTexObj(cover_texture,' in browser
 assert 'DrawTexObj(&cover_texture,' not in browser
 assert 'if (panel) DrawDispose(panel);' not in browser
-assert browser.index('DrawDispose(screen);\n                screen = NULL;') < browser.index('find_existing_entry_exact(')
+assert browser.index('DrawDispose(screen); screen = NULL; displayed_slots = 0;') < browser.index('find_existing_entry_exact(')
 print('GX-cache adapter: read reuse, missing art, pinned pixels, alignment, OOM retry and frame guards passed')
