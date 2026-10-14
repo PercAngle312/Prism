@@ -5,12 +5,12 @@ import struct
 from pathlib import Path
 
 FORMATS = {
-    'n64': (('.z64', '.v64', '.n64'), 'wii64/roms'),
-    'nes': (('.nes',), 'fceugx/roms'),
-    'snes': (('.sfc', '.smc'), 'snes9xgx/roms'),
-    'gb': (('.gb', '.gbc'), 'vbagx/roms'),
-    'gba': (('.gba',), 'vbagx/roms'),
-    'megadrive': (('.md', '.gen', '.bin'), 'genplus/roms'),
+    'n64': (('.z64', '.v64', '.n64'), 'roms/n64'),
+    'nes': (('.nes',), 'roms/nes'),
+    'snes': (('.sfc', '.smc'), 'roms/snes'),
+    'gb': (('.gb', '.gbc'), 'roms/gb'),
+    'gba': (('.gba',), 'roms/gba'),
+    'megadrive': (('.md', '.gen', '.bin'), 'roms/megadrive'),
 }
 MAX_PATH = 512
 MAX_ROMS = 4096
