@@ -285,13 +285,6 @@ static int prism_draw_synopsis(uiDrawObj_t *panel, const char *text, int *scroll
     for (int row = 0; row < 6 && prism_text_next(&cursor, line, sizeof(line), prism_text_fits, &measure); ++row)
         DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_SYNOPSIS_Y + row * 22,
             line, 0.68f, ALIGN_LEFT, (GXColor){231, 226, 242, 255}));
-    if (maximum) {
-        char position[64];
-        int last_line = *scroll + 6 < lines ? *scroll + 6 : lines;
-        snprintf(position, sizeof(position), "Lines %d-%d of %d", *scroll + 1, last_line, lines);
-        DrawAddChild(panel, DrawStyledLabel(PRISM_TEXT_X, PRISM_STATUS_Y + 18,
-            position, 0.5f, ALIGN_LEFT, (GXColor){190, 181, 218, 255}));
-    }
     return maximum;
 }
 
