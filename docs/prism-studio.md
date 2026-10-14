@@ -62,7 +62,7 @@ it. Python and Pillow are included; no development tools are needed.
 
 For an emulator project, **Scan games folder** reads raw ROMs in that folder
 and one child-folder level. Choose the system first, then enter where those
-files will live relative to the SD-card root (for example `wii64/roms`). Scanning
+files will live relative to the SD-card root (for example `roms/n64`). Scanning
 does not copy ROMs. Supported extensions are N64 `.z64/.v64/.n64`, NES `.nes`,
 SNES `.sfc/.smc`, GB/GBC `.gb/.gbc`, GBA `.gba`, and Mega Drive `.md/.gen/.bin`.
 Compressed archives are skipped. Individual ROM files are limited to 128 MiB.
