@@ -861,6 +861,21 @@ static int prism_installed_browser(int quiet_if_empty)
     return 1;
 }
 
+/* Use Swiss's exact-path DOL loader, without carrying the select press into
+ * the emulator. Catalogs describe games; they are never a launch dependency. */
+static int prism_launch_emulator(const char *path)
+{
+    char target[PATHNAME_MAX];
+    if (!path || !path[0] || snprintf(target, sizeof(target), "%s", path) >= (int)sizeof(target))
+        return -1;
+    while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+    int saved_auto_boot = swissSettings.autoBoot;
+    swissSettings.autoBoot = 0;
+    int error = find_existing_entry_exact(target, true);
+    swissSettings.autoBoot = saved_auto_boot;
+    return error;
+}
+
 /* Catalog metadata never implies that a game is installed. Emulator packs
  * can open their configured DOL, with ROM selection in the emulator itself. */
 static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *path,
@@ -929,15 +944,10 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
             if (emulator_path && (pressed & BUTTON_A)) {
                 /* Native Swiss owns DOL validation and chainloading. These
                  * entries deliberately open its menu, never fake ROM autoboot. */
-                char target[PATHNAME_MAX];
-                strlcpy(target, emulator_path, sizeof(target));
                 DrawDispose(screen); screen = NULL;
                 prism_free_cover_cache(covers); covers = NULL;
                 displayed_slots = 0;
-                int saved_auto_boot = swissSettings.autoBoot;
-                swissSettings.autoBoot = 0;
-                int error = find_existing_entry_exact(target, true);
-                swissSettings.autoBoot = saved_auto_boot;
+                int error = prism_launch_emulator(emulator_path);
                 if (error)
                     prism_show_notice("Emulator unavailable", "Copy the GameCube emulator DOL to the matching system name in /swiss/prism/emulators/ on your config storage.");
                 covers = calloc(1, sizeof(*covers));
@@ -993,15 +1003,18 @@ static void prism_system_libraries(void)
                 DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CONFIG];
                 char pack[PATHNAME_MAX], emulator[PATHNAME_MAX], body[192];
                 u32 count = 0;
-                if (device && device->initial &&
+                int paths_ready = device && device->initial &&
                     snprintf(pack, sizeof(pack), "%sswiss/prism/emulators/%s.prism", device->initial->name, keys[selection]) < sizeof(pack) &&
-                    snprintf(emulator, sizeof(emulator), "%sswiss/prism/emulators/%s.dol", device->initial->name, keys[selection]) < sizeof(emulator) &&
-                    prism_pack_device_count(device, pack, &count) && count) {
+                    snprintf(emulator, sizeof(emulator), "%sswiss/prism/emulators/%s.dol", device->initial->name, keys[selection]) < sizeof(emulator);
+                if (paths_ready && prism_pack_device_count(device, pack, &count) && count) {
                     DrawDispose(screen); screen = NULL;
                     prism_catalog_browser(device, pack, count, names[selection], emulator);
                 } else {
-                    snprintf(body, sizeof(body), "Export your %s project from PRISM Studio as %s.prism. Copy it to /swiss/prism/emulators/ on your config storage.", names[selection], keys[selection]);
-                    prism_show_notice("System library not found", body);
+                    if (paths_ready) { DrawDispose(screen); screen = NULL; }
+                    if (!paths_ready || prism_launch_emulator(emulator)) {
+                        snprintf(body, sizeof(body), "Install %s.dol in /swiss/prism/emulators/ on your config storage. The optional %s.prism adds covers and descriptions; it is not required to open the emulator.", keys[selection], keys[selection]);
+                        prism_show_notice("Emulator unavailable", body);
+                    }
                 }
                 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
                 break;
