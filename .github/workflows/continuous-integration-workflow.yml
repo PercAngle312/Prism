@@ -48,7 +48,7 @@ jobs:
         test -s cube/swiss/swiss.elf
         test -s cube/swiss/swiss.dol
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "START: Settings"
-        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "A: Start game"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "A: Start"
         ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "GAMES  |"
         ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_cover_cache_reserve"
         ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_pack_read_background"
