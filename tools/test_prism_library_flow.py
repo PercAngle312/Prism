@@ -40,6 +40,7 @@ typedef unsigned u32;
 typedef int uiDrawObj_t;
 typedef struct {unsigned count,selected;} Library;
 static struct {int autoBoot;} swissSettings;
+static int prism_game_menu_request;
 static const u32 *tape;static unsigned cursor;
 static int settings_count, systems_count, launches, notices, resolve_ok=1;
 static int result_details,result_systems,result_selection,result_scroll;
