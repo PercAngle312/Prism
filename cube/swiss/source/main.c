@@ -344,24 +344,28 @@ static void prism_show_notice(const char *title, const char *body)
 static void prism_native_settings(void)
 {
     int selection = 0;
+    int previous_auto_boot = swissSettings.autoBoot;
+    int previous_exi_speed = swissSettings.exiSpeed;
     uiDrawObj_t *screen = NULL;
     u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START |
                BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT;
     for (;;) {
         uiDrawObj_t *panel = prism_draw_panel("GAMECUBE SETTINGS");
-        const char *labels[] = {"Auto boot", "EXI bus speed", "Advanced Swiss settings"};
-        char values[3][40];
+        const char *labels[] = {"Auto boot", "EXI bus speed",
+                                "Save to SD card", "Advanced Swiss settings"};
+        char values[4][40];
         snprintf(values[0], sizeof(values[0]), "%s", swissSettings.autoBoot ? "On" : "Off");
         snprintf(values[1], sizeof(values[1]), "%s", swissSettings.exiSpeed ? "32 MHz" : "16 MHz");
-        snprintf(values[2], sizeof(values[2]), "%s", "Classic Swiss");
-        for (int i = 0; i < 3; ++i) {
-            int y = 150 + i * 75;
+        snprintf(values[2], sizeof(values[2]), "%s", "Save changes");
+        snprintf(values[3], sizeof(values[3]), "%s", "Classic Swiss");
+        for (int i = 0; i < 4; ++i) {
+            int y = 135 + i * 64;
             GXColor fill = selection == i ? (GXColor){43, 88, 115, 255}
                                           : (GXColor){29, 45, 69, 255};
-            DrawAddChild(panel, DrawSolidBox(65, y, 575, y + 59, fill));
-            DrawAddChild(panel, DrawStyledLabel(85, y + 20, labels[i],
+            DrawAddChild(panel, DrawSolidBox(65, y, 575, y + 54, fill));
+            DrawAddChild(panel, DrawStyledLabel(85, y + 18, labels[i],
                 0.8f, ALIGN_LEFT, (GXColor){232, 238, 250, 255}));
-            DrawAddChild(panel, DrawStyledLabel(551, y + 20, values[i],
+            DrawAddChild(panel, DrawStyledLabel(551, y + 18, values[i],
                 0.7f, ALIGN_RIGHT, (GXColor){158, 226, 212, 255}));
         }
         prism_draw_hint(panel, 38, PRISM_FOOTER_LABELS_Y, 250,
@@ -369,19 +373,39 @@ static void prism_native_settings(void)
         prism_draw_hint(panel, 294, PRISM_FOOTER_LABELS_Y, 144,
             "A: Change", (GXColor){165, 229, 204, 255});
         prism_draw_hint(panel, 440, PRISM_FOOTER_LABELS_Y, 156,
-            "B: Back", (GXColor){233, 180, 204, 255});
+            "B: Discard", (GXColor){233, 180, 204, 255});
         screen = DrawRepublish(screen, panel);
         for (;;) {
             u32 held = padsButtonsHeld(), pressed = held & ~last;
             last = held;
-            if (pressed & (BUTTON_B | BUTTON_START)) goto done;
-            if (pressed & BUTTON_UP) { selection = (selection + 2) % 3; break; }
-            if (pressed & BUTTON_DOWN) { selection = (selection + 1) % 3; break; }
+            if (pressed & (BUTTON_B | BUTTON_START)) {
+                /* Do not silently keep changes that were not saved to SD. */
+                swissSettings.autoBoot = previous_auto_boot;
+                swissSettings.exiSpeed = previous_exi_speed;
+                goto done;
+            }
+            if (pressed & BUTTON_UP) { selection = (selection + 3) % 4; break; }
+            if (pressed & BUTTON_DOWN) { selection = (selection + 1) % 4; break; }
             if (pressed & (BUTTON_A | BUTTON_LEFT | BUTTON_RIGHT)) {
                 if (selection == 0) swissSettings.autoBoot = !swissSettings.autoBoot;
                 else if (selection == 1) swissSettings.exiSpeed = !swissSettings.exiSpeed;
-                else prism_show_notice("Advanced Swiss settings",
-                    "Open Classic Swiss for the full settings editor and to save settings to your configuration device.");
+                else if (selection == 2) {
+                    /* Reuse Swiss's own configuration writer and config device.
+                     * This is the same call used by Swiss's Save & Exit menu. */
+                    config_update_environ();
+                    if (config_update_global(true)) {
+                        previous_auto_boot = swissSettings.autoBoot;
+                        previous_exi_speed = swissSettings.exiSpeed;
+                        prism_show_notice("Settings saved",
+                            "Settings were saved to Swiss's selected configuration device. B returns to games.");
+                    } else {
+                        prism_show_notice("Save failed",
+                            "Could not save Swiss settings. Check the configuration device and available space. Changes are not yet saved.");
+                    }
+                } else {
+                    prism_show_notice("Advanced Swiss settings",
+                        "Open Classic Swiss for the full settings editor.");
+                }
                 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
                 break;
             }
@@ -391,8 +415,6 @@ static void prism_native_settings(void)
 done:
     if (screen) DrawDispose(screen);
 }
-
-
 
 /* A compact cover shelf: central selection stays prominent on a 4:3 TV. */
 static void prism_draw_cover_card(uiDrawObj_t *panel, const PrismLibraryGame *game,
