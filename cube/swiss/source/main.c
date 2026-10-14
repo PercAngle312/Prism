@@ -963,20 +963,20 @@ done:
  * system catalog is curated metadata, not proof that its ROMs are installed. */
 static void prism_system_libraries(void)
 {
-    static const char *names[] = {"Nintendo 64", "NES", "Super Nintendo", "Game Boy", "Game Boy Advance", "Mega Drive"};
-    static const char *keys[] = {"n64", "nes", "snes", "gb", "gba", "megadrive"};
+    static const char *names[] = {"Nintendo 64", "NES", "Super Nintendo", "Game Boy", "Game Boy Color", "Game Boy Advance", "Mega Drive"};
+    static const char *keys[] = {"n64", "nes", "snes", "gb", "gbc", "gba", "megadrive"};
     int selection = 0;
     u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
     uiDrawObj_t *screen = NULL;
     for (;;) {
         uiDrawObj_t *panel = prism_draw_panel("EMULATOR LIBRARIES");
-        for (int i = 0; i < 6; ++i) {
-            int x = 54 + (i % 2) * 278, y = 140 + (i / 2) * 84;
+        for (int i = 0; i < 7; ++i) {
+            int x = 54 + (i % 2) * 278, y = 132 + (i / 2) * 66;
             GXColor fill = i == selection ? (GXColor){32, 78, 83, 255} : (GXColor){22, 33, 48, 255};
-            DrawAddChild(panel, DrawSolidBox(x, y, x + 254, y + 66, fill));
+            DrawAddChild(panel, DrawSolidBox(x, y, x + 254, y + 57, fill));
             if (i == selection)
-                DrawAddChild(panel, DrawSolidBox(x, y, x + 4, y + 66, (GXColor){77, 219, 201, 255}));
-            prism_draw_wrapped(panel, names[i], x + 14, y + 23, 228, 0.85f, 1, 22, (GXColor){233, 241, 247, 255});
+                DrawAddChild(panel, DrawSolidBox(x, y, x + 4, y + 57, (GXColor){77, 219, 201, 255}));
+            prism_draw_wrapped(panel, names[i], x + 14, y + 19, 228, 0.85f, 1, 22, (GXColor){233, 241, 247, 255});
         }
         prism_draw_hint(panel, 44, PRISM_FOOTER_LABELS_Y, 180, "D-Pad: System", (GXColor){185, 200, 225, 255});
         prism_draw_hint(panel, 224, PRISM_FOOTER_LABELS_Y, 180, "A: Library", (GXColor){113, 223, 181, 255});
@@ -986,9 +986,9 @@ static void prism_system_libraries(void)
             u32 held = padsButtonsHeld(), pressed = held & ~last;
             last = held;
             if (pressed & (BUTTON_B | BUTTON_START)) goto finished;
-            if (pressed & (BUTTON_LEFT | BUTTON_RIGHT)) { selection ^= 1; break; }
-            if (pressed & BUTTON_UP) { selection = (selection + 4) % 6; break; }
-            if (pressed & BUTTON_DOWN) { selection = (selection + 2) % 6; break; }
+            if (pressed & (BUTTON_LEFT | BUTTON_RIGHT)) { selection = (selection % 2 == 0 && selection == 6) ? 6 : ((selection ^ 1) % 7); break; }
+            if (pressed & BUTTON_UP) { selection = (selection + 5) % 7; break; }
+            if (pressed & BUTTON_DOWN) { selection = (selection + 2) % 7; break; }
             if (pressed & BUTTON_A) {
                 DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CONFIG];
                 char pack[PATHNAME_MAX], emulator[PATHNAME_MAX], body[192];
