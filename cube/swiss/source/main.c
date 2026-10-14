@@ -301,9 +301,11 @@ static void prism_draw_hint(uiDrawObj_t *panel, int x, int y, int width,
 static void prism_draw_library_hints(uiDrawObj_t *panel, int y, int details)
 {
     if (details) {
-        prism_draw_hint(panel, 44, y, 200, "UP/DOWN: Read", (GXColor){190, 181, 218, 255});
-        prism_draw_hint(panel, 244, y, 180, "A: Start game", (GXColor){165, 229, 204, 255});
-        prism_draw_hint(panel, 424, y, 172, "B: Games", (GXColor){233, 180, 204, 255});
+        prism_draw_hint(panel, 24, y, 112, "UP/DN: Read", (GXColor){190, 181, 218, 255});
+        prism_draw_hint(panel, 138, y, 110, "A: Start", (GXColor){165, 229, 204, 255});
+        prism_draw_hint(panel, 250, y, 112, "X: Cheats", (GXColor){190, 210, 218, 255});
+        prism_draw_hint(panel, 364, y, 122, "Y: Settings", (GXColor){190, 210, 218, 255});
+        prism_draw_hint(panel, 488, y, 118, "B: Games", (GXColor){233, 180, 204, 255});
     } else {
         prism_draw_hint(panel, 44, y, 184, "LEFT/RIGHT: Browse", (GXColor){190, 210, 218, 255});
         prism_draw_hint(panel, 228, y, 110, "A: Open", (GXColor){165, 229, 204, 255});
@@ -513,7 +515,7 @@ static int prism_installed_browser(int quiet_if_empty)
     int details = 0, systems_selected = 0, synopsis_scroll = 0, synopsis_maximum = 0;
     PrismAutoScroll synopsis_auto = {0};
     u32 last = BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT |
-               BUTTON_X | BUTTON_L | BUTTON_R | BUTTON_Z | BUTTON_UP | BUTTON_DOWN;
+               BUTTON_X | BUTTON_Y | BUTTON_L | BUTTON_R | BUTTON_Z | BUTTON_UP | BUTTON_DOWN;
     if (!device || !device->initial ||
         snprintf(folder, sizeof(folder), "%sgames", device->initial->name) >= (int)sizeof(folder)) {
         if (quiet_if_empty) return 0;
@@ -675,6 +677,28 @@ static int prism_installed_browser(int quiet_if_empty)
                 free(paths);
                 free(library);
                 return 2;
+            }
+            if (details && (pressed & (BUTTON_X | BUTTON_Y))) {
+                /* Enter the existing Swiss per-game menu without autoboot.
+                 * Swiss owns cheat and individual game settings management;
+                 * PRISM does not alter cheat/config files directly. */
+                char options_path[PATHNAME_MAX];
+                if (!prism_installed_resolve(device, paths, game,
+                                              options_path, sizeof(options_path))) {
+                    prism_show_notice("Game changed", "The selected game is no longer available. Check your storage.");
+                    last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_X | BUTTON_Y;
+                    continue;
+                }
+                DrawDispose(screen); screen = NULL; displayed_slots = 0;
+                while (padsButtonsHeld() & (BUTTON_X | BUTTON_Y)) VIDEO_WaitVSync();
+                int saved_auto_boot = swissSettings.autoBoot;
+                swissSettings.autoBoot = 0;
+                int options_result = find_existing_entry_exact(options_path, true);
+                swissSettings.autoBoot = saved_auto_boot;
+                if (options_result)
+                    prism_show_notice("Game options unavailable", "Swiss could not open this game's options.");
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_X | BUTTON_Y;
+                break;
             }
             if (pressed & BUTTON_A) {
                 if (systems_selected) {
