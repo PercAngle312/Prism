@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from prism_project import LibraryProject, verify_pack
-from prism_roms import encode_index, fingerprint, validate_mapping, validate_path
+from prism_roms import FORMATS, encode_index, fingerprint, validate_mapping, validate_path
 
 
 class RomTests(unittest.TestCase):
@@ -134,7 +134,14 @@ int main(int argc,char **argv) {
 }
 '''
 
+def test_default_rom_folders():
+    for system in ('n64', 'nes', 'snes', 'gb', 'gba', 'megadrive'):
+        assert FORMATS[system][1] == 'roms/' + system
+    assert FORMATS['gb'][1] != FORMATS['gba'][1]
+
+
 if __name__ == '__main__':
+    test_default_rom_folders()
     if '--console-reader' in __import__('sys').argv:
         check_console_reader()
     else:
