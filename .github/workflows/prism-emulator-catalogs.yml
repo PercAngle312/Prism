@@ -1,0 +1,79 @@
+name: PRISM optional emulator catalogs
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/prism-dashboard]
+    paths:
+      - 'assets/prism/emulator-catalogs/**'
+      - 'tools/collect_prism_emulator_catalogs.py'
+      - 'tools/prism_pack.py'
+      - '.github/workflows/prism-emulator-catalogs.yml'
+permissions:
+  contents: read
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      systems: ${{ steps.select.outputs.systems }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: select
+        run: |
+          python3 - <<'PY'
+          import os,json,pathlib,subprocess
+          event=json.loads(pathlib.Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          root=pathlib.Path('assets/prism/emulator-catalogs')
+          all_systems=sorted(p.name.removesuffix('.json.gz') for p in root.glob('*.json.gz'))
+          systems=all_systems
+          if os.environ['GITHUB_EVENT_NAME']=='push':
+              changed=subprocess.check_output(['git','diff','--name-only',event['before'],os.environ['GITHUB_SHA']],text=True).splitlines()
+              if all(p.startswith('assets/prism/emulator-catalogs/') for p in changed):
+                  systems=[s for s in all_systems if str(root/(s+'.json.gz')) in changed]
+          assert systems
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write('systems='+json.dumps(systems)+'\n')
+          PY
+  catalog:
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        system: ${{ fromJSON(needs.targets.outputs.systems) }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install Pillow==11.3.0
+      - name: Build verified platform snapshot without API credentials
+        env:
+          PRISM_SYSTEM: ${{ matrix.system }}
+        run: |
+          python3 -u - <<'PY'
+          import os,json,gzip,pathlib,sys
+          sys.path.insert(0,'tools')
+          from collect_prism_emulator_catalogs import collect,SYSTEMS
+          system=os.environ['PRISM_SYSTEM']
+          source=pathlib.Path('assets/prism/emulator-catalogs')/(system+'.json.gz')
+          state=json.loads(gzip.decompress(source.read_bytes()))
+          assert state['complete'] is True and state['platform_id']==SYSTEMS[system][0]
+          assert all(state['platform_id'] in game['platforms'] for game in state['records'])
+          root=pathlib.Path('catalog-output')/system
+          root.mkdir(parents=True)
+          (root/'catalog.json').write_text(json.dumps(state),encoding='utf-8')
+          collect(system,'catalog-output',{},workers=12)
+          PY
+      - name: Verify every record with actual console reader
+        env:
+          PRISM_SYSTEM: ${{ matrix.system }}
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -o /tmp/catalog-reader tests/prism_catalog_verify.c cube/swiss/source/gui/prism_pack.c
+          /tmp/catalog-reader "catalog-output/$PRISM_SYSTEM/$PRISM_SYSTEM.prism"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-${{ matrix.system }}-Catalog
+          path: |
+            catalog-output/PRISM-*-Catalog.zip
+            catalog-output/${{ matrix.system }}/coverage.json
+          if-no-files-found: error
+          retention-days: 90
