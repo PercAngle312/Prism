@@ -6,6 +6,7 @@ hardware compatibility review. This tool never invents an emulator binary.
 import argparse
 import hashlib
 import json
+import struct
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -15,17 +16,44 @@ DOL_ROOT = "swiss/prism/emulators/"
 REQUIRED = SYSTEMS
 
 
+def valid_gamecube_dol(path):
+    """Require a structurally bounded, non-empty native DOL, not a renamed ZIP/ELF."""
+    with Path(path).open("rb") as file:
+        header = file.read(0x100)
+    if len(header) != 0x100:
+        return False
+    offsets = struct.unpack_from(">18I", header, 0)
+    addresses = struct.unpack_from(">18I", header, 0x48)
+    lengths = struct.unpack_from(">18I", header, 0x90)
+    entry = struct.unpack_from(">I", header, 0xE0)[0]
+    size = Path(path).stat().st_size
+    if not 0x80000000 <= entry < 0x81800000:
+        return False
+    sections = 0
+    for offset, address, length in zip(offsets, addresses, lengths):
+        if not length:
+            continue
+        if (offset < 0x100 or offset + length > size
+                or not 0x80000000 <= address < 0x81800000
+                or address + length > 0x81800000):
+            return False
+        sections += 1
+    return sections > 0
+
+
 def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True, require_catalogs=False):
     destination, dashboard, library, emulators = map(Path, (destination, dashboard, library, emulators))
     catalogs = Path(catalogs) if catalogs else None
     if not dashboard.is_file() or not library.is_file():
         raise ValueError("A compiled PRISM DOL and verified default library.prism are required")
+    if not valid_gamecube_dol(dashboard):
+        raise ValueError("Dashboard is not a valid GameCube DOL")
     entries = {"PRISM.dol": dashboard, "swiss/prism/library.prism": library}
     missing = []
     missing_catalogs = []
     for system in SYSTEMS:
         dol = emulators / (system + ".dol")
-        if dol.is_file() and dol.stat().st_size:
+        if dol.is_file() and valid_gamecube_dol(dol):
             entries[DOL_ROOT + dol.name] = dol
         elif system in REQUIRED:
             missing.append(system)
