@@ -233,9 +233,12 @@ static uiDrawObj_t *prism_draw_panel_background(const char *subtitle, GXTexObj *
     DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){97, 137, 166, 255}));
     DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){172, 211, 230, 255}));
     /* Keep the background unobstructed: only a bare count on the shelf. */
-    if (subtitle && *subtitle && subtitle[0] >= '0' && subtitle[0] <= '9')
-        DrawAddChild(panel, DrawStyledLabel(580, 49, subtitle,
-            0.77f, ALIGN_RIGHT, (GXColor){235, 245, 252, 255}));
+    if (subtitle && *subtitle) {
+        int is_count = subtitle[0] >= '0' && subtitle[0] <= '9';
+        DrawAddChild(panel, DrawStyledLabel(is_count ? 580 : 58, 60,
+            subtitle, is_count ? 0.77f : 0.85f,
+            is_count ? ALIGN_RIGHT : ALIGN_LEFT, (GXColor){235, 245, 252, 255}));
+    }
     return panel;
 }
 
