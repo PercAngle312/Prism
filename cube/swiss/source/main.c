@@ -496,6 +496,61 @@ static void prism_free_cover_cache(PrismRuntimeCoverCache *cache)
 static void prism_system_libraries(void);
 static int prism_settings_menu(void);
 
+/* PRISM-owned editor for a deliberately small subset of Swiss settings.
+ * Values update the same in-memory SwissSettings used by its launch code.
+ * Other options remain accessible through Classic Swiss. */
+static void prism_native_settings(void)
+{
+    int selection = 0;
+    uiDrawObj_t *screen = NULL;
+    u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START |
+               BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT;
+    for (;;) {
+        uiDrawObj_t *panel = prism_draw_panel("GAMECUBE SETTINGS");
+        const char *labels[] = {"Auto boot", "EXI bus speed", "Advanced Swiss settings"};
+        char values[3][40];
+        snprintf(values[0], sizeof(values[0]), "%s", swissSettings.autoBoot ? "On" : "Off");
+        snprintf(values[1], sizeof(values[1]), "%s", swissSettings.exiSpeed ? "32 MHz" : "16 MHz");
+        snprintf(values[2], sizeof(values[2]), "%s", "Classic Swiss");
+        for (int i = 0; i < 3; ++i) {
+            int y = 150 + i * 75;
+            GXColor fill = selection == i ? (GXColor){43, 88, 115, 255}
+                                          : (GXColor){29, 45, 69, 255};
+            DrawAddChild(panel, DrawSolidBox(65, y, 575, y + 59, fill));
+            DrawAddChild(panel, DrawStyledLabel(85, y + 20, labels[i],
+                0.8f, ALIGN_LEFT, (GXColor){232, 238, 250, 255}));
+            DrawAddChild(panel, DrawStyledLabel(551, y + 20, values[i],
+                0.7f, ALIGN_RIGHT, (GXColor){158, 226, 212, 255}));
+        }
+        prism_draw_hint(panel, 38, PRISM_FOOTER_LABELS_Y, 250,
+            "UP/DOWN: Select", (GXColor){190, 210, 218, 255});
+        prism_draw_hint(panel, 294, PRISM_FOOTER_LABELS_Y, 144,
+            "A: Change", (GXColor){165, 229, 204, 255});
+        prism_draw_hint(panel, 440, PRISM_FOOTER_LABELS_Y, 156,
+            "B: Back", (GXColor){233, 180, 204, 255});
+        screen = DrawRepublish(screen, panel);
+        for (;;) {
+            u32 held = padsButtonsHeld(), pressed = held & ~last;
+            last = held;
+            if (pressed & (BUTTON_B | BUTTON_START)) goto done;
+            if (pressed & BUTTON_UP) { selection = (selection + 2) % 3; break; }
+            if (pressed & BUTTON_DOWN) { selection = (selection + 1) % 3; break; }
+            if (pressed & (BUTTON_A | BUTTON_LEFT | BUTTON_RIGHT)) {
+                if (selection == 0) swissSettings.autoBoot = !swissSettings.autoBoot;
+                else if (selection == 1) swissSettings.exiSpeed = !swissSettings.exiSpeed;
+                else prism_show_notice("Advanced Swiss settings",
+                    "Open Classic Swiss for the full settings editor and to save settings to your configuration device.");
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START;
+                break;
+            }
+            VIDEO_WaitVSync();
+        }
+    }
+done:
+    if (screen) DrawDispose(screen);
+}
+
+
 static int prism_installed_browser(int quiet_if_empty)
 {
     DEVICEHANDLER_INTERFACE *device = devices[DEVICE_CUR];
@@ -668,15 +723,9 @@ static int prism_installed_browser(int quiet_if_empty)
             }
             if (!details && (pressed & BUTTON_START)) {
                 DrawDispose(screen); screen = NULL; displayed_slots = 0;
-                if (!prism_settings_menu()) {
-                    last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
-                    break;
-                }
-                prism_free_cover_cache(covers);
-                free(background_pixels);
-                free(paths);
-                free(library);
-                return 2;
+                prism_native_settings();
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+                break;
             }
             if (details && (pressed & (BUTTON_X | BUTTON_Y))) {
                 /* Enter the existing Swiss per-game menu without autoboot.
