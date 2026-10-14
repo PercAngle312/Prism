@@ -2572,8 +2572,25 @@ uiDrawObj_t* draw_game_info(ConfigEntry *config) {
 }
 
 /* Show info about the game - and also load the config for it */
+/* One-shot request from PRISM, consumed after selected-game config is ready. */
+int prism_game_menu_request = 0;
+
 int info_game(ConfigEntry *config)
 {
+    int requested = prism_game_menu_request;
+    prism_game_menu_request = 0;
+    if (requested == 1) {
+        if (findCheats(false) > 0) {
+            loadCheatsSelection();
+            DrawCheatsSelector(getRelativeName(curFile.name));
+            saveCheatsSelection();
+        }
+        return 0;
+    }
+    if (requested == 2) {
+        needsRefresh = show_settings(PAGE_GAME, 0, config);
+        return 0;
+    }
 	if(swissSettings.cubebootInvoked) {
 		u32 buttons = padsButtonsHeld();
 		if(buttons & BUTTON_Y) {
