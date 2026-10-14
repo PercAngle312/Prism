@@ -8,7 +8,8 @@ FORMATS = {
     'n64': (('.z64', '.v64', '.n64'), 'roms/n64'),
     'nes': (('.nes',), 'roms/nes'),
     'snes': (('.sfc', '.smc'), 'roms/snes'),
-    'gb': (('.gb', '.gbc'), 'roms/gb'),
+    'gb': (('.gb',), 'roms/gb'),
+    'gbc': (('.gbc',), 'roms/gbc'),
     'gba': (('.gba',), 'roms/gba'),
     'megadrive': (('.md', '.gen', '.bin'), 'roms/megadrive'),
 }
@@ -54,7 +55,7 @@ def fingerprint(path, system):
                 raise ValueError('Invalid N64 header or word alignment')
         elif system == 'nes' and (size < 16 or head[:4] != b'NES\x1a'):
             raise ValueError('Invalid NES header')
-        elif system == 'gb' and (size < 0x150 or ((-sum(head[0x134:0x14d]) - 25) & 255) != head[0x14d]):
+        elif system in ('gb', 'gbc') and (size < 0x150 or ((-sum(head[0x134:0x14d]) - 25) & 255) != head[0x14d]):
             raise ValueError('Invalid Game Boy header checksum')
         elif system == 'gba' and (size < 0xc0 or head[0xb2] != 0x96 or ((-sum(head[0xa0:0xbd]) - 0x19) & 255) != head[0xbd]):
             raise ValueError('Invalid GBA header checksum')
