@@ -166,6 +166,7 @@ jobs:
         run: |
           python3 tools/test_prism_sd_release.py
           python3 tools/test_prism_emulator_build.py
+          python3 tools/test_prism_emulator_catalogs.py
       - name: Validate PRISM builder Python syntax
         run: python3 -m py_compile tools/prism_pack.py tools/prism_cover.py tools/prism_builder.py tools/prism_project.py tools/prism_download.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
       - name: Verify padded DOL loader blocks

@@ -49,7 +49,13 @@ def build(manifest: Path, output: Path) -> None:
             background = b''
             if game.get('background'):
                 from prism_background import convert_background
-                background = convert_background((manifest.parent/game['background']).read_bytes(), dim=False)
+                source = (manifest.parent/game['background']).read_bytes()
+                if source.startswith(b'PRISMBG'):
+                    if len(source) != 153612 or source[:12] != b'PRISMBG2\x40\x01\xf0\x00':
+                        raise ValueError('invalid bright packed background')
+                    background = source
+                else:
+                    background = convert_background(source, dim=False)
             metadata = {k: game[k] for k in ('metadata','info_url','background_url','background_kind','background_provider') if game.get(k)}
             metadata = json.dumps(metadata,ensure_ascii=False,separators=(',',':')).encode('utf-8') if metadata else b''
             if len(metadata)>16384: raise ValueError('metadata exceeds 16 KiB')
