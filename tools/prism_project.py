@@ -404,38 +404,54 @@ class LibraryProject:
 
 
 def verify_pack(path):
+    """Validate a catalog using bounded reads, without copying all art into RAM."""
     import struct
     from prism_pack import ENTRY, MAGIC
-    raw = Path(path).read_bytes()
-    if len(raw) < 16 or raw[:8] != MAGIC:
-        raise ValueError('Invalid PRISM pack header')
-    count, index = struct.unpack_from('<II', raw, 8)
-    if not 0 < count <= MAX_GAMES or index != 16 or 16 + count*ENTRY.size > len(raw):
-        raise ValueError('Invalid pack index')
-    previous = b''
-    expected_offset = 16 + count*ENTRY.size
-    for pos in range(count):
-        key, flags, offset, title_size, synopsis_size, cover_size = ENTRY.unpack_from(raw, index + pos*ENTRY.size)
-        if not re.fullmatch(rb'[A-Z0-9]{6}', key) or key <= previous or flags not in (0,1) or offset != expected_offset:
-            raise ValueError('Invalid pack record')
-        end = offset + title_size + synopsis_size + cover_size
-        if not 1 <= title_size <= 96 or synopsis_size > MAX_PROJECT_SYNOPSIS or end > len(raw):
-            raise ValueError('Invalid pack payload bounds')
-        raw[offset:offset+title_size].decode('utf-8')
-        raw[offset+title_size:offset+title_size+synopsis_size].decode('utf-8')
-        if cover_size and not validate_cover(raw[end-cover_size:end]):
-            raise ValueError('Invalid pack cover')
-        if flags:
-            if end+8>len(raw): raise ValueError('Invalid pack extension')
-            background_size, metadata_size = struct.unpack_from('<II',raw,end)
-            start=end+8; end=start+background_size+metadata_size
-            if background_size not in (0,153612) or metadata_size>16384 or end>len(raw):
-                raise ValueError('Invalid pack background/metadata bounds')
-            if background_size and raw[start:start+12] != b'PRISMBG2\x40\x01\xf0\x00':
-                raise ValueError('Invalid packed background')
-            if metadata_size and not isinstance(json.loads(raw[end-metadata_size:end].decode('utf-8')),dict):
-                raise ValueError('Invalid pack metadata')
-        previous, expected_offset = key, end
-    if expected_offset != len(raw):
-        raise ValueError('Pack has trailing data')
+    from prism_cover import COVER_BYTES
+    with Path(path).open('rb') as stream:
+        stream.seek(0, 2)
+        length = stream.tell()
+        stream.seek(0)
+        def read(size):
+            data = stream.read(size)
+            if len(data) != size:
+                raise ValueError('Truncated pack payload')
+            return data
+        header = stream.read(16)
+        if len(header) < 16 or header[:8] != MAGIC:
+            raise ValueError('Invalid PRISM pack header')
+        count, index = struct.unpack_from('<II', header, 8)
+        if not 0 < count <= MAX_GAMES or index != 16 or 16 + count*ENTRY.size > length:
+            raise ValueError('Invalid pack index')
+        records = read(count*ENTRY.size)
+        previous = b''
+        expected_offset = 16 + count*ENTRY.size
+        for pos in range(count):
+            key, flags, offset, title_size, synopsis_size, cover_size = ENTRY.unpack_from(records, pos*ENTRY.size)
+            if not re.fullmatch(rb'[A-Z0-9]{6}', key) or key <= previous or flags not in (0,1) or offset != expected_offset:
+                raise ValueError('Invalid pack record')
+            end = offset + title_size + synopsis_size + cover_size
+            if not 1 <= title_size <= 96 or synopsis_size > MAX_PROJECT_SYNOPSIS or end > length:
+                raise ValueError('Invalid pack payload bounds')
+            if cover_size not in (0, COVER_BYTES):
+                raise ValueError('Invalid pack cover')
+            stream.seek(offset)
+            read(title_size).decode('utf-8')
+            read(synopsis_size).decode('utf-8')
+            if cover_size and not validate_cover(read(cover_size)):
+                raise ValueError('Invalid pack cover')
+            if flags:
+                if end+8>length: raise ValueError('Invalid pack extension')
+                background_size, metadata_size = struct.unpack('<II',read(8))
+                start=end+8; end=start+background_size+metadata_size
+                if background_size not in (0,153612) or metadata_size>16384 or end>length:
+                    raise ValueError('Invalid pack background/metadata bounds')
+                if background_size and read(12) != b'PRISMBG2\x40\x01\xf0\x00':
+                    raise ValueError('Invalid packed background')
+                stream.seek(end-metadata_size)
+                if metadata_size and not isinstance(json.loads(read(metadata_size).decode('utf-8')),dict):
+                    raise ValueError('Invalid pack metadata')
+            previous, expected_offset = key, end
+        if expected_offset != length:
+            raise ValueError('Pack has trailing data')
     return count

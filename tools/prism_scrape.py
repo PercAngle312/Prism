@@ -9,6 +9,7 @@ import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from prism_gametdb import read_gametdb, _short
+from prism_project import MAX_PROJECT_SYNOPSIS
 
 ORDER = ('GameTDB', 'ScreenScraper', 'TheGamesDB', 'IGDB',
          'MobyGames', 'LaunchBox', 'RAWG')
@@ -118,7 +119,7 @@ def enrich_project(project, *, gametdb=None, credentials=None, request=_json_req
                 continue
             if result and isinstance(result.get('synopsis'), str) and result['synopsis'].strip():
                 updated = dict(game)
-                updated['synopsis'] = _short(result['synopsis'], 191)
+                updated['synopsis'] = _short(result['synopsis'], MAX_PROJECT_SYNOPSIS)
                 pending.put(updated, old_id=gid)
                 count += 1
                 stats['completed'] += 1

@@ -190,6 +190,28 @@ class ProjectTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_pack(path)
 
+    def test_catalog_verification_uses_bounded_reads(self):
+        self.project.set_screenshot('GM8E01', cover('blue'))
+        path = self.folder / 'streamed.prism'
+        self.project.export(path)
+        real_open = Path.open
+        sizes = []
+        class BoundedReader:
+            def __init__(self, stream): self.stream = stream
+            def __enter__(self): return self
+            def __exit__(self, *args): self.stream.close()
+            def seek(self, *args): return self.stream.seek(*args)
+            def tell(self): return self.stream.tell()
+            def read(self, size=-1):
+                assert 0 <= size <= 84492, 'Unbounded catalog read'
+                sizes.append(size)
+                return self.stream.read(size)
+        with patch.object(Path, 'read_bytes', side_effect=AssertionError('Whole catalog read')), \
+             patch.object(Path, 'open', lambda p, *a, **kw: BoundedReader(real_open(p, *a, **kw))):
+            self.assertEqual(verify_pack(path), 1)
+        self.assertIn(84492, sizes)
+        self.assertIn(12, sizes)  # The background texture header is validated.
+
 
 if __name__ == '__main__':
     unittest.main()

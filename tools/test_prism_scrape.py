@@ -49,3 +49,28 @@ result = enrich_project(p, credentials={'thegamesdb': 'test'}, request=failing)
 assert p.manifest() == before
 assert result['enriched'] == 0
 print('Ordered metadata enrichment: OK')
+
+# Provider text must retain the full scrolling synopsis, not the old 191-byte
+# console preview. Keep UTF-8 boundaries and preserve it through pack export.
+from prism_project import MAX_PROJECT_SYNOPSIS
+full = LibraryProject()
+full.put({'id': 'GM8E01', 'title': 'Metroid Prime', 'synopsis': ''})
+long_synopsis = ('Explore Tallon IV and uncover the mysteries of the Chozo. ' * 20).strip()
+stats = enrich_project(full, credentials={'thegamesdb': 'fixture'},
+    request=lambda *args: {'data': {'games': [
+        {'game_title': 'Metroid Prime', 'overview': long_synopsis}]}}, sleep=lambda _: None)
+assert stats['enriched'] == 1 and full.games['GM8E01']['synopsis'] == long_synopsis
+with tempfile.TemporaryDirectory() as tmp:
+    saved = Path(tmp) / 'full.prism-project'
+    full.save(saved)
+    loaded = LibraryProject.load(saved)
+    assert loaded.games['GM8E01']['synopsis'] == long_synopsis
+    loaded.export(Path(tmp) / 'library.prism')
+    assert long_synopsis.encode() in (Path(tmp) / 'library.prism').read_bytes()
+bounded = LibraryProject()
+bounded.put({'id': 'GM8E01', 'title': 'Metroid Prime'})
+enrich_project(bounded, credentials={'thegamesdb': 'fixture'},
+    request=lambda *args: {'data': {'games': [
+        {'game_title': 'Metroid Prime', 'overview': 'é' * 5000}]}}, sleep=lambda _: None)
+assert 191 < len(bounded.games['GM8E01']['synopsis'].encode()) <= MAX_PROJECT_SYNOPSIS
+print('Full synopsis enrichment, UTF-8 bounds and project/console pack roundtrip: OK')

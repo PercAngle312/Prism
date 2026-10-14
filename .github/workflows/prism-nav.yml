@@ -160,6 +160,7 @@ jobs:
           python3 tools/test_prism_background.py
           python3 tools/test_prism_background_reader.py
           python3 tools/test_prism_project.py
+          python3 tools/test_prism_scrape.py
           python3 tools/test_prism_export_reader.py
       - name: Verify complete emulator SD release packaging
         run: |
