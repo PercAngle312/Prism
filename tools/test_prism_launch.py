@@ -82,6 +82,7 @@ main = Path('cube/swiss/source/main.c').read_text()
 browser = main[main.index('static int prism_installed_browser'):main.index('static void prism_dashboard_bootstrap')]
 assert 'u32 last = BUTTON_A | BUTTON_B' in browser
 assert browser.index('prism_installed_resolve(') < browser.index('find_existing_entry_exact(')
-assert browser.index('swissSettings.autoBoot = 1;') < browser.index('find_existing_entry_exact(')
-assert browser.index('swissSettings.autoBoot = auto_boot;') > browser.index('find_existing_entry_exact(')
+launch = browser[browser.index('char launch_path[PATHNAME_MAX];'):]
+assert launch.index('swissSettings.autoBoot = 1;') < launch.index('find_existing_entry_exact(')
+assert launch.index('swissSettings.autoBoot = auto_boot;') > launch.index('find_existing_entry_exact(')
 print('Swiss exact-path launch, legacy glob behavior and PRISM entry guards passed')
