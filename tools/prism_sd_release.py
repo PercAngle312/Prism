@@ -41,7 +41,26 @@ def valid_gamecube_dol(path):
     return sections > 0
 
 
-def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True, require_catalogs=False):
+def validate_emulator_provenance(path, emulator_hashes):
+    """Require a per-target source, license and exact executable checksum."""
+    records = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(records, dict):
+        raise ValueError("Emulator provenance must be an object")
+    for system, digest in emulator_hashes.items():
+        record = records.get(system)
+        if not isinstance(record, dict):
+            raise ValueError("Missing emulator provenance: " + system)
+        for name in ("project", "source_url", "version", "license", "sha256"):
+            if not isinstance(record.get(name), str) or not record[name].strip():
+                raise ValueError("Incomplete emulator provenance for " + system + ": " + name)
+        if not record["source_url"].startswith("https://"):
+            raise ValueError("Emulator source must use HTTPS: " + system)
+        if record["sha256"].lower() != digest:
+            raise ValueError("Emulator hash mismatch: " + system)
+    return {system: records[system] for system in emulator_hashes}
+
+
+def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True, require_catalogs=False, provenance=None):
     destination, dashboard, library, emulators = map(Path, (destination, dashboard, library, emulators))
     catalogs = Path(catalogs) if catalogs else None
     if not dashboard.is_file() or not library.is_file():
@@ -79,9 +98,15 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
         hashes[path] = digest.hexdigest()
+    emulator_hashes = {system: hashes[DOL_ROOT + system + ".dol"] for system in SYSTEMS
+                       if DOL_ROOT + system + ".dol" in hashes}
+    provenance_records = validate_emulator_provenance(provenance, emulator_hashes) if provenance else {}
+    if require_emulators and not provenance:
+        raise ValueError("Final release requires emulator provenance manifest")
     manifest = {"format": 1, "type": "sd-root", "files_sha256": hashes,
                 "emulator_dols_missing": missing,
                 "emulator_catalogs_missing": missing_catalogs,
+                "emulator_provenance": provenance_records,
                 "note": "No copyrighted game ROMs supplied; ROM autoboot is not implied."}
     destination.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(destination, "w", compression=ZIP_DEFLATED, compresslevel=6) as archive:
@@ -104,6 +129,7 @@ def main():
     parser.add_argument("--library", required=True)
     parser.add_argument("--emulators", required=True)
     parser.add_argument("--catalogs")
+    parser.add_argument("--provenance", help="JSON per emulator with verified source/license/version/SHA256")
     parser.add_argument("--require-catalogs", action="store_true",
                         help="Fail release if any of the seven emulator libraries is missing")
     parser.add_argument("--output", required=True)
@@ -111,7 +137,7 @@ def main():
                         help="Development scaffold only; NOT a full final release")
     args = parser.parse_args()
     manifest = build(args.output, args.dashboard, args.library, args.emulators,
-                     args.catalogs, not args.allow_missing_emulators, args.require_catalogs)
+                     args.catalogs, not args.allow_missing_emulators, args.require_catalogs, args.provenance)
     print(json.dumps({"output": args.output, "missing_emulators": manifest["emulator_dols_missing"]}))
 
 
