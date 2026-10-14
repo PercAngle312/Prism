@@ -1,5 +1,6 @@
 """Regression tests for the emulator-enabled SD-ready packager."""
 import hashlib
+import json
 import struct
 import tempfile
 import unittest
@@ -47,7 +48,14 @@ class SDReleaseTests(unittest.TestCase):
     def test_sd_tree_and_hashes(self):
         for name in REQUIRED:
             (self.emulators / (name + ".dol")).write_bytes(dol_fixture())
-        manifest = build(self.output, self.dol, self.library, self.emulators)
+        provenance = self.root / "sources.json"
+        provenance.write_text(json.dumps({system: {
+            "project": "Fixture", "source_url": "https://example.org/fixture",
+            "version": "test", "license": "test-only",
+            "sha256": hashlib.sha256(dol_fixture()).hexdigest()}
+            for system in REQUIRED}))
+        manifest = build(self.output, self.dol, self.library, self.emulators,
+                         provenance=provenance)
         self.assertEqual(manifest["emulator_dols_missing"], [])
         with ZipFile(self.output) as z:
             self.assertIsNone(z.testzip())
@@ -60,6 +68,7 @@ class SDReleaseTests(unittest.TestCase):
             self.assertEqual(manifest["files_sha256"]["PRISM.dol"],
                              hashlib.sha256(self.dol.read_bytes()).hexdigest())
             self.assertNotIn("roms/n64/Example.z64", names)
+            self.assertEqual(set(manifest["emulator_provenance"]), set(REQUIRED))
 
 
 if __name__ == "__main__":
