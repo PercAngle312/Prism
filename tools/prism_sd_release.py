@@ -70,7 +70,7 @@ def validate_emulator_provenance(path, emulator_hashes):
     return {system: records[system] for system in emulator_hashes}
 
 
-def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True, require_catalogs=False, provenance=None, sources=None):
+def build(destination, dashboard, library, emulators, catalogs=None, require_emulators=True, require_catalogs=False, provenance=None, sources=None, dashboard_source=None, include_library=True):
     destination, dashboard, library, emulators = map(Path, (destination, dashboard, library, emulators))
     catalogs = Path(catalogs) if catalogs else None
     if not dashboard.is_file() or not library.is_file():
@@ -79,7 +79,20 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
         raise ValueError("Dashboard is not a valid GameCube DOL")
     from prism_project import verify_pack
     verify_pack(library)
-    entries = {"PRISM.dol": dashboard, "swiss/prism/library.prism": library}
+    entries = {"PRISM.dol": dashboard}
+    if include_library:
+        entries["swiss/prism/library.prism"] = library
+    if dashboard_source:
+        source = Path(dashboard_source)
+        with ZipFile(source) as archive:
+            if archive.testzip():
+                raise ValueError('Dashboard source ZIP CRC verification failed')
+        entries['SOURCE-AND-LICENSES/' + source.name] = source
+        for name in ('littlefs-6cb4e86540ec-source.zip', 'GNU-GPL-v2.txt'):
+            dependency = Path(sources) / name
+            if not dependency.is_file():
+                raise ValueError('Dashboard source/license dependency missing: ' + name)
+            entries['SOURCE-AND-LICENSES/' + name] = dependency
     missing = []
     missing_catalogs = []
     for system in SYSTEMS:
@@ -128,6 +141,7 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
             entries['SOURCE-AND-LICENSES/libsmb2-source.zip'] = common
     hashes.update({path: sha256(src) for path, src in entries.items() if path not in hashes})
     manifest = {"format": 1, "type": "sd2sp2-hardware-test", "hardware_tested": False, "files_sha256": hashes,
+                "default_library_included": include_library, "default_library_sha256": sha256(library),
                 "emulator_dols_missing": missing,
                 "emulator_catalogs_missing": missing_catalogs,
                 "emulator_provenance": provenance_records,
@@ -144,7 +158,9 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
             archive.writestr("PRISM-release-manifest.json", json.dumps(manifest, indent=2) + "\n")
             archive.writestr("README-FIRST.txt",
                 "SD2SP2 HARDWARE TEST - NOT HARDWARE CERTIFIED\n"
-                "Back up your SD card before extracting to its root. PRISM.dol and library.prism will be replaced.\n"
+                "Back up your SD card before extracting to its root. PRISM.dol will be replaced.\n"
+                + ("Full package: the default GameCube library.prism is included and will replace that file.\n" if include_library else
+                   "Update package: KEEP your installed /swiss/prism/library.prism; no catalog is supplied.\n") +
                 "Keep your existing Swiss settings, emulator saves and optional catalogs. No settings files are supplied.\n"
                 "Run PRISM.dol in Swiss; Z opens Systems from the game shelf. A opens the chosen emulator.\n"
                 "Place your own ROMs in /roms/n64, nes, snes, gb, gbc, gba or megadrive as appropriate.\n"
@@ -176,6 +192,8 @@ def main():
     parser.add_argument("--catalogs")
     parser.add_argument("--provenance", help="JSON per emulator with verified source/license/version/SHA256")
     parser.add_argument("--sources", help="Directory with exact corresponding-source ZIPs and licenses")
+    parser.add_argument("--dashboard-source", help="Matching Git archive of the compiled dashboard commit")
+    parser.add_argument("--keep-installed-library", action="store_true", help="Update ZIP only: do not replace the installed GameCube catalog")
     parser.add_argument("--require-catalogs", action="store_true",
                         help="Fail release if any of the seven emulator libraries is missing")
     parser.add_argument("--output", required=True)
@@ -183,7 +201,8 @@ def main():
                         help="Development scaffold only; NOT a full final release")
     args = parser.parse_args()
     manifest = build(args.output, args.dashboard, args.library, args.emulators,
-                     args.catalogs, not args.allow_missing_emulators, args.require_catalogs, args.provenance, args.sources)
+                     args.catalogs, not args.allow_missing_emulators, args.require_catalogs, args.provenance, args.sources,
+                     args.dashboard_source, not args.keep_installed_library)
     print(json.dumps({"output": args.output, "missing_emulators": manifest["emulator_dols_missing"]}))
 
 

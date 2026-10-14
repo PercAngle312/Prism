@@ -79,6 +79,20 @@ class SDReleaseTests(unittest.TestCase):
                              hashlib.sha256(self.dol.read_bytes()).hexdigest())
             self.assertNotIn("roms/n64/Example.z64", names)
             self.assertEqual(set(manifest["emulator_provenance"]), set(REQUIRED))
+        update = self.root / 'update.zip'
+        build(update, self.dol, self.library, self.emulators,
+              provenance=provenance, sources=self.emulators, include_library=False)
+        with ZipFile(update) as archive:
+            self.assertNotIn('swiss/prism/library.prism', archive.namelist())
+            self.assertIn('KEEP your installed', archive.read('README-FIRST.txt').decode())
+        old_hash = hashlib.sha256(self.output.read_bytes()).hexdigest()
+        records = json.loads(provenance.read_text())
+        records['n64']['source_sha256'] = '0' * 64
+        provenance.write_text(json.dumps(records))
+        with self.assertRaisesRegex(ValueError, 'Source archive hash mismatch'):
+            build(self.output, self.dol, self.library, self.emulators,
+                  provenance=provenance, sources=self.emulators)
+        self.assertEqual(hashlib.sha256(self.output.read_bytes()).hexdigest(), old_hash)
 
     def test_entry_must_point_into_text(self):
         bad = bytearray(dol_fixture())
