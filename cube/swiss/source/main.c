@@ -54,6 +54,7 @@ dvdcmdblk DVDStopMotorBlock;
 dvddrvinfo DVDDriveInfo[2] __attribute__((aligned(32)));
 dvddiskid* DVDDiskID = (dvddiskid*)0x80000000;
 SwissSettings swissSettings;
+extern int prism_game_menu_request;
 
 static const dvddiskid Swiss = {
 	.gamename  = "GSWA",
@@ -229,15 +230,12 @@ static uiDrawObj_t *prism_draw_panel_background(const char *subtitle, GXTexObj *
     }
     DrawAddChild(panel, DrawTexObj(&theme_texture, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
     if (background) DrawAddChild(panel, DrawTexObj(background, 0, 0, 640, 480, 0, 0, 1, 0, 1, 0));
-    DrawAddChild(panel, DrawSolidBox(0, 0, 640, 116, (GXColor){42, 47, 76, 255}));
-    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){42, 78, 112, 255}));
-    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){115, 176, 212, 255}));
-    DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_LOGO_Y, "PRISM",
-        0.85f, ALIGN_LEFT, (GXColor){233, 241, 247, 255}));
-    DrawAddChild(panel, DrawStyledLabel(585, PRISM_LOGO_Y + 8,
-        "Build " GIT_COMMIT, 0.45f, ALIGN_RIGHT, (GXColor){143, 162, 183, 255}));
-    DrawAddChild(panel, DrawStyledLabel(PRISM_LOGO_X, PRISM_SUBTITLE_Y,
-        subtitle, 0.72f, ALIGN_LEFT, (GXColor){143, 162, 183, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, 480, (GXColor){97, 137, 166, 255}));
+    DrawAddChild(panel, DrawSolidBox(0, PRISM_FOOTER_LINE_Y, 640, PRISM_FOOTER_LINE_Y + 2, (GXColor){172, 211, 230, 255}));
+    /* Keep the background unobstructed: only a bare count on the shelf. */
+    if (subtitle && *subtitle && subtitle[0] >= '0' && subtitle[0] <= '9')
+        DrawAddChild(panel, DrawStyledLabel(580, 49, subtitle,
+            0.77f, ALIGN_RIGHT, (GXColor){235, 245, 252, 255}));
     return panel;
 }
 
@@ -338,6 +336,15 @@ static void prism_show_notice(const char *title, const char *body)
     DrawDispose(panel);
 }
 
+static void prism_show_toast(const char *title)
+{
+    /* Brief confirmation; no extra button press is required. */
+    uiDrawObj_t *panel = DrawPublish(prism_draw_notice(title, "",
+        "Returning to settings..."));
+    for (int i = 0; i < 42; ++i) VIDEO_WaitVSync();
+    DrawDispose(panel);
+}
+
 /* PRISM-owned editor for a deliberately small subset of Swiss settings.
  * Values update the same in-memory SwissSettings used by its launch code.
  * Other options remain accessible through Classic Swiss. */
@@ -396,11 +403,9 @@ static void prism_native_settings(void)
                     if (config_update_global(true)) {
                         previous_auto_boot = swissSettings.autoBoot;
                         previous_exi_speed = swissSettings.exiSpeed;
-                        prism_show_notice("Settings saved",
-                            "Settings were saved to Swiss's selected configuration device. B returns to games.");
+                        prism_show_toast("Settings saved");
                     } else {
-                        prism_show_notice("Save failed",
-                            "Could not save Swiss settings. Check the configuration device and available space. Changes are not yet saved.");
+                        prism_show_toast("Save failed - check SD card");
                     }
                 } else {
                     prism_show_notice("Advanced Swiss settings",
@@ -666,7 +671,7 @@ static int prism_installed_browser(int quiet_if_empty)
             has_cover = shelf_covers[2];
         }
 
-        snprintf(heading, sizeof(heading), "GAMES  |  %lu / %lu",
+        snprintf(heading, sizeof(heading), "%lu / %lu",
             (unsigned long)(library->selected + 1),
             (unsigned long)library->count);
         if (details && strcmp(background_id, game->id)) {
@@ -684,8 +689,6 @@ static int prism_installed_browser(int quiet_if_empty)
             }
         }
         panel = prism_draw_panel_background(heading, details && has_background ? &background_texture : NULL);
-        DrawAddChild(panel, DrawStyledLabel(585, PRISM_SUBTITLE_Y, storage_info,
-            0.48f, ALIGN_RIGHT, (GXColor){192, 181, 219, 255}));
         if (systems_selected) {
             DrawAddChild(panel, DrawSolidBox(232, 146, 408, 352, (GXColor){62, 46, 103, 255}));
             DrawAddChild(panel, DrawStyledLabel(320, 226, "SYSTEMS", 1.0f, ALIGN_CENTER, (GXColor){239, 232, 255, 255}));
@@ -765,7 +768,9 @@ static int prism_installed_browser(int quiet_if_empty)
                 while (padsButtonsHeld() & (BUTTON_X | BUTTON_Y)) VIDEO_WaitVSync();
                 int saved_auto_boot = swissSettings.autoBoot;
                 swissSettings.autoBoot = 0;
+                prism_game_menu_request = (pressed & BUTTON_X) ? 1 : 2;
                 int options_result = find_existing_entry_exact(options_path, true);
+                prism_game_menu_request = 0;
                 swissSettings.autoBoot = saved_auto_boot;
                 if (options_result)
                     prism_show_notice("Game options unavailable", "Swiss could not open this game's options.");
