@@ -1,0 +1,55 @@
+name: PRISM native GameCube emulator builds
+on:
+  push:
+    branches: [feature/prism-dashboard]
+    paths:
+      - 'assets/prism/emulator-builds.json'
+      - 'tools/prism_emulator_build.py'
+      - '.github/workflows/prism-native-emulators.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: ghcr.io/extremscorner/libogc2:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {system: n64, repository: emukidid/Wii64, commit: a96d9758a1d15a72577a5546c66068f627ea21bd, smb2: false}
+          - {system: nes, repository: dborth/fceugx, commit: 59142f171d6e4b8bc1d3b1cbf2684e914184f2a5, smb2: true}
+          - {system: snes, repository: dborth/snes9xgx, commit: 382acd21a908d0d86741878bdc5e33aec307fa87, smb2: true}
+          - {system: gb, repository: dborth/vbagx, commit: cb9ed306b2f6050a7640b2103e32f037eca77616, smb2: true}
+          - {system: gbc, repository: dborth/vbagx, commit: cb9ed306b2f6050a7640b2103e32f037eca77616, smb2: true}
+          - {system: gba, repository: dborth/vbagx, commit: cb9ed306b2f6050a7640b2103e32f037eca77616, smb2: true}
+          - {system: megadrive, repository: ekeeke/Genesis-Plus-GX, commit: 49c584764893b0505ac7f768a754f97330fa4392, smb2: false}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.commit }}
+          path: emulator-source
+      - uses: actions/checkout@v4
+        if: matrix.smb2
+        with:
+          repository: dborth/libsmb2
+          ref: 92e087c15e79e6adfdb3ff9a7ba81243c3c741d0
+          path: libsmb2-source
+      - name: Build matching GameCube SMB2 dependency and retain source
+        if: matrix.smb2
+        run: |
+          make -C libsmb2-source -f Makefile.platform gc_install -j3
+          mkdir -p emulator-dist
+          git -C libsmb2-source archive --format=zip --output="$GITHUB_WORKSPACE/emulator-dist/libsmb2-source.zip" HEAD
+      - name: Apply reviewed folder defaults and build native GameCube DOL
+        run: python3 tools/prism_emulator_build.py ${{ matrix.system }} emulator-source emulator-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Native-Emulator-${{ matrix.system }}
+          path: emulator-dist/*
+          if-no-files-found: error
