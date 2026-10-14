@@ -1,5 +1,5 @@
 """Audited, fail-closed native GameCube folder adapters; never binary-patch DOLs."""
-import argparse,hashlib,json,re,subprocess,zipfile
+import argparse,hashlib,json,os,re,subprocess,zipfile
 from pathlib import Path
 from prism_dol import padded_dol
 
@@ -59,7 +59,8 @@ def build(root,system,destination):
     raw=padded_dol((root/spec['output']).read_bytes())
     dol=destination/(system+'.dol');dol.write_bytes(raw)
     archive=destination/(system+'-source.zip');source_archive(root,archive)
-    toolchain=subprocess.check_output(['powerpc-eabi-gcc','--version'],text=True).splitlines()[0]
+    compiler=Path(os.environ['DEVKITPPC'])/'bin/powerpc-eabi-gcc'
+    toolchain=subprocess.check_output([str(compiler),'--version'],text=True).splitlines()[0]
     record={**spec,'source_url':f'https://github.com/{spec["repository"]}/tree/{commit}',
             'sha256':hashlib.sha256(raw).hexdigest(),'source_archive':archive.name,
             'source_sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),
