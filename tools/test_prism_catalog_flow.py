@@ -29,10 +29,11 @@ stub=r'''
 #define BUTTON_RIGHT 64u
 #define BUTTON_L 128u
 #define BUTTON_R 256u
+#define BUTTON_Z 512u
 #define PATHNAME_MAX 1024
 typedef unsigned u32;
 static u32 tape[32];static unsigned cursor,length;
-static int launches,notices,returned,detail_result,position_result;
+static int launches,browser_launches,notices,returned,detail_result,position_result;
 static uint64_t fake_ms;
 static uint64_t gettime(void){return fake_ms;}
 #define ticks_to_millisecs(t) (t)
@@ -51,9 +52,9 @@ static int find_existing_dol_exact(char*p,int argc,char **argv){
  assert(!strcmp(argv[1],"port2:/roms/nes/") && !strcmp(argv[2],"Game [1].nes"));
  assert(swissSettings.autoBoot==0);++launches;return 0;
 }
-static int prism_launch_emulator(const char*p){(void)p;++launches;return 0;}
+static int prism_launch_emulator(const char*p){assert(strstr(p,"/nes.dol"));++launches;++browser_launches;return 0;}
 static void run(int initial_details,const u32 *input,unsigned n){
- memcpy(tape,input,n*sizeof(*tape));length=n;cursor=0;returned=launches=notices=0;
+ memcpy(tape,input,n*sizeof(*tape));length=n;cursor=0;returned=launches=browser_launches=notices=0;
  u32 position=600,count=1200,pressed,held,last=0;
  int details=initial_details,synopsis_scroll=0,synopsis_maximum=2,direct_rom=1;
  const char *path="sdc:/swiss/prism/emulators/nes.prism",*emulator_path="sdc:/swiss/prism/emulators/nes.dol";
@@ -75,6 +76,8 @@ int main(void){
  u32 b[]={BUTTON_B};run(1,b,1);assert(!detail_result && !returned && !launches && position_result==600);
  run(0,b,1);assert(returned && !launches);
  u32 play[]={BUTTON_A,0,0};run(1,play,3);assert(launches==1 && !notices);
+ u32 settings[]={BUTTON_Z,0};run(0,settings,2);assert(launches==1 && browser_launches==1 && !detail_result && position_result==600);
+ run(1,settings,2);assert(launches==1 && browser_launches==1 && detail_result);
  u32 right[]={BUTTON_RIGHT};run(0,right,1);assert(position_result==601 && !launches);
  u32 skip[]={BUTTON_R};run(0,skip,1);assert(position_result==610 && !launches);
  return 0;}

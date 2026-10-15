@@ -547,3 +547,8 @@ Background visibility is now 35% of source brightness instead of 20%.
 Existing full-brightness packed art is adjusted at runtime, and legacy BG1
 screenshots are lifted proportionally without replacing the catalog files.
 System detail views also use their own catalog backgrounds when available.
+
+Console cover flow and synopsis screens offer **Z: Emulator settings**. This
+opens the matching emulator without selected-ROM arguments, so its native
+settings are accessible even when a game has an autoboot mapping. A retains
+the existing details/play behavior. The launch waits for A/Z release.

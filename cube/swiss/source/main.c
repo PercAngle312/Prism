@@ -896,7 +896,7 @@ static int prism_launch_emulator(const char *path)
     char target[PATHNAME_MAX];
     if (!path || !path[0] || snprintf(target, sizeof(target), "%s", path) >= (int)sizeof(target))
         return -1;
-    while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+    while (padsButtonsHeld() & (BUTTON_A | BUTTON_Z)) VIDEO_WaitVSync();
     int saved_auto_boot = swissSettings.autoBoot;
     swissSettings.autoBoot = 0;
     int error = find_existing_entry_exact(target, true);
@@ -913,7 +913,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
     int details = 0, synopsis_scroll = 0;
     PrismAutoScroll synopsis_auto;
     prism_scroll_begin(&synopsis_auto, ticks_to_millisecs(gettime()));
-    u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_L | BUTTON_R;
+    u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_L | BUTTON_R | BUTTON_Z;
     uiDrawObj_t *screen = NULL;
     PrismRuntimeCoverCache *covers = calloc(1, sizeof(*covers));
     unsigned displayed_slots = 0;
@@ -1004,11 +1004,13 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         DrawAddChild(panel, DrawStyledLabel(details ? PRISM_STATUS_X : 320,
             details ? PRISM_STATUS_Y : PRISM_FLOW_STATUS_Y, status, 0.5f,
             details ? ALIGN_LEFT : ALIGN_CENTER, (GXColor){170, 190, 209, 255}));
-        prism_draw_hint(panel, 24, PRISM_FOOTER_LABELS_Y, 250,
+        prism_draw_hint(panel, 24, PRISM_FOOTER_LABELS_Y, 174,
             details ? "UP/DN: Read" : "LEFT/RIGHT: Browse", (GXColor){220, 230, 240, 255});
-        prism_draw_hint(panel, 276, PRISM_FOOTER_LABELS_Y, 160,
+        prism_draw_hint(panel, 202, PRISM_FOOTER_LABELS_Y, 100,
             !details ? "A: Details" : emulator_path ? (direct_rom ? "A: Play" : "A: Emulator") : "LEFT/RIGHT: Browse", (GXColor){165, 245, 211, 255});
-        prism_draw_hint(panel, 438, PRISM_FOOTER_LABELS_Y, 178,
+        if (emulator_path) prism_draw_hint(panel, 308, PRISM_FOOTER_LABELS_Y, 178,
+            "Z: Emulator settings", (GXColor){134, 184, 245, 255});
+        prism_draw_hint(panel, 490, PRISM_FOOTER_LABELS_Y, 126,
             details ? "B: Games" : "B: Systems", (GXColor){255, 210, 218, 255});
         screen = DrawRepublish(screen, panel);
         displayed_slots = incoming_slots;
@@ -1020,8 +1022,9 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                 if (!details) goto done;
                 details = 0; synopsis_scroll = 0; break;
             }
-            if (pressed & BUTTON_A) {
-                if (!details) {
+            if ((pressed & BUTTON_A) || (emulator_path && (pressed & BUTTON_Z))) {
+                int open_emulator = (pressed & BUTTON_Z) != 0;
+                if (!open_emulator && !details) {
                     details = 1; synopsis_scroll = 0;
                     prism_scroll_begin(&synopsis_auto, ticks_to_millisecs(gettime())); break;
                 }
@@ -1029,7 +1032,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                 DrawDispose(screen); screen = NULL;
                 prism_free_cover_cache(covers); covers = NULL; displayed_slots = 0;
                 int error;
-                if (direct_rom) {
+                if (!open_emulator && direct_rom) {
                     if (prism_pack_device_rom_path(device, path, entry.id, rom_path, sizeof(rom_path)) != 1 ||
                         !prism_emulator_arguments(emulator_path, rom_path, &rom_launch)) {
                         prism_show_notice("ROM unavailable", "The mapped ROM is missing. Check the file on your SD card."); error = 0;
@@ -1043,7 +1046,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                 } else error = prism_launch_emulator(emulator_path);
                 if (error) prism_show_notice("Emulator unavailable", "Copy the matching GameCube emulator DOL to /swiss/prism/emulators/.");
                 covers = calloc(1, sizeof(*covers));
-                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START; break;
+                last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z; break;
             }
             if (details && (pressed & (BUTTON_UP | BUTTON_DOWN))) {
                 if ((pressed & BUTTON_DOWN) && synopsis_scroll < synopsis_maximum) ++synopsis_scroll;
