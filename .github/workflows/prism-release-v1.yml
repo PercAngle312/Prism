@@ -1,0 +1,34 @@
+name: Publish PRISM v1.0
+on:
+  push:
+    branches: [feature/prism-dashboard]
+    paths:
+      - '.github/workflows/prism-release-v1.yml'
+      - 'tools/prism_publish_v1.py'
+      - 'assets/prism/release-v1.0.json'
+      - 'docs/releases/prism-v1.0.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: prism-release-v1
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/checkout@v4
+        with:
+          ref: bd2d2aad4b8200bf4369ccc51d875fde391ac4c8
+          path: tested-source
+          submodules: recursive
+      - name: Verify pinned builds, assemble release assets, and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/prism_publish_v1.py --publish --tested-source tested-source --output release-output
