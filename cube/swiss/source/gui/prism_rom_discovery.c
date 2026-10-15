@@ -27,7 +27,9 @@ static int dump_tag(const char *s, size_t length)
     char tag[96];
     if (!length || length >= sizeof(tag)) return 0;
     memcpy(tag,s,length); tag[length]=0;
-    if (!strcmp(tag,"!")) return 1;
+    if (!strcmp(tag,"!") || !strcasecmp(tag,"SGB Enhanced") ||
+        !strcasecmp(tag,"Super Game Boy Enhanced") || !strcasecmp(tag,"GB Compatible") ||
+        !strcasecmp(tag,"Rumble Version")) return 1;
     if (!strncasecmp(tag,"Rev ",4) || !strncasecmp(tag,"Rev.",4) ||
         (!strncasecmp(tag,"Rev",3) && isdigit((unsigned char)tag[3]))) {
         const char *p=tag+3;
@@ -62,6 +64,8 @@ static int dump_tag(const char *s, size_t length)
 int prism_rom_title_key(const char *input, int filename, char *out, size_t capacity)
 {
     char text[PATHNAME_MAX];
+    if (!input || !out || !capacity) return 0;
+    out[0]=0;
     size_t n=strnlen(input,sizeof(text));
     if (!n || n>=sizeof(text)) return 0;
     memcpy(text,input,n+1);
@@ -93,6 +97,11 @@ int prism_rom_title_key(const char *input, int filename, char *out, size_t capac
             }
         }
     }
+    /* Both "007 - GoldenEye" and "GoldenEye 007" use one exact key.
+     * Only the standalone 007 token is moved; other numbers stay in place. */
+    int bond_prefix = n>3 && !strncmp(text,"007",3) &&
+        (text[3]==' ' || text[3]=='-' || text[3]==':');
+    if (bond_prefix) {memmove(text,text+3,n-2);n-=3;}
     size_t used=0;
     if (article) { used=strlen(article); if (used>=capacity) return 0; for (size_t i=0;i<used;++i) out[i]=(char)tolower((unsigned char)article[i]); }
     for (size_t i=0;i<n;++i) {
@@ -100,6 +109,12 @@ int prism_rom_title_key(const char *input, int filename, char *out, size_t capac
         if (c<32 || c==127) return 0;
         if (c>=128) {
             unsigned char d=(unsigned char)text[i+1];
+            if (c==0xcc && i>0 && (d==0x80 || d==0x81 || d==0x82 || d==0x83 || d==0x88 || d==0x8a || d==0xa7)) {++i;continue;}
+            if (c==0xc3 && (d==0x86 || d==0xa6 || d==0x9f)) {
+                const char *fold=d==0x9f?"ss":"ae";
+                if (used+2>=capacity) return 0;
+                memcpy(out+used,fold,2);used+=2;++i;continue;
+            }
             if (c==0xc3 && d>=0x80 && d<=0xbf) {
                 const char *latin="aaaaaaaceeeeiiiidnooooo ouuuuy  aaaaaaaceeeeiiiidnooooo ouuuuy y";
                 c=(unsigned char)latin[d-0x80]; ++i;
@@ -112,6 +127,10 @@ int prism_rom_title_key(const char *input, int filename, char *out, size_t capac
         }
         if (isalnum(c)) { if (used+1>=capacity) return 0; out[used++]=(char)tolower(c); }
         else if (c=='&') { if (used+3>=capacity) return 0; memcpy(out+used,"and",3);used+=3; }
+    }
+    if (bond_prefix) {
+        if (used+3>=capacity) return 0;
+        memcpy(out+used,"007",3);used+=3;
     }
     out[used]=0; return used>0;
 }

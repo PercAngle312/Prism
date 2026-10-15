@@ -193,11 +193,12 @@ int prism_pack_device_link_shelf(DEVICEHANDLER_INTERFACE *device, const char *pa
         title[entry.title_length] = 0;
         if (has_index && prism_rom_find(device_read, &index, index.file.size, entry.id, relative, sizeof(relative))) {
             if (snprintf(absolute, sizeof(absolute), "%s%s", device->initial->name, relative) < (int)sizeof(absolute))
-                prism_rom_shelf_link(shelf, title, absolute, i);
-        } else prism_rom_shelf_link(shelf, title, NULL, i);
+                prism_rom_shelf_link_art(shelf, title, absolute, i, entry.cover_length == 12u + PRISM_COVER_TEXTURE_SIZE);
+        } else prism_rom_shelf_link_art(shelf, title, NULL, i, entry.cover_length == 12u + PRISM_COVER_TEXTURE_SIZE);
     }
     device->closeFile(&catalog.file);
     if (has_index) device->closeFile(&index.file);
+    if (ok) prism_rom_shelf_finish(shelf);
     return ok;
 }
 

@@ -27,7 +27,8 @@ static void add_file(PrismRomShelf *s, const char *path, const char *system)
     const char *leaf=strrchr(path,'/');leaf=leaf?leaf+1:path;
     snprintf(e->title,sizeof(e->title),"%s",leaf);
     char *dot=strrchr(e->title,'.');if(dot) *dot=0;
-    if(!prism_rom_title_key(leaf,1,e->key,sizeof(e->key))) snprintf(e->key,sizeof(e->key),"%s",e->title);
+    e->key_valid=prism_rom_title_key(leaf,1,e->key,sizeof(e->key));
+    if(!e->key_valid) snprintf(e->key,sizeof(e->key),"%s",e->title);
     e->catalog_position=UINT32_MAX;
 }
 static int compare(const void *a,const void *b)
@@ -85,12 +86,19 @@ PrismRomShelf *prism_rom_shelf_scan(DEVICEHANDLER_INTERFACE *device,const char *
 #endif
     device_scan(s,device,folder,system,0);
     if(s->failed) {prism_rom_shelf_free(s);return NULL;}
-    qsort(s->items,s->count,sizeof(*s->items),compare);return s;
+    if(!s->count) {free(s->items);s->items=NULL;s->capacity=0;}
+    else if(s->capacity>s->count) {
+        void *trimmed=realloc(s->items,s->count*sizeof(*s->items));
+        if(trimmed) {s->items=trimmed;s->capacity=s->count;}
+    }
+    if(s->count>1) qsort(s->items,s->count,sizeof(*s->items),compare);
+    return s;
 }
 void prism_rom_shelf_free(PrismRomShelf *s) {if(s) {free(s->items);free(s);}}
-void prism_rom_shelf_link(PrismRomShelf *s,const char *title,const char *explicit_path,uint32_t position)
+void prism_rom_shelf_link_art(PrismRomShelf *s,const char *title,const char *explicit_path,uint32_t position,int has_cover)
 {
-    char key[256];
+    char key[128];
+    unsigned char priority=explicit_path?3:has_cover?2:1;
     if(!s || (!explicit_path && !prism_rom_title_key(title,0,key,sizeof(key)))) return;
     unsigned first=0,last=s->count;
     if(!explicit_path) {
@@ -100,8 +108,28 @@ void prism_rom_shelf_link(PrismRomShelf *s,const char *title,const char *explici
     for(unsigned i=first;i<last;++i) {
         if(!explicit_path && strcasecmp(s->items[i].key,key)) break;
         if(explicit_path && strcmp(s->items[i].path,explicit_path)) continue;
-        if(s->items[i].catalog_position==UINT32_MAX) s->items[i].catalog_position=position;
+        if(!explicit_path && !s->items[i].key_valid) continue;
+        if(priority>s->items[i].link_priority) {
+            s->items[i].catalog_position=position;
+            s->items[i].link_priority=priority;
+            if(title) snprintf(s->items[i].title,sizeof(s->items[i].title),"%s",title);
+        }
     }
+}
+void prism_rom_shelf_link(PrismRomShelf *s,const char *title,const char *explicit_path,uint32_t position)
+{
+    prism_rom_shelf_link_art(s,title,explicit_path,position,0);
+}
+void prism_rom_shelf_finish(PrismRomShelf *s)
+{
+    if(!s) return;
+    for(unsigned i=0;i<s->count;++i) {
+        if(s->items[i].catalog_position!=UINT32_MAX) {
+            if(!prism_rom_title_key(s->items[i].title,0,s->items[i].key,sizeof(s->items[i].key)))
+                snprintf(s->items[i].key,sizeof(s->items[i].key),"%s",s->items[i].title);
+        }
+    }
+    if(s->count>1) qsort(s->items,s->count,sizeof(*s->items),compare);
 }
 int prism_rom_shelf_path(DEVICEHANDLER_INTERFACE *device,const PrismRomShelfEntry *entry,char *out,size_t capacity)
 {

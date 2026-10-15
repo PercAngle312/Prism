@@ -42,6 +42,18 @@ int main(void) {
  assert(prism_rom_title_matches("Pokemon Stadium","Pokémon Stadium (Europe) (En,Fr,De).N64"));
  assert(prism_rom_title_matches("Pokémon Snap","Pokemon Snap (USA).z64"));
  assert(prism_rom_title_matches("Banjo-Kazooie","Banjo Kazooie.v64"));
+ assert(prism_rom_title_matches("Pokémon Red Version","Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb"));
+ assert(prism_rom_title_matches("Pokémon Crystal Version","Pokemon - Crystal Version (USA, Europe) (GB Compatible).gbc"));
+ assert(prism_rom_title_matches("GoldenEye 007","007 - GoldenEye (USA).z64"));
+ assert(prism_rom_title_matches("007: The World Is Not Enough","The World Is Not Enough 007 (USA).z64"));
+ assert(prism_rom_title_matches("Pokémon Snap","Pokémon Snap (USA).z64"));
+ assert(prism_rom_title_matches("Aerobiz","Ærobiz (USA).sfc"));
+ assert(!prism_rom_title_matches("GoldenEye 007","007 - GoldenEye 2 (USA).z64"));
+ assert(!prism_rom_title_matches("1942: The Pacific Air War","The Pacific Air War 1942 (USA).gb"));
+ assert(!prism_rom_title_matches("Pokemon Red Version","Pokemon Red Version (SGB Enhanced) [h1].gb"));
+ char bounded[4];assert(!prism_rom_title_key(NULL,0,bounded,sizeof(bounded)));
+ assert(!prism_rom_title_key("x",0,NULL,0));
+ assert(!prism_rom_title_key("GoldenEye 007",0,bounded,sizeof(bounded)));
  assert(!prism_rom_title_matches("Super Mario 64","Super Mario 64 2.z64"));
  assert(!prism_rom_title_matches("Super Mario 64","Super Mario 64 (Hack).z64"));
  assert(!prism_rom_title_matches("Super Mario 64","Super Mario 64 [h1].z64"));

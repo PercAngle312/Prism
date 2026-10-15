@@ -595,3 +595,30 @@ loader without calling `OpenGameList`. This avoids the native GameCube browser's
 1000-entry cap when launching games from PRISM. This change does not remove the
 emulator's manual file-browser limit. ZIP contents are handled by the emulator;
 7z archives are not listed by PRISM. Hardware testing is still required.
+
+### v1.0.1 test candidate: cover matching and shelf memory
+
+This candidate leaves the published v1.0 tag/assets intact. Conservative title
+keys additionally recognize known SGB/GB compatibility annotations, decomposed
+Latin accents and AE/ss ligatures, and the standalone 007 token in either the
+leading filename position or trailing catalog position. Hack/prototype/beta
+suffixes and sequel numbers remain significant; no fuzzy matching is added.
+
+Explicit `.roms` mappings now override automatic title matches regardless of
+catalog order. Among otherwise equivalent automatic matches, a record containing
+a packed-cover-sized payload takes precedence over one without a cover. Equal
+priority keeps the first record. After linking, shelves sort by the displayed
+catalog title, including entries with manually mapped custom filenames. This does not manufacture missing artwork or
+verify the contents of every cover during linking; the cover reader still
+validates the selected payload at draw time.
+
+Shelf records shrink from 1044 to 792 bytes and spare growth capacity is trimmed
+when possible after scanning. Entry storage for a typical 5000-file shelf drops
+from 8552448 bytes of v1.0 capacity to 3960000 bytes, excluding allocator overhead.
+Full 8192-entry storage falls from 8552448 to 6488064 bytes. Long filenames retain
+their exact launch paths; names whose canonical key does not fit are not allowed
+to match a truncated key automatically. Explicit mappings remain available.
+Empty shelves skip sorting a null base pointer. The host tests exercise both
+Swiss-device and native FAT enumeration at 0, 1, 5000, 8192 and 8193 files, failed
+reads and explicit/artwork priority with AddressSanitizer/UndefinedBehaviorSanitizer.
+These checks do not replace a real hardware test or prove every ROM name matches.
