@@ -36,6 +36,7 @@
 #include "gui/FrameBufferMagic.h"
 #include "gui/prism_pack_device.h"
 #include "gui/prism_rom_discovery.h"
+#include "gui/prism_rom_shelf.h"
 #include "gui/prism_emulator_launch.h"
 #include "gui/prism_installed.h"
 #include "gui/prism_enrich.h"
@@ -905,24 +906,21 @@ static int prism_launch_emulator(const char *path)
     return error;
 }
 
-/* Explicit mappings take precedence, including a mapped file that is missing.
- * Otherwise resolve one unambiguous title in the standard system ROM folder. */
-static int prism_resolve_catalog_rom(DEVICEHANDLER_INTERFACE *device, const char *pack,
-                                      const char *id, const char *title, const char *emulator,
-                                      char *absolute, size_t capacity)
+static int prism_catalog_read(DEVICEHANDLER_INTERFACE *device, const char *path,
+                               const PrismRomShelf *shelf, u32 index, PrismPackEntry *entry,
+                               char *title, size_t title_capacity, char *synopsis, size_t synopsis_capacity)
 {
-    int mapped = prism_pack_device_rom_path(device, pack, id, absolute, capacity);
-    if (mapped != -1) return mapped;
-    if (!device || !device->initial || !emulator) return -3;
-    const char *leaf = strrchr(emulator, '/');
-    if (!leaf) return -3;
-    ++leaf;
-    size_t length = strlen(leaf);
-    char system[16], folder[PATHNAME_MAX];
-    if (length < 5 || length - 4 >= sizeof(system) || strcmp(leaf + length - 4, ".dol")) return -3;
-    memcpy(system, leaf, length - 4); system[length - 4] = 0;
-    if (snprintf(folder, sizeof(folder), "%sroms/%s", device->initial->name, system) >= (int)sizeof(folder)) return -3;
-    return prism_rom_discover(device, folder, system, title, absolute, capacity);
+    if (!shelf || shelf->items[index].catalog_position != UINT32_MAX) {
+        u32 catalog_index = shelf ? shelf->items[index].catalog_position : index;
+        if (synopsis) return prism_pack_device_entry(device, path, catalog_index, entry,
+            title, title_capacity, synopsis, synopsis_capacity);
+        return prism_pack_device_title(device, path, catalog_index, entry, title, title_capacity);
+    }
+    memset(entry, 0, sizeof(*entry));
+    snprintf(entry->id, sizeof(entry->id), "%06X", (unsigned)(0xF00000u + index));
+    snprintf(title, title_capacity, "%s", shelf->items[index].title);
+    if (synopsis) snprintf(synopsis, synopsis_capacity, "Description not available for this installed ROM.");
+    return 1;
 }
 
 /* Catalog metadata never implies ROM installation. */
@@ -938,6 +936,26 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
     prism_scroll_begin(&synopsis_auto, ticks_to_millisecs(gettime()));
     u32 last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_L | BUTTON_R | BUTTON_Z;
     uiDrawObj_t *screen = NULL;
+    PrismRomShelf *shelf = NULL;
+    if (emulator_path) {
+        const char *leaf = strrchr(emulator_path, '/');
+        char system[16], folder[PATHNAME_MAX];
+        size_t length = leaf ? strlen(++leaf) : 0;
+        if (length < 5 || length - 4 >= sizeof(system)) return;
+        memcpy(system, leaf, length - 4); system[length - 4] = 0;
+        if (snprintf(folder, sizeof(folder), "%sroms/%s", device->initial->name, system) >= (int)sizeof(folder)) return;
+        uiDrawObj_t *progress = DrawPublish(prism_draw_notice("Scanning ROMs", folder, "Please wait"));
+        shelf = prism_rom_shelf_scan(device, folder, system);
+        if (shelf && !prism_pack_device_link_shelf(device, path, shelf)) {prism_rom_shelf_free(shelf); shelf = NULL;}
+        DrawDispose(progress);
+        if (!shelf || !shelf->count) {
+            prism_show_notice(shelf ? "No installed ROMs" : "ROM scan unavailable", shelf ?
+                "No supported ROM files were found in this system's /roms folder or its immediate subfolders." :
+                "The system ROM folder could not be fully scanned. Check your SD card, file paths and available memory.");
+            prism_rom_shelf_free(shelf); return;
+        }
+        count = shelf->count;
+    }
     PrismRuntimeCoverCache *covers = calloc(1, sizeof(*covers));
     unsigned displayed_slots = 0;
     char storage_info[96] = "Free space N/A";
@@ -948,12 +966,12 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
     device_info *storage = device->info ? device->info(device->initial) : NULL;
     if (storage && storage->totalSpace)
         snprintf(storage_info, sizeof(storage_info), "%.1f GiB free", (double)storage->freeSpace / 1073741824.0);
-    if (!count) { prism_free_cover_cache(covers); return; }
+    if (!count) { prism_free_cover_cache(covers); prism_rom_shelf_free(shelf); return; }
     for (;;) {
         PrismPackEntry entry;
         char title[PRISM_PACK_TITLE_MAX + 1], synopsis[PRISM_PACK_SYNOPSIS_MAX + 1], heading[48];
         u32 pressed, held;
-        if (!prism_pack_device_entry(device, path, position, &entry,
+        if (!prism_catalog_read(device, path, shelf, position, &entry,
                                      title, sizeof(title), synopsis, sizeof(synopsis))) {
             prism_show_notice("Catalog unavailable", "The system library could not be read. Check its .prism file on your config SD.");
             break;
@@ -972,12 +990,12 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                 memcpy(window[i].id, entry.id, sizeof(window[i].id));
                 snprintf(window[i].title, sizeof(window[i].title), "%s", title);
             } else {
-                if (!prism_pack_device_title(device, path, (u32)index, &neighbor,
-                                             window[i].title, sizeof(window[i].title))) continue;
+                if (!prism_catalog_read(device, path, shelf, (u32)index, &neighbor,
+                                             window[i].title, sizeof(window[i].title), NULL, 0)) continue;
                 memcpy(window[i].id, neighbor.id, sizeof(window[i].id));
             }
             cards[i] = &window[i];
-            int slot = covers ? prism_cached_cover(covers, device, path, window[i].id,
+            int slot = covers && (!shelf || shelf->items[index].catalog_position != UINT32_MAX) ? prism_cached_cover(covers, device, path, window[i].id,
                                                   displayed_slots | incoming_slots) : -1;
             if (slot >= 0) {
                 incoming_slots |= 1u << slot;
@@ -989,7 +1007,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         if (details && strcmp(background_id, entry.id)) {
             if (screen) { DrawDispose(screen); screen = NULL; displayed_slots = 0; }
             if (!background_pixels) background_pixels = memalign(32, PRISM_BACKGROUND_BYTES);
-            has_background = background_pixels && prism_pack_device_catalog_background(device, path, entry.id,
+            has_background = background_pixels && (!shelf || shelf->items[position].catalog_position != UINT32_MAX) && prism_pack_device_catalog_background(device, path, entry.id,
                 background_pixels, PRISM_BACKGROUND_BYTES);
             snprintf(background_id, sizeof(background_id), "%s", entry.id);
             if (has_background) {
@@ -1021,8 +1039,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         char rom_path[PATHNAME_MAX];
         PrismEmulatorLaunch rom_launch;
         if (details && emulator_path && resolved_position != position) {
-            resolved_status = prism_resolve_catalog_rom(device, path, entry.id, title, emulator_path,
-                resolved_rom, sizeof(resolved_rom));
+            resolved_status = prism_rom_shelf_path(device, &shelf->items[position], resolved_rom, sizeof(resolved_rom));
             resolved_position = position;
         }
         int rom_status = resolved_position == position ? resolved_status : -1;
@@ -1061,8 +1078,7 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                 }
                 if (!emulator_path) continue;
                 if (!open_emulator) {
-                    rom_status = prism_resolve_catalog_rom(device, path, entry.id, title, emulator_path,
-                        rom_path, sizeof(rom_path));
+                    rom_status = prism_rom_shelf_path(device, &shelf->items[position], rom_path, sizeof(rom_path));
                     if (rom_status != 1 || !prism_emulator_arguments(emulator_path, rom_path, &rom_launch)) {
                         prism_show_notice("ROM unavailable", rom_status == -2 ?
                             "More than one ROM matches this cover. Use a Studio .roms mapping to select the version." :
@@ -1110,6 +1126,7 @@ done:
     if (screen) DrawDispose(screen);
     prism_free_cover_cache(covers);
     free(background_pixels);
+    prism_rom_shelf_free(shelf);
 }
 
 /* Separate packs retain the existing indexed cover/synopsis format. A

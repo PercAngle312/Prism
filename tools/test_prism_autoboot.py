@@ -9,27 +9,35 @@ def verify_autoload_source(root):
     stub=r'''
 #include <cassert>
 #include <cstring>
+#include <cstdio>
+#include <sys/stat.h>
+#define MAXPATHLEN 1024
+#define SILENT 0
 static struct {char loadFolder[1024];} EmuSettings;
 static struct {int numEntries,selIndex;char dir[1024];} browser;
-static struct {const char *filename;} browserList[]={{"Game.nes.bak"},{"Game [1].nes"},{"Game.nes"}};
-static int selectLoadedFile,loads;
-static bool rootFallback;
-static void ResetBrowser(){browser.selIndex=0;}
+static struct {char filename[256],displayname[256];size_t length;int isdir;} browserList[1];
+static int loads;
+static bool missing,unmounted;
+static void ResetBrowser(){browser.selIndex=0;browser.numEntries=0;}
 static const char *StripDevice(char *s){return strchr(s,':')+2;}
-static void OpenGameList(){browser.numEntries=3;strcpy(browser.dir,rootFallback ? "port2:/" : "port2:/roms/nes/");}
 static void CleanupPath(char *){}
-static bool IsSz(){return false;}
-static void BrowserLoadSz(){}
-static int BrowserLoadFile(){++loads;return 1;}
+static bool FindDevice(char *,int *d){*d=2;return true;}
+static bool ChangeInterface(int,int){return !unmounted;}
+static void HaltParseThread(){}
+static bool AddBrowserEntry(){return true;}
+static void StripExt(char *d,char *s){strcpy(d,s);}
+static int fake_stat(const char *p,struct stat *s){assert(strstr(p,"port2:/roms/nes/"));if(missing)return -1; s->st_mode=S_IFREG;s->st_size=100;return 0;}
+#define stat(p,s) fake_stat(p,s)
+static int BrowserLoadFile(){assert(browser.numEntries==1 && browser.selIndex==0);++loads;return 1;}
 '''
     test=r'''
 int main(){
- char dir[]="port2:/roms/nes/",exact[]="Game.nes",brackets[]="Game [1].nes",missing[]="Game";
- assert(AutoloadGame(dir,exact) && browser.selIndex==2 && loads==1);
- assert(AutoloadGame(dir,brackets) && browser.selIndex==1 && loads==2);
- assert(!AutoloadGame(dir,missing) && loads==2);
- rootFallback=true;
- assert(!AutoloadGame(dir,exact) && loads==2);
+ char dir[]="port2:/roms/nes/",exact[]="Game.nes",brackets[]="Game [1].nes",bad[]="../Game.nes";
+ assert(AutoloadGame(dir,exact) && loads==1 && !strcmp(browserList[0].filename,exact));
+ assert(AutoloadGame(dir,brackets) && loads==2 && !strcmp(browserList[0].filename,brackets));
+ missing=true;assert(!AutoloadGame(dir,exact) && loads==2);missing=false;
+ unmounted=true;assert(!AutoloadGame(dir,exact) && loads==2);unmounted=false;
+ assert(!AutoloadGame(dir,bad) && loads==2);
  assert(!AutoloadGame(nullptr,exact) && loads==2);
  return 0;
 }

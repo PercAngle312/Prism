@@ -173,6 +173,34 @@ int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
     return prism_pack_device_rom_path(device, pack_path, game_id, absolute, sizeof(absolute));
 }
 
+int prism_pack_device_link_shelf(DEVICEHANDLER_INTERFACE *device, const char *path, PrismRomShelf *shelf)
+{
+    PrismDeviceStream catalog, index;
+    uint32_t count;
+    char index_path[PATHNAME_MAX];
+    if (!shelf || !path || strlen(path) < 6 || strlen(path) >= sizeof(index_path) || !stream_open(&catalog, device, path)) return 0;
+    snprintf(index_path, sizeof(index_path), "%s", path);
+    strcpy(index_path + strlen(index_path) - 6, ".roms");
+    int has_index = stream_open(&index, device, index_path);
+    int ok = prism_pack_count(device_read, &catalog, catalog.file.size, &count);
+    for (uint32_t i = 0; ok && i < count; ++i) {
+        PrismPackEntry entry;
+        char title[PRISM_PACK_TITLE_MAX + 1], relative[PRISM_ROM_PATH_MAX + 1], absolute[PATHNAME_MAX];
+        ok = prism_pack_entry_at(device_read, &catalog, catalog.file.size, i, &entry);
+        if (!ok || entry.title_length >= sizeof(title)) {ok = 0; break;}
+        ok = device_read(&catalog, entry.offset, title, entry.title_length);
+        if (!ok) break;
+        title[entry.title_length] = 0;
+        if (has_index && prism_rom_find(device_read, &index, index.file.size, entry.id, relative, sizeof(relative))) {
+            if (snprintf(absolute, sizeof(absolute), "%s%s", device->initial->name, relative) < (int)sizeof(absolute))
+                prism_rom_shelf_link(shelf, title, absolute, i);
+        } else prism_rom_shelf_link(shelf, title, NULL, i);
+    }
+    device->closeFile(&catalog.file);
+    if (has_index) device->closeFile(&index.file);
+    return ok;
+}
+
 static int packed_background(DEVICEHANDLER_INTERFACE *device, const char *catalog, const char *id, void *pixels, size_t capacity)
 {
     char path[PATHNAME_MAX];

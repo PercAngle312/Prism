@@ -570,3 +570,28 @@ paths, not verified ROM contents, and emulator compatibility still varies.
 Discovery is cached per selection for synopsis scrolling, then repeated before
 launch. Bounds: 4096 entries per directory, 16384 total and 128 child folders.
 An incomplete scan refuses automatic selection. No ROMs or SD files are modified.
+
+### Installed console shelves and large ROM sets
+
+Entering a system now scans only its `/roms/<system>` folder and one child
+level. The shelf contains installed raw ROMs and, for GX emulators, ZIP files;
+metadata-only titles are omitted. Entries are sorted alphabetically by title
+key, then filename/path. Each region/version is a separate installed entry.
+Matching catalog records supply cover art and synopsis; unrecognized filenames
+remain playable with a filename label and placeholder cover. Existing `.roms`
+mappings remain available for linking custom filenames. Scan results live only
+for that system visit and refresh on re-entry. A revalidates the exact selected
+path immediately before launch. Z remains an explicit emulator-menu shortcut.
+
+Native SD directory enumeration streams FAT entries instead of materializing
+large Swiss directory arrays. Catalog metadata is linked using one open pack
+and optional mapping handle. The shelf is bounded at 8192 ROMs, with one child
+folder level and no recursive ROM-content reads or hashes. Cover textures still
+use the pinned ten-slot cache. Scan failures are reported instead of presenting
+a partial list as complete.
+
+The GX direct-autoload adapter now supplies one checked filename to the native
+loader without calling `OpenGameList`. This avoids the native GameCube browser's
+1000-entry cap when launching games from PRISM. This change does not remove the
+emulator's manual file-browser limit. ZIP contents are handled by the emulator;
+7z archives are not listed by PRISM. Hardware testing is still required.

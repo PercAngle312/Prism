@@ -8,5 +8,7 @@
 int prism_rom_discover(DEVICEHANDLER_INTERFACE *device, const char *folder,
                        const char *system, const char *title,
                        char *absolute, size_t capacity);
+int prism_rom_extension(const char *system, const char *name);
+int prism_rom_title_key(const char *input, int filename, char *out, size_t capacity);
 int prism_rom_title_matches(const char *title, const char *filename);
 #endif

@@ -2,6 +2,7 @@
 #define SWISS_CA_PRISM_PACK_DEVICE_H
 
 #include "prism_pack.h"
+#include "prism_rom_shelf.h"
 #include "devices/deviceHandler.h"
 /* 1: mapped file exists; 0: mapped file missing; -1: no valid mapping.
  * Checks the config-storage file path only, never reads/hashes or launches ROMs. */
@@ -14,6 +15,8 @@ int prism_pack_device_background(DEVICEHANDLER_INTERFACE *device, const char *ga
                                   void *pixels, size_t capacity);
 int prism_pack_device_catalog_background(DEVICEHANDLER_INTERFACE *device, const char *path,
                                          const char *id, void *pixels, size_t capacity);
+
+int prism_pack_device_link_shelf(DEVICEHANDLER_INTERFACE *device, const char *path, PrismRomShelf *shelf);
 
 /* Adapter for a single, already available Swiss storage device.
  * Caller chooses device; this does not initialize, switch, or deinit devices.

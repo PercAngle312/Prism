@@ -44,8 +44,8 @@ static void prism_free_cover_cache(void *p){free(p);}
 typedef int PrismRuntimeCoverCache;
 static struct {int autoBoot;} swissSettings;
 static void prism_show_notice(const char*a,const char*b){(void)a;(void)b;++notices;}
-static int prism_resolve_catalog_rom(void*d,const char*p,const char*id,const char*t,const char*e,char*out,size_t n){
- (void)d;(void)p;(void)t;(void)e;assert(!strcmp(id,"000601"));snprintf(out,n,"sdc:/roms/nes/Game [1].nes");return resolve_result;
+static int prism_rom_shelf_path(void*d,const int *entry,char*out,size_t n){
+ (void)d;(void)entry;snprintf(out,n,"sdc:/roms/nes/Game [1].nes");return resolve_result;
 }
 static int find_existing_dol_exact(char*p,int argc,char **argv){
  assert(!strcmp(p,"sdc:/swiss/prism/emulators/nes.dol") && argc==3);
@@ -57,10 +57,11 @@ static void run(int initial_details,const u32 *input,unsigned n){
  memcpy(tape,input,n*sizeof(*tape));length=n;cursor=0;returned=launches=browser_launches=notices=0;
  u32 position=600,count=1200,pressed,held,last=0;
  int details=initial_details,synopsis_scroll=0,synopsis_maximum=2,rom_status=1;
- u32 resolved_position=600; const char *title="Game";
- const char *path="sdc:/swiss/prism/emulators/nes.prism",*emulator_path="sdc:/swiss/prism/emulators/nes.dol";
+ u32 resolved_position=600;
+ struct {int items[1200];} storage={0},*shelf=&storage;
+ const char *emulator_path="sdc:/swiss/prism/emulators/nes.dol";
  void *device=NULL,*screen=NULL;
- struct {char id[7];}entry={"000601"};
+
  char rom_path[1024];PrismEmulatorLaunch rom_launch;
  PrismRuntimeCoverCache *covers=calloc(1,sizeof(*covers));unsigned displayed_slots=0;
  uint64_t status_refresh=fake_ms=0;PrismAutoScroll synopsis_auto;prism_scroll_begin(&synopsis_auto,0);

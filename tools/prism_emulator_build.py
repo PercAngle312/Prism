@@ -88,31 +88,35 @@ def prepare_autoboot(root, system):
         if 'strcasestr(browserList[i].filename, filename)' not in old:
             raise ValueError('Upstream autoload matching changed')
         new='''bool AutoloadGame(char* filepath, char* filename) {
-    if (!filepath || !filename || !filename[0]) return false;
-    ResetBrowser();
-    selectLoadedFile = 1; // require the complete directory, not the first batch
-    const char *folder = StripDevice(filepath);
-    if (!folder || strlen(folder) >= sizeof(EmuSettings.loadFolder)) return false;
-    strcpy(EmuSettings.loadFolder, folder);
-    OpenGameList();
-    // A missing directory must not fall back to a same-named file at root.
-    char requested[sizeof(browser.dir)];
+    if (!filepath || !filename || !filename[0] || !strcmp(filename, ".") || !strcmp(filename, "..") ||
+        strpbrk(filename, "/\\\\:") || strlen(filename) >= sizeof(browserList[0].filename)) return false;
+    int device;
+    if (!FindDevice(filepath, &device) || !ChangeInterface(device, SILENT)) return false;
+    char requested[sizeof(browser.dir)], fullpath[MAXPATHLEN];
     if (strlen(filepath) >= sizeof(requested)) return false;
-    strcpy(requested, filepath);
-    CleanupPath(requested);
-    if (strcmp(browser.dir, requested) != 0) return false;
-    for (int i = 0; i < browser.numEntries; ++i) {
-        if (strcmp(browserList[i].filename, filename) != 0) continue;
-        browser.selIndex = i;
-        if (IsSz()) {
-            BrowserLoadSz();
-            browser.selIndex = 1;
-        }
-        return BrowserLoadFile() > 0;
-    }
-    return false; // a missing mapping never loads the first/similar title
+    strcpy(requested, filepath); CleanupPath(requested);
+    size_t length = strlen(requested);
+    if (!length || requested[length-1] != '/') return false;
+    if (snprintf(fullpath, sizeof(fullpath), "%s%s", requested, filename) >= (int)sizeof(fullpath)) return false;
+    struct stat info;
+    if (stat(fullpath, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size <= 0) return false;
+    const char *folder = StripDevice(requested);
+    if (!folder || strlen(folder) >= sizeof(EmuSettings.loadFolder)) return false;
+    HaltParseThread();
+    ResetBrowser();
+    strcpy(browser.dir, requested);
+    strcpy(EmuSettings.loadFolder, folder);
+    // PRISM supplies one exact file: do not enumerate a full ROM collection.
+    if (!AddBrowserEntry()) return false;
+    strcpy(browserList[0].filename, filename);
+    StripExt(browserList[0].displayname, filename);
+    browserList[0].length = (size_t)info.st_size;
+    browserList[0].isdir = 0;
+    browser.numEntries = 1; browser.selIndex = 0;
+    return BrowserLoadFile() > 0;
 }'''
         replace(path,old,new)
+        replace(path,'#include <sys/dir.h>','#include <sys/dir.h>\n#include <sys/stat.h>')
     return sorted(set(changes))
 
 def prepare(root,system):

@@ -5,10 +5,11 @@
 #include <strings.h>
 #include <ctype.h>
 
-static int extension_ok(const char *system, const char *name)
+int prism_rom_extension(const char *system, const char *name)
 {
     const char *ext = strrchr(name, '.');
     if (!ext) return 0;
+    if (strcmp(system,"n64") && !strcasecmp(ext,".zip")) return 1;
     if (!strcmp(system, "n64")) return !strcasecmp(ext,".z64") || !strcasecmp(ext,".v64") || !strcasecmp(ext,".n64");
     if (!strcmp(system, "nes")) return !strcasecmp(ext,".nes");
     if (!strcmp(system, "snes")) return !strcasecmp(ext,".sfc") || !strcasecmp(ext,".smc");
@@ -58,7 +59,7 @@ static int dump_tag(const char *s, size_t length)
     return 0;
 }
 
-static int normalize(const char *input, int filename, char *out, size_t capacity)
+int prism_rom_title_key(const char *input, int filename, char *out, size_t capacity)
 {
     char text[PATHNAME_MAX];
     size_t n=strnlen(input,sizeof(text));
@@ -118,8 +119,8 @@ static int normalize(const char *input, int filename, char *out, size_t capacity
 int prism_rom_title_matches(const char *title, const char *filename)
 {
     char a[256],b[256];
-    return title && filename && normalize(title,0,a,sizeof(a)) &&
-        normalize(filename,1,b,sizeof(b)) && !strcmp(a,b);
+    return title && filename && prism_rom_title_key(title,0,a,sizeof(a)) &&
+        prism_rom_title_key(filename,1,b,sizeof(b)) && !strcmp(a,b);
 }
 
 static int direct_child(const char *folder, const char *name)
@@ -145,7 +146,7 @@ static void scan_directory(DEVICEHANDLER_INTERFACE *device, const char *folder,
         for (int i=0;i<count;++i) {
             file_handle *file=&items[i];
             if ((file->fileAttrib & ATTRIB_DIRECTORY) || !file->size ||
-                !direct_child(folder,file->name) || !extension_ok(system,file->name)) continue;
+                !direct_child(folder,file->name) || !prism_rom_extension(system,file->name)) continue;
             const char *leaf=strrchr(file->name,'/')+1;
             if (prism_rom_title_matches(title,leaf) && strcmp(scan->path,file->name)) {
                 ++scan->matches;snprintf(scan->path,sizeof(scan->path),"%s",file->name);
