@@ -1,0 +1,42 @@
+name: PRISM exact-DOL Dolphin capture
+on:
+  push:
+    branches: [feature/prism-dashboard]
+    paths:
+      - '.github/workflows/prism-capture.yml'
+      - 'tools/capture_prism_dolphin.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install runtime and screenshot tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth tesseract-ocr python3-pil libavcodec60 libavformat60 libavutil58 libswresample4 libswscale7 libegl1 libgl1 libx11-6 libxrandr2 libxi6 libudev1 libevdev2 libusb-1.0-0 libcurl4t64 liblzo2-2 libpugixml1v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-Dolphin-runtime
+          run-id: 38287500891
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dolphin-runtime-download
+      - run: tar -xzf dolphin-runtime-download/dolphin-runtime.tar.gz
+      - name: Capture pinned hardware DOL without debugger
+        run: xvfb-run -a -s '-screen 0 960x720x24' /usr/bin/python3 tools/capture_prism_dolphin.py
+      - name: Save actual frames and diagnostic result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Exact-DOL-Dolphin-${{ github.sha }}
+          path: |
+            dolphin-capture/*.png
+            dolphin-capture/*.txt
+            dolphin-capture/*.json
+            dolphin-capture/*.log
+            dolphin-capture/user/Logs/*.log
+          if-no-files-found: error

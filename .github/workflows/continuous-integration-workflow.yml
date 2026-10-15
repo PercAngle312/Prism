@@ -1,6 +1,14 @@
 name: Swiss build
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      dolphin:
+        description: Build and run the experimental Dolphin diagnostic
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -12,7 +20,7 @@ jobs:
     - name: Install packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends -t bookworm-backports 7zip gcc gcc-mingw-w64-i686 libc6-dev libc6-i386 xorriso
+        sudo apt-get install -y --no-install-recommends -t bookworm-backports python3 7zip gcc gcc-mingw-w64-i686 libc6-dev libc6-i386 xorriso
         sudo dkp-pacman -Sy
         sudo dkp-pacman -S --noconfirm --ask 4 ppc-libiconv-lite
 
@@ -20,6 +28,7 @@ jobs:
       uses: actions/checkout@main
       with:
         path: swiss
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
         fetch-depth: 0
         submodules: true
 
@@ -27,8 +36,154 @@ jobs:
       run: make
       working-directory: swiss
 
+    - name: Prepare single PRISM hardware DOL
+      if: github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard'
+      id: prism
+      shell: bash
+      working-directory: swiss
+      run: |
+        commit=$(git rev-parse --short=12 HEAD)
+        mkdir -p prism-hardware
+        # Use the uncompressed DOL linked from this build's Swiss ELF.
+        test -s cube/swiss/swiss.elf
+        test -s cube/swiss/swiss.dol
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "START: Settings"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "A: Start"
+        ${DEVKITPPC}/bin/powerpc-eabi-strings cube/swiss/swiss.dol | grep -F "%lu / %lu"
+        ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_cover_cache_reserve"
+        ${DEVKITPPC}/bin/powerpc-eabi-nm cube/swiss/swiss.elf | grep -F "prism_pack_read_background"
+        python3 tools/test_prism_dol.py
+        python3 tools/prism_dol.py cube/swiss/swiss.dol "prism-hardware/PRISM-UI-${commit}.dol"
+        sha256sum "prism-hardware/PRISM-UI-${commit}.dol"
+        echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload single PRISM hardware DOL
+      if: steps.prism.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: PRISM-UI-${{ steps.prism.outputs.commit }}
+        path: swiss/prism-hardware/*.dol
+        if-no-files-found: error
+
+    - name: Capture linked CPU symbols for startup diagnostics
+      working-directory: swiss
+      run: |
+        mkdir -p prism-symbols
+        ${DEVKITPPC}/bin/powerpc-eabi-nm -n cube/swiss/swiss.elf > prism-symbols/swiss-symbols.txt
+        ${DEVKITPPC}/bin/powerpc-eabi-objdump -d cube/swiss/swiss.elf > prism-symbols/swiss-disassembly.txt
+    - uses: actions/upload-artifact@v4
+      with:
+        name: PRISM-CPU-symbols
+        path: swiss/prism-symbols/*.txt
+
     - name: Upload Swiss artifacts
       uses: actions/upload-artifact@main
       with:
         name: swiss-gc
         path: swiss/swiss_r*/*
+
+  dolphin-ui:
+    name: PRISM Dolphin startup diagnostic (experimental)
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: read
+    needs: [build, dolphin-core]
+    if: github.event_name == 'workflow_dispatch' && inputs.dolphin && (github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install runtime and screenshot tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth tesseract-ocr python3-pil libavcodec60 libavformat60 libavutil58 libswresample4 libswscale7 libegl1 libgl1 libx11-6 libxrandr2 libxi6 libudev1 libevdev2 libusb-1.0-0 libcurl4t64 liblzo2-2 libpugixml1v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-Dolphin-runtime
+          path: dolphin-runtime-download
+      - run: tar -xzf dolphin-runtime-download/dolphin-runtime.tar.gz
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PRISM-UI-*
+          path: dolphin-dol
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-CPU-symbols
+          path: dolphin-symbols
+      - name: Verify and launch the exact built PRISM DOL
+        env:
+          PRISM_DOLPHIN_BINARY: ${{ github.workspace }}/dolphin-runtime/bin/dolphin-emu-nogui
+          PRISM_DOLPHIN_VARIANT: Dolphin 2609a with controller GameID no-response fix
+        run: |
+          /usr/bin/python3 - <<'PYTHON'
+          from pathlib import Path
+          import subprocess
+          files = list(Path('dolphin-dol').glob('*.dol'))
+          assert len(files) == 1, files
+          source = subprocess.check_output(['git', 'rev-parse', '--short=12', 'HEAD'], text=True).strip()
+          assert files[0].name == f'PRISM-UI-{source}.dol', files[0]
+          subprocess.run(['xvfb-run', '-a', '-s', '-screen 0 1280x960x24', '/usr/bin/python3',
+              'tools/test_prism_dolphin.py', str(files[0]), 'dolphin-ui-results', '--dsp-hle', '--symbols', 'dolphin-symbols/swiss-symbols.txt'], check=True)
+          PYTHON
+      - name: Upload Dolphin screenshots and result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Dolphin-UI-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            dolphin-ui-results/**/*.png
+            dolphin-ui-results/**/*.txt
+            dolphin-ui-results/**/*.json
+            dolphin-ui-results/**/*.log
+          if-no-files-found: warn
+
+  dolphin-core:
+    name: Build Dolphin with controller GameID compatibility fix
+    if: github.event_name == 'workflow_dispatch' && inputs.dolphin && (github.ref == 'refs/heads/feature/prism-dashboard' || github.head_ref == 'feature/prism-dashboard')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache-prism-dolphin
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          repository: dolphin-emu/dolphin
+          ref: 409881c34357d0f105fd473167d15ab0bd9c1628
+          path: dolphin-source
+          submodules: recursive
+      - uses: actions/cache@v4
+        with:
+          path: .ccache-prism-dolphin
+          key: dolphin-2609a-gameid-nogui-ubuntu24-v1
+      - name: Install compiler and emulator dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build g++ ccache pkg-config libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev libcurl4-openssl-dev libegl1-mesa-dev libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev libudev-dev libevdev-dev libusb-1.0-0-dev liblzma-dev libbz2-dev zlib1g-dev liblzo2-dev libpng-dev libpugixml-dev libsystemd-dev
+      - name: Apply verified controller-only compatibility patch
+        run: |
+          test "$(git -C dolphin-source rev-parse HEAD)" = 409881c34357d0f105fd473167d15ab0bd9c1628
+          python3 tools/patch_prism_dolphin.py dolphin-source/Source/Core/Core/HW/SI/SI_DeviceGCController.cpp
+          git -C dolphin-source diff --stat
+      - name: Build X11 renderer and emulation core
+        run: |
+          cmake -S dolphin-source -B dolphin-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTICS=OFF -DENABLE_AUTOUPDATE=OFF -DENABLE_SDL=OFF -DENABLE_CUBEB=OFF -DENABLE_ALSA=OFF -DENABLE_PULSEAUDIO=OFF -DENABLE_LLVM=OFF -DENABLE_VULKAN=OFF -DENABLE_CLI_TOOL=OFF -DENABLE_CCACHE=ON
+          cmake --build dolphin-build --target dolphin-emu-nogui -j 3
+      - name: Package test runtime and its open-source system data
+        run: |
+          mkdir -p dolphin-runtime/bin
+          cp dolphin-build/Binaries/dolphin-emu-nogui dolphin-runtime/bin/
+          cp -a dolphin-source/Data/Sys dolphin-runtime/bin/Sys
+          dolphin-runtime/bin/dolphin-emu-nogui --version
+          tar -czf dolphin-runtime.tar.gz dolphin-runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Dolphin-runtime
+          path: dolphin-runtime.tar.gz
+          if-no-files-found: error

@@ -1,0 +1,195 @@
+name: Prism navigation checks
+
+on:
+  push:
+    branches: [feature/prism-dashboard]
+  pull_request:
+    paths:
+      - 'tools/collect_prism_catalog_extras.py'
+      - 'tools/test_prism_catalog_extras.py'
+      - 'tools/test_prism_coverflow.py'
+      - 'tools/test_prism_autoscroll.py'
+      - 'cube/swiss/source/gui/prism_autoscroll.h'
+      - 'tools/test_prism_theme.py'
+      - 'tools/prism_theme.py'
+      - 'cube/swiss/source/gui/prism_theme.h'
+      - 'tools/recover_prism_regions.py'
+      - 'tools/test_prism_regions.py'
+      - 'tools/enrich_prism_catalog.py'
+      - 'tools/test_prism_enrich_catalog.py'
+      - 'tools/build_prism_catalog.py'
+      - 'tools/test_prism_catalog.py'
+      - 'tools/prism_gametdb.py'
+      - 'cube/swiss/source/gui/prism_rom_index.*'
+      - 'cube/swiss/source/gui/prism_pack_device.*'
+      - 'tools/prism_default_source.py'
+      - 'tools/test_prism_default_source.py'
+      - 'tools/test_prism_packed_background.py'
+      - 'tools/prism_artwork.py'
+      - 'tools/test_prism_artwork.py'
+      - 'tools/prism_background.py'
+      - 'tools/test_prism_background.py'
+      - 'tools/test_prism_background_reader.py'
+      - 'tools/test_prism_library_flow.py'
+      - 'tools/prism_roms.py'
+      - 'tools/test_prism_roms.py'
+      - 'cube/swiss/source/gui/prism_nav.*'
+      - 'cube/swiss/source/gui/prism_game.*'
+      - 'cube/swiss/source/gui/prism_library.*'
+      - 'cube/swiss/source/gui/prism_metadata.*'
+      - 'cube/swiss/source/gui/prism_pack.*'
+      - 'tests/prism_installed_test.c'
+      - 'tests/stubs/devices/deviceHandler.h'
+      - 'tools/test_prism_launch.py'
+      - 'cube/swiss/source/util.c'
+      - 'cube/swiss/include/util.h'
+      - 'cube/swiss/source/gui/prism_text.*'
+      - 'tests/prism_text_test.c'
+      - 'assets/prism/layout.json'
+      - 'cube/swiss/source/gui/prism_cover_cache.*'
+      - 'tests/prism_cover_cache_test.c'
+      - 'tools/test_prism_cache_runtime.py'
+      - 'tools/test_prism_solid_box.py'
+      - 'cube/swiss/source/gui/FrameBufferMagic.*'
+      - 'tests/prism_nav_test.c'
+      - 'tests/prism_game_test.c'
+      - 'tests/prism_library_test.c'
+      - 'tests/prism_metadata_test.c'
+      - 'tests/prism_pack_test.c'
+      - 'tools/prism_pack.py'
+      - 'tools/prism_cover.py'
+      - 'tools/prism_builder.py'
+      - 'tools/prism_project.py'
+      - 'tools/prism_download.py'
+      - 'tools/test_prism_project.py'
+      - 'tools/test_prism_export_reader.py'
+      - 'tools/requirements-prism-studio.txt'
+      - 'tools/prism_preview.py'
+      - 'tools/prism_layout.py'
+      - 'tools/test_prism_layout.py'
+      - 'tools/test_prism_boot_order.py'
+      - 'tools/prism_dol.py'
+      - 'tools/test_prism_dol.py'
+      - 'cube/swiss/source/main.c'
+      - 'cube/swiss/source/gui/prism_layout.h'
+      - 'cube/swiss/source/gui/prism_installed.c'
+      - 'cube/swiss/source/gui/prism_installed.h'
+      - 'cube/swiss/source/gui/prism_match.*'
+      - 'tests/prism_match_test.c'
+      - 'assets/prism/**'
+      - '.github/workflows/prism-nav.yml'
+  workflow_dispatch:
+
+jobs:
+  navigation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cover conversion test dependency
+        run: python3 -m pip install Pillow==11.3.0
+      - name: Build navigation unit test
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o /tmp/prism-nav-test tests/prism_nav_test.c cube/swiss/source/gui/prism_nav.c
+      - name: Run navigation unit test
+        run: /tmp/prism-nav-test
+      - name: Build and run disc header parser tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-game-test tests/prism_game_test.c cube/swiss/source/gui/prism_game.c
+          /tmp/prism-game-test
+      - name: Build and run PRISM library tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-library-test tests/prism_library_test.c cube/swiss/source/gui/prism_library.c
+          /tmp/prism-library-test
+      - name: Build and run exact GameCube disc-ID matching tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-match-test tests/prism_match_test.c cube/swiss/source/gui/prism_match.c cube/swiss/source/gui/prism_library.c
+          /tmp/prism-match-test
+      - name: Build and run offline synopsis metadata tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-metadata-test tests/prism_metadata_test.c cube/swiss/source/gui/prism_metadata.c
+          /tmp/prism-metadata-test
+      - name: Build and run consolidated pack reader tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=undefined -o /tmp/prism-pack-test tests/prism_pack_test.c cube/swiss/source/gui/prism_pack.c
+          /tmp/prism-pack-test
+      - name: Build and run pinned cover-cache tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -o /tmp/prism-cache-test tests/prism_cover_cache_test.c cube/swiss/source/gui/prism_cover_cache.c
+          /tmp/prism-cache-test
+      - name: Verify exact PRISM solid fill and legacy Swiss renderer
+        run: python3 tools/test_prism_solid_box.py
+      - name: Verify native cover-cache adapter and frame guards
+        run: python3 tools/test_prism_cache_runtime.py
+      - name: Build and run measured text layout tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -o /tmp/prism-text-test tests/prism_text_test.c cube/swiss/source/gui/prism_text.c
+          /tmp/prism-text-test
+      - name: Build and run installed-game path tests
+        run: |
+          cc -D_GNU_SOURCE -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -Itests/stubs -Icube/swiss/source -o /tmp/prism-installed-test tests/prism_installed_test.c cube/swiss/source/gui/prism_installed.c cube/swiss/source/gui/prism_library.c cube/swiss/source/gui/prism_game.c
+          /tmp/prism-installed-test
+      - name: Verify emulator system navigation and exact paths
+        run: python3 tools/test_prism_systems.py
+      - name: Verify ROM matching, project paths and actual console index reader
+        run: |
+          python3 tools/test_prism_roms.py
+          python3 tools/test_prism_roms.py --console-reader
+      - name: Verify timed synopsis reading and manual override
+        run: python3 tools/test_prism_autoscroll.py
+      - name: Verify shelf, details, Systems and Settings controls
+        run: python3 tools/test_prism_library_flow.py
+      - name: Verify telemetry strip and real Classic Swiss exit
+        run: python3 tools/test_prism_status_settings.py
+      - name: Verify on-device ROM discovery and matching
+        run: |
+          python3 tools/test_prism_rom_discovery.py
+          python3 tools/test_prism_rom_shelf.py
+      - name: Verify emulator cover-flow navigation and direct launch
+        run: python3 tools/test_prism_catalog_flow.py
+      - name: Verify native theme bounds, GX tiling and desktop parity
+        run: python3 tools/test_prism_theme.py
+      - name: Verify cover reflections and footer bounds
+        run: python3 tools/test_prism_coverflow.py
+      - name: Verify exact Swiss launch and cancellation guards
+        run: python3 tools/test_prism_launch.py
+      - name: Verify native emulator argv and path limits
+        run: python3 tools/test_prism_autoboot.py
+      - name: Verify centralized SD save/settings folders
+        run: python3 tools/test_prism_storage.py
+      - name: Generate deterministic example offline pack
+        run: |
+          python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library.prism
+          python3 tools/prism_pack.py assets/prism/catalog.example.json /tmp/library2.prism
+          cmp /tmp/library.prism /tmp/library2.prism
+      - name: Test Studio projects and console-reader export compatibility
+        run: |
+          python3 tools/test_prism_catalog.py
+          python3 tools/test_prism_enrich_catalog.py
+          python3 tools/test_prism_catalog_extras.py
+          python3 tools/test_prism_regions.py
+          python3 tools/test_prism_packed_background.py
+          python3 tools/test_prism_default_source.py
+          python3 tools/test_prism_artwork.py
+          python3 tools/test_prism_background.py
+          python3 tools/test_prism_background_reader.py
+          python3 tools/test_prism_project.py
+          python3 tools/test_prism_scrape.py
+          python3 tools/test_prism_export_reader.py
+      - name: Verify complete emulator SD release packaging
+        run: |
+          python3 tools/test_prism_sd_release.py
+          python3 tools/test_prism_emulator_build.py
+          python3 tools/test_prism_emulator_catalogs.py
+      - name: Validate PRISM builder Python syntax
+        run: python3 -m py_compile tools/prism_pack.py tools/prism_cover.py tools/prism_builder.py tools/prism_project.py tools/prism_download.py tools/prism_preview.py tools/prism_layout.py tools/test_prism_layout.py
+      - name: Verify padded DOL loader blocks
+        run: python3 tools/test_prism_dol.py
+      - name: Verify PRISM startup before Swiss autoload
+        run: python3 tools/test_prism_boot_order.py
+      - name: Verify cover texture constants
+        run: |
+          python3 -c "from pathlib import Path; import sys; sys.path.insert(0, 'tools'); from prism_cover import WIDTH,HEIGHT,COVER_BYTES,validate_cover,MAGIC; assert (WIDTH,HEIGHT,COVER_BYTES)==(176,240,84492); assert validate_cover(MAGIC + WIDTH.to_bytes(2,'little') + HEIGHT.to_bytes(2,'little') + bytes(WIDTH*HEIGHT*2))"
+      - name: Verify GameCube / desktop PRISM layout parity
+        run: python3 tools/test_prism_layout.py
+
+
+

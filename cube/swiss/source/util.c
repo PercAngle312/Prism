@@ -284,7 +284,7 @@ bool is_recent_entry(char *entry) {
 	return false;
 }
 
-int find_existing_entry(char *entry, bool load) {
+static int find_entry(char *entry, bool load, bool wildcard, int argc, char *argv[]) {
 	// get the device handler for it
 	DEVICEHANDLER_INTERFACE *entryDevice = getDeviceFromPath(entry);
 	if(entryDevice) {
@@ -321,11 +321,15 @@ int find_existing_entry(char *entry, bool load) {
 				if(dirEntries[i].fileType == IS_DIR)
 					populate_meta(&dirEntries[i]);
 				if(!strcmp(entry, dirEntries[i].name)
-				|| !fnmatch(entry, dirEntries[i].name, FNM_PATHNAME)) {
+				|| (wildcard && !fnmatch(entry, dirEntries[i].name, FNM_PATHNAME))) {
 					curSelection = getSortedDirEntryIndex(&dirEntries[i]);
 					if(dirEntries[i].fileType == IS_FILE && load) {
 						populate_meta(&dirEntries[i]);
 						memcpy(&curFile, &dirEntries[i], sizeof(file_handle));
+						if (argc > 1) {
+							boot_dol(&curFile, argc, argv);
+							return RECENT_ERR_BOOT_FAILED;
+						}
 						load_file();
 						memcpy(&dirEntries[i], &curFile, sizeof(file_handle));
 					}
@@ -341,6 +345,23 @@ int find_existing_entry(char *entry, bool load) {
 	}
 	print_debug("Device was not found\n");
 	return RECENT_ERR_DEV_MISSING;
+}
+
+/* Legacy callers (recent list and automatic updaters) retain glob support. */
+int find_existing_entry(char *entry, bool load) {
+	return find_entry(entry, load, true, 0, NULL);
+}
+
+/* PRISM owns an exact scanned path; brackets and other glob characters in
+ * game filenames must never match a different entry. */
+int find_existing_entry_exact(char *entry, bool load) {
+	return find_entry(entry, load, false, 0, NULL);
+}
+
+int find_existing_dol_exact(char *entry, int argc, char *argv[]) {
+	if (!entry || !endsWith(entry, ".dol") || argc < 2 || !argv)
+		return RECENT_ERR_BOOT_FAILED;
+	return find_entry(entry, true, false, argc, argv);
 }
 
 bool deleteFileOrDir(file_handle* entry) {
@@ -398,3 +419,4 @@ int formatBytes(char *string, off_t count, blksize_t blocksize, bool metric)
 
 	return sprintf(string, "%jd bytes", (intmax_t)count);
 }
+

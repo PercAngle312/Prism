@@ -1387,6 +1387,8 @@ void boot_dol(file_handle* file, int argc, char *argv[])
 	char *argz = getExternalPath(imageFile->fileType == IS_FILE ? imageFile->name : file->name);
 	size_t argz_len = strlen(argz) + 1;
 
+	/* Explicit ROM handoffs take priority over sidecar launch parameters. */
+	if (argc <= 1) {
 	// .cli argument file
 	file_handle *cliArgFile = calloc(1, sizeof(file_handle));
 	snprintf(cliArgFile->name, PATHNAME_MAX, "%s.cli", fileName);
@@ -1439,6 +1441,7 @@ void boot_dol(file_handle* file, int argc, char *argv[])
 	}
 	devices[DEVICE_CUR]->closeFile(dcpArgFile);
 	free(dcpArgFile);
+	}
 
 	for(i = 1; i < argc; i++) {
 		argz_add(&argz, &argz_len, argv[i]);
@@ -2572,8 +2575,25 @@ uiDrawObj_t* draw_game_info(ConfigEntry *config) {
 }
 
 /* Show info about the game - and also load the config for it */
+/* One-shot request from PRISM, consumed after selected-game config is ready. */
+int prism_game_menu_request = 0;
+
 int info_game(ConfigEntry *config)
 {
+    int requested = prism_game_menu_request;
+    prism_game_menu_request = 0;
+    if (requested == 1) {
+        if (findCheats(false) > 0) {
+            loadCheatsSelection();
+            DrawCheatsSelector(getRelativeName(curFile.name));
+            saveCheatsSelection();
+        }
+        return 0;
+    }
+    if (requested == 2) {
+        needsRefresh = show_settings(PAGE_GAME, 0, config);
+        return 0;
+    }
 	if(swissSettings.cubebootInvoked) {
 		u32 buttons = padsButtonsHeld();
 		if(buttons & BUTTON_Y) {

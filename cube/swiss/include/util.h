@@ -8,6 +8,7 @@
 
 #define RECENT_ERR_ENT_MISSING 1
 #define RECENT_ERR_DEV_MISSING 2
+#define RECENT_ERR_BOOT_FAILED 3
 
 char *endsWith(char *str, char *end);
 bool canLoadFileType(char *filename, char **extraExtensions);
@@ -23,7 +24,10 @@ void print_debug(const char *fmt, ...);
 bool update_recent();
 bool is_recent_entry(char *entry);
 int find_existing_entry(char *entry, bool load);
+int find_existing_entry_exact(char *entry, bool load);
+int find_existing_dol_exact(char *entry, int argc, char *argv[]);
 bool deleteFileOrDir(file_handle* entry);
 int formatBytes(char *string, off_t count, blksize_t blocksize, bool metric);
 
 #endif 
+

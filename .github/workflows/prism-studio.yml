@@ -1,0 +1,148 @@
+name: PRISM Studio Windows
+
+on:
+  push:
+    branches: [feature/prism-dashboard]
+    paths:
+      - 'tools/prism_*.py'
+      - 'tools/test_prism_artwork.py'
+      - 'tools/test_prism_project.py'
+      - 'tools/test_prism_gametdb.py'
+      - 'tools/test_prism_scrape.py'
+      - 'tools/test_prism_cover_import.py'
+      - 'tools/test_prism_install.py'
+      - 'tools/test_prism_roms.py'
+      - 'tools/requirements-prism-studio.txt'
+      - 'assets/prism/layout.json'
+      - 'docs/prism-studio.md'
+      - '.github/workflows/prism-studio.yml'
+  pull_request:
+    paths:
+      - 'tools/prism_*.py'
+      - 'tools/test_prism_artwork.py'
+      - 'tools/test_prism_project.py'
+      - 'tools/test_prism_install.py'
+      - 'tools/test_prism_roms.py'
+      - 'tools/requirements-prism-studio.txt'
+      - 'assets/prism/layout.json'
+      - 'docs/prism-studio.md'
+      - '.github/workflows/prism-studio.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tools/requirements-prism-studio.txt
+      - name: Install packaging dependencies
+        run: python -m pip install -r tools/requirements-prism-studio.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: PRISM-Emulator-Starter-01c00908325f
+          run-id: 38315054276
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dashboard-download
+      - name: Prepare verified dashboard and its corresponding source
+        run: |
+          @'
+          import hashlib, pathlib, zipfile
+          p = pathlib.Path('dashboard-download/PRISM-Emulator-Starter-01c00908325f.zip')
+          assert hashlib.sha256(p.read_bytes()).hexdigest() == '4c92967b403628a68ef87ee00313799a3dc119c186d27454299b0e9cbac800e7'
+          with zipfile.ZipFile(p) as z:
+              out = pathlib.Path('dashboard-source'); out.mkdir()
+              for name in ['littlefs-6cb4e86540ec-source.zip', 'GNU-GPL-v2.txt']:
+                  (out/name).write_bytes(z.read('SOURCE-AND-LICENSES/' + name))
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
+      - name: Verify the bundled consolidated-pack dashboard
+        run: |
+          @'
+          import hashlib, pathlib, json
+          raw = pathlib.Path('assets/prism/dashboard.dol').read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == 'fae55d2db0e2993235485d0dfa8867c9cf399fb6f1a2e41638ca09e6fab59dbb'
+          proof = json.loads(pathlib.Path('assets/prism/dashboard-build.json').read_text())
+          assert proof['commit'] == 'd0c848546236ec52b635b0cdb7f68e59c0dc35db' and proof['identity_checks'] == 'passed'
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard verification failed' }
+      - uses: actions/checkout@v4
+        with:
+          ref: d0c848546236ec52b635b0cdb7f68e59c0dc35db
+          path: dashboard-tree
+      - name: Archive the matching GameCube source
+        run: |
+          @'
+          import pathlib, re
+          def synopsis_limit(path):
+              return int(re.search(r'PRISM_PACK_SYNOPSIS_MAX (\d+)u', pathlib.Path(path).read_text()).group(1))
+          assert synopsis_limit('cube/swiss/source/gui/prism_pack.h') == synopsis_limit('dashboard-tree/cube/swiss/source/gui/prism_pack.h'), 'Refresh bundled native dashboard before publishing new-format Studio exports'
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard pack compatibility check failed' }
+          $archive = Join-Path $PWD 'dashboard-source/PRISM-d0c848546236-source.zip'
+          git -C dashboard-tree archive --format=zip --output=$archive HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard source archive failed' }
+      - name: Test project roundtrip, header scan and safe exports
+        run: python tools/test_prism_project.py
+      - name: Test consolidated source pack import
+        run: python tools/test_prism_default_source.py
+      - name: Test bulk background artwork matching
+        run: python tools/test_prism_artwork.py
+      - name: Test screenshot projects and SD export
+        run: python tools/test_prism_background.py
+      - name: Test GameTDB offline metadata imports
+        run: python tools/test_prism_gametdb.py
+      - name: Test ordered metadata enrichment
+        run: python tools/test_prism_scrape.py
+      - name: Test bulk cover import
+        run: python tools/test_prism_cover_import.py
+      - name: Test card detection, install backups and failed-copy recovery
+        run: python tools/test_prism_install.py
+      - name: Test ROM scans, persistence and paired exports
+        run: python tools/test_prism_roms.py
+      - name: Exercise source GUI and preview
+        run: |
+          python tools/prism_builder.py --smoke-test source-smoke.json
+          if ($LASTEXITCODE -ne 0) { throw 'Source GUI smoke test failed' }
+          Get-Content source-smoke.json
+      - name: Package portable Windows app
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name PRISM-Studio --add-data "assets/prism/layout.json:assets/prism" --add-data "assets/prism/dashboard.dol:assets/prism" tools/prism_builder.py
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }
+      - name: Launch packaged Windows executable
+        run: |
+          $report = Join-Path $PWD 'packaged-smoke.json'
+          $process = Start-Process -FilePath "$PWD/dist/PRISM-Studio/PRISM-Studio.exe" -ArgumentList @('--smoke-test', ('"' + $report + '"')) -PassThru
+          if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Packaged GUI test timed out' }
+          if ($process.ExitCode -ne 0) { throw "Packaged GUI exited with $($process.ExitCode)" }
+          if (-not (Test-Path $report)) { throw 'Packaged GUI did not write its verification report' }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          if ($result.status -ne 'passed') { throw 'Packaged verification failed' }
+          Get-Content $report
+      - name: Prepare tested Windows download
+        id: package
+        run: |
+          $commit = (git rev-parse --short=12 HEAD)
+          Copy-Item docs/prism-studio.md dist/PRISM-Studio/READ-ME.md
+          Copy-Item packaged-smoke.json dist/PRISM-Studio/CI-VERIFICATION.json
+          Copy-Item -Recurse dashboard-source dist/PRISM-Studio/dashboard-source
+          git archive --format=zip --output=dist/PRISM-Studio/PRISM-Studio-source.zip HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Studio source archive failed' }
+          Set-Content dist/PRISM-Studio/BUILD.txt "PRISM Studio 0.6`nSource: $commit`nDashboard build: d0c848546236`nWindows x64 portable build"
+          $hash = (Get-FileHash dist/PRISM-Studio/PRISM-Studio.exe -Algorithm SHA256).Hash.ToLower()
+          Set-Content dist/PRISM-Studio/SHA256.txt "$hash  PRISM-Studio.exe"
+          Write-Output "commit=$commit" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRISM-Studio-Windows-${{ steps.package.outputs.commit }}
+          path: dist/PRISM-Studio/
+          if-no-files-found: error

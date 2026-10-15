@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "sdk_image": "ghcr.io/extremscorner/libogc2:latest",
+  "libsmb2_commit": "92e087c15e79e6adfdb3ff9a7ba81243c3c741d0",
+  "systems": {
+    "n64": {
+      "repository": "emukidid/Wii64",
+      "commit": "a96d9758a1d15a72577a5546c66068f627ea21bd",
+      "version": "Cube64 1.5.0 + PRISM folder defaults + native argv test candidate + centralized saves",
+      "project": "Cube64",
+      "license": "GPL-2.0",
+      "makefile": "Makefile.glN64_gc",
+      "output": "cube64-glN64.dol",
+      "rom_folder": "roms/n64",
+      "save_folder": "saves/n64",
+      "smb2": false,
+      "settings_folder": "swiss/prism/settings/n64"
+    },
+    "nes": {
+      "repository": "dborth/fceugx",
+      "commit": "59142f171d6e4b8bc1d3b1cbf2684e914184f2a5",
+      "version": "4.0.2 + PRISM folder defaults + native argv test candidate + centralized saves",
+      "project": "FCE Ultra GX",
+      "license": "GPL-2.0",
+      "makefile": "Makefile.gc",
+      "output": "executables/fceugx-gc.dol",
+      "rom_folder": "roms/nes",
+      "save_folder": "saves/nes",
+      "smb2": true,
+      "settings_folder": "swiss/prism/settings/nes"
+    },
+    "snes": {
+      "repository": "dborth/snes9xgx",
+      "commit": "382acd21a908d0d86741878bdc5e33aec307fa87",
+      "version": "5.0.3 + PRISM folder defaults + native argv test candidate + centralized saves",
+      "project": "Snes9x GX",
+      "license": "GPL-2.0 and upstream component licenses",
+      "makefile": "Makefile.gc",
+      "output": "executables/snes9xgx-gc.dol",
+      "rom_folder": "roms/snes",
+      "save_folder": "saves/snes",
+      "smb2": true,
+      "settings_folder": "swiss/prism/settings/snes"
+    },
+    "gb": {
+      "repository": "dborth/vbagx",
+      "commit": "cb9ed306b2f6050a7640b2103e32f037eca77616",
+      "version": "3.0.3 + PRISM GB profile + native argv test candidate + centralized saves",
+      "project": "Visual Boy Advance GX",
+      "license": "GPL-2.0",
+      "makefile": "Makefile.gc",
+      "output": "executables/vbagx-gc.dol",
+      "rom_folder": "roms/gb",
+      "save_folder": "saves/gb",
+      "smb2": true,
+      "settings_folder": "swiss/prism/settings/gb"
+    },
+    "gbc": {
+      "repository": "dborth/vbagx",
+      "commit": "cb9ed306b2f6050a7640b2103e32f037eca77616",
+      "version": "3.0.3 + PRISM GBC profile + native argv test candidate + centralized saves",
+      "project": "Visual Boy Advance GX",
+      "license": "GPL-2.0",
+      "makefile": "Makefile.gc",
+      "output": "executables/vbagx-gc.dol",
+      "rom_folder": "roms/gbc",
+      "save_folder": "saves/gbc",
+      "smb2": true,
+      "settings_folder": "swiss/prism/settings/gbc"
+    },
+    "gba": {
+      "repository": "dborth/vbagx",
+      "commit": "cb9ed306b2f6050a7640b2103e32f037eca77616",
+      "version": "3.0.3 + PRISM GBA profile + native argv test candidate + centralized saves",
+      "project": "Visual Boy Advance GX",
+      "license": "GPL-2.0",
+      "makefile": "Makefile.gc",
+      "output": "executables/vbagx-gc.dol",
+      "rom_folder": "roms/gba",
+      "save_folder": "saves/gba",
+      "smb2": true,
+      "settings_folder": "swiss/prism/settings/gba"
+    },
+    "megadrive": {
+      "repository": "ekeeke/Genesis-Plus-GX",
+      "commit": "49c584764893b0505ac7f768a754f97330fa4392",
+      "version": "49c584764893 + PRISM folder defaults + native argv test candidate + centralized saves",
+      "project": "Genesis Plus GX",
+      "license": "Genesis Plus GX non-commercial license and upstream component licenses",
+      "makefile": "Makefile.gc.low-mem",
+      "output": "genplus_cube_low-mem.dol",
+      "rom_folder": "roms/megadrive",
+      "save_folder": "saves/megadrive",
+      "smb2": false,
+      "settings_folder": "swiss/prism/settings/megadrive"
+    }
+  }
+}

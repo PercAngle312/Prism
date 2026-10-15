@@ -1,0 +1,32 @@
+{
+  "tag": "prism-v1.0.0",
+  "name": "PRISM v1.0",
+  "tested_commit": "bd2d2aad4b8200bf4369ccc51d875fde391ac4c8",
+  "ui_run": 38669141433,
+  "ui_artifact": "PRISM-UI-bd2d2aad4b82",
+  "native_run": 38669141443,
+  "ui_sha256": "c1acca64bb3d0c4665d08e4cd412200917e14923b60af794a130a6f5e1bed1ec",
+  "emulators": {
+    "n64": "c85e7aed3598b2ad8d475fc7ea3d8c0beaec08b77ba60c24a76996fa69afb70e",
+    "nes": "5a847abe34bbb9693c835227f4cca7bfcf507c19f0f88f8939ee2a27035ceeb3",
+    "snes": "febc448ca9f589658fd32b1a700602078113b25357dec2bfa2f152d9ba31ac56",
+    "gb": "37ca58307e6a7b5e29d57c062e8ba2fbd4d789e3e0cf7cb8d6dabe6a7d433c29",
+    "gbc": "595784b524d2dd7caabdaeec5474360d162b6b53bf327f123db7af113ef07983",
+    "gba": "d90db9a76642facf631742099f7bfb4b38c7cbd688365a8c36742d7dc7078493",
+    "megadrive": "6c7ee30c64759aa091ec2749a2df666c43c635af80e583a96ac720786f2ef8f9"
+  },
+  "catalog_runs": {
+    "n64": 38588317965,
+    "nes": 38588317965,
+    "snes": 38588317965,
+    "gb": 38588317965,
+    "gbc": 38589656091,
+    "gba": 38589656091,
+    "megadrive": 38589656091
+  },
+  "catalog_commits": {
+    "38588317965": "c621c34983c4eef9402dd3a6917ab902e2e919f3",
+    "38589656091": "c1fc7fee70002afcea06009a44106e63a1f45861"
+  },
+  "littlefs_commit": "6cb4e86540eca0d9ba62500a298385c9d863c8be"
+}
