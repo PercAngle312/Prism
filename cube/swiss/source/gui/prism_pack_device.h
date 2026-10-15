@@ -12,6 +12,8 @@ int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
                                  const char *pack_path, const char *game_id);
 int prism_pack_device_background(DEVICEHANDLER_INTERFACE *device, const char *game_id,
                                   void *pixels, size_t capacity);
+int prism_pack_device_catalog_background(DEVICEHANDLER_INTERFACE *device, const char *path,
+                                         const char *id, void *pixels, size_t capacity);
 
 /* Adapter for a single, already available Swiss storage device.
  * Caller chooses device; this does not initialize, switch, or deinit devices.
@@ -28,6 +30,10 @@ int prism_pack_device_entry(DEVICEHANDLER_INTERFACE *device,
                             PrismPackEntry *entry,
                             char *title, size_t title_capacity,
                             char *synopsis, size_t synopsis_capacity);
+/* Bounded title-only read for neighboring covers; never loads their synopsis. */
+int prism_pack_device_title(DEVICEHANDLER_INTERFACE *device, const char *absolute_path,
+                            uint32_t position, PrismPackEntry *entry,
+                            char *title, size_t title_capacity);
 int prism_pack_device_text(DEVICEHANDLER_INTERFACE *device,
                            const char *absolute_path, const char *game_id,
                            char *title, size_t title_capacity,

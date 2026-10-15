@@ -1,5 +1,6 @@
 #include "prism_pack_device.h"
 #include "prism_rom_index.h"
+#include "prism_background_light.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -95,6 +96,22 @@ int prism_pack_device_entry(DEVICEHANDLER_INTERFACE *device,
     return ok;
 }
 
+int prism_pack_device_title(DEVICEHANDLER_INTERFACE *device, const char *absolute_path,
+                            uint32_t position, PrismPackEntry *entry,
+                            char *title, size_t title_capacity)
+{
+    PrismDeviceStream stream;
+    if (!entry || !title || !title_capacity || !stream_open(&stream, device, absolute_path))
+        return 0;
+    int ok = prism_pack_entry_at(device_read, &stream, stream.file.size, position, entry);
+    if (ok) ok = entry->title_length < title_capacity &&
+        device_read(&stream, entry->offset, title, entry->title_length);
+    if (ok) title[entry->title_length] = 0;
+    else title[0] = 0;
+    device->closeFile(&stream.file);
+    return ok;
+}
+
 int prism_pack_device_text(DEVICEHANDLER_INTERFACE *device,
                            const char *absolute_path, const char *game_id,
                            char *title, size_t title_capacity,
@@ -156,12 +173,14 @@ int prism_pack_device_rom_status(DEVICEHANDLER_INTERFACE *device,
     return prism_pack_device_rom_path(device, pack_path, game_id, absolute, sizeof(absolute));
 }
 
-static int packed_background(DEVICEHANDLER_INTERFACE *device, const char *id, void *pixels, size_t capacity)
+static int packed_background(DEVICEHANDLER_INTERFACE *device, const char *catalog, const char *id, void *pixels, size_t capacity)
 {
     char path[PATHNAME_MAX];
     PrismDeviceStream stream;
     PrismPackEntry entry;
-    if (snprintf(path,sizeof(path),"%sswiss/prism/library.prism",device->initial->name)>=(int)sizeof(path) ||
+    int length = catalog ? snprintf(path,sizeof(path),"%s",catalog) :
+        snprintf(path,sizeof(path),"%sswiss/prism/library.prism",device->initial->name);
+    if (length<0 || length>=(int)sizeof(path) ||
         !stream_open(&stream,device,path)) return 0;
     int ok = prism_pack_find(device_read,&stream,stream.file.size,id,&entry) &&
         prism_pack_read_background(device_read,&stream,stream.file.size,&entry,pixels,capacity);
@@ -170,11 +189,18 @@ static int packed_background(DEVICEHANDLER_INTERFACE *device, const char *id, vo
         unsigned char *bytes = pixels;
         for (unsigned i=0; i<PRISM_BACKGROUND_BYTES; i+=2) {
             unsigned value = ((unsigned)bytes[i]<<8) | bytes[i+1];
-            value = (((value>>11)/5)<<11) | ((((value>>5)&63)/5)<<5) | ((value&31)/5);
+            value = prism_background_light_pixel((uint16_t)value, 0);
             bytes[i] = value>>8; bytes[i+1] = value&255;
         }
     }
     return ok;
+}
+
+int prism_pack_device_catalog_background(DEVICEHANDLER_INTERFACE *device, const char *path,
+                                         const char *id, void *pixels, size_t capacity)
+{
+    if (!device || !device->initial || !path || !id || !pixels || capacity < PRISM_BACKGROUND_BYTES) return 0;
+    return packed_background(device, path, id, pixels, capacity);
 }
 
 int prism_pack_device_background(DEVICEHANDLER_INTERFACE *device, const char *game_id,
@@ -188,12 +214,19 @@ int prism_pack_device_background(DEVICEHANDLER_INTERFACE *device, const char *ga
         return 0;
     for (int i = 0; i < 6; ++i)
         if (!((game_id[i] >= 'A' && game_id[i] <= 'Z') || (game_id[i] >= '0' && game_id[i] <= '9'))) return 0;
-    if (packed_background(device, game_id, pixels, capacity)) return 1;
+    if (packed_background(device, NULL, game_id, pixels, capacity)) return 1;
     if (snprintf(path, sizeof(path), "%sswiss/prism/screenshots/gamecube/%s.bg", device->initial->name, game_id) >= (int)sizeof(path) ||
         !stream_open(&stream, device, path)) return 0;
     ok = stream.file.size == 12 + PRISM_BACKGROUND_BYTES && device_read(&stream, 0, header, sizeof(header)) &&
         !memcmp(header, "PRISMBG1", 8) && header[8] == 64 && header[9] == 1 && header[10] == 240 && header[11] == 0;
     if (ok) ok = device_read(&stream, 12, pixels, PRISM_BACKGROUND_BYTES);
+    if (ok) {
+        unsigned char *bytes = pixels;
+        for (unsigned i=0; i<PRISM_BACKGROUND_BYTES; i+=2) {
+            unsigned value = prism_background_light_pixel((uint16_t)(((unsigned)bytes[i]<<8)|bytes[i+1]), 1);
+            bytes[i]=value>>8; bytes[i+1]=value&255;
+        }
+    }
     device->closeFile(&stream.file);
     return ok;
 }

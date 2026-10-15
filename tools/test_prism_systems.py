@@ -35,7 +35,6 @@ static u32 buttons[64]; static unsigned cursor, length;
 static char pack_path[1024], dol_path[1024], label[64];
 static int available, opened, notices, emulator_available, launches;
 static struct {int autoBoot;} swissSettings;
-static int find_existing_entry_exact(char *path,int load) {assert(load && swissSettings.autoBoot==0);strcpy(dol_path,path);++launches;return emulator_available ? 0 : 1;}
 static u32 padsButtonsHeld(void) { assert(cursor < length); return buttons[cursor++]; }
 static void VIDEO_WaitVSync(void) {}
 static uiDrawObj_t *prism_draw_panel(const char *subtitle) { assert(!strcmp(subtitle,"EMULATOR LIBRARIES")); return &ui; }
@@ -47,14 +46,14 @@ static uiDrawObj_t *DrawRepublish(uiDrawObj_t*a,uiDrawObj_t*b) {(void)a;return b
 static void DrawDispose(uiDrawObj_t*a) {(void)a;}
 static int prism_pack_device_count(DEVICEHANDLER_INTERFACE*d,const char*p,u32*c) {assert(d==&config);strcpy(pack_path,p);*c=3;return available;}
 static void prism_catalog_browser(DEVICEHANDLER_INTERFACE*d,const char*p,u32 c,const char*n,const char*e) {assert(d==&config && c==3 && !strcmp(p,pack_path)); strcpy(dol_path,e);strcpy(label,n);++opened;}
-static void prism_show_notice(const char*a,const char*b) {assert(!strcmp(a,"Emulator unavailable"));assert(strstr(b,"/swiss/prism/emulators/"));++notices;}
+static void prism_show_notice(const char*a,const char*b) {assert(!strcmp(a,"System library unavailable"));assert(strstr(b,"/swiss/prism/emulators/"));++notices;}
 '''
 test = r'''
 static void scenario(u32 a,u32 b,const char *key,const char *name,int mode) {
   int has_pack=mode==1;
   u32 script[]={0,0,a,0,b,0,BUTTON_A,0,0,0,BUTTON_B};
-  memcpy(buttons,script,sizeof(script));length=has_pack ? 10 : 11;cursor=0;
-  if(has_pack) buttons[9]=BUTTON_B;
+  memcpy(buttons,script,sizeof(script));length=10;cursor=0;
+  buttons[9]=BUTTON_B;
   opened=notices=launches=0;pack_path[0]=dol_path[0]=0;available=has_pack;emulator_available=mode==2;swissSettings.autoBoot=7;
   prism_system_libraries();
   assert(cursor==length);
@@ -65,9 +64,9 @@ static void scenario(u32 a,u32 b,const char *key,const char *name,int mode) {
     snprintf(expected,sizeof(expected),"sdc:/swiss/prism/emulators/%s.dol",key);
     assert(!strcmp(expected,dol_path));
   } else {
-    assert(opened==0 && launches==1 && notices==(mode==0));
+    assert(opened==0 && launches==0 && notices==1);
     snprintf(expected,sizeof(expected),"sdc:/swiss/prism/emulators/%s.dol",key);
-    assert(!strcmp(expected,dol_path));
+    assert(!dol_path[0]);
   }
   assert(swissSettings.autoBoot==7);
 }
@@ -86,7 +85,7 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory() as folder:
     path = Path(folder)
-    (path/'menu.c').write_text(stub+helper+menu+test)
+    (path/'menu.c').write_text(stub+menu+test)
     subprocess.run(['cc','-std=gnu11','-Wall','-Wextra','-Werror','-Wno-sign-compare','-fsanitize=undefined',str(path/'menu.c'),'-o',str(path/'menu')],check=True)
     subprocess.run([str(path/'menu')],check=True)
-print('Actual system menu: catalog and catalog-free launch, exact paths, A release and Swiss state restoration passed')
+print('Actual system menu: catalog selection and missing-pack notice without implicit emulator launch passed')

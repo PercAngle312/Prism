@@ -8,9 +8,10 @@ import io
 
 source=Path('cube/swiss/source/gui/prism_pack_device.c').read_text()
 loader=source[source.index('int prism_pack_device_background('):]
-loader='static int packed_background(DEVICEHANDLER_INTERFACE *d,const char *id,void *p,size_t c) { (void)d;(void)id;(void)p;(void)c;return 0; }\n'+loader
+loader='static int packed_background(DEVICEHANDLER_INTERFACE *d,const char *catalog,const char *id,void *p,size_t c) { (void)d;(void)catalog;(void)id;(void)p;(void)c;return 0; }\n'+loader
 stub=r'''
 #include <assert.h>
+#include "prism_background_light.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,7 +36,11 @@ int main(int argc,char **argv) {
  struct file_handle initial={"sd:/",0}; DEVICEHANDLER_INTERFACE d={&initial,close_file};
  unsigned char pixels[PRISM_BACKGROUND_BYTES];
  assert(prism_pack_device_background(&d,"GM8E01",pixels,sizeof(pixels)));
- assert(closes==1 && reads==2 && !memcmp(pixels,bytes+12,sizeof(pixels)));
+ assert(closes==1 && reads==2);
+ for(unsigned i=0;i<sizeof(pixels);i+=2) {
+ unsigned value=prism_background_light_pixel((uint16_t)((bytes[i+12]<<8)|bytes[i+13]),1);
+ assert(pixels[i]==(value>>8) && pixels[i+1]==(value&255));
+ }
  assert(!prism_pack_device_background(&d,"../BAD",pixels,sizeof(pixels)));
  assert(!prism_pack_device_background(&d,"GM8E01",pixels,sizeof(pixels)-1));
  assert(closes==1 && reads==2);
@@ -49,6 +54,6 @@ with tempfile.TemporaryDirectory() as td:
     td=Path(td);raw=io.BytesIO();Image.new('RGB',(32,32),'red').save(raw,'PNG')
     (td/'test.bg').write_bytes(convert_background(raw.getvalue()))
     (td/'test.c').write_text(stub+loader+main)
-    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-pedantic','-fsanitize=undefined',str(td/'test.c'),'-o',str(td/'test')],check=True)
+    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-pedantic','-fsanitize=undefined','-Icube/swiss/source/gui',str(td/'test.c'),'-o',str(td/'test')],check=True)
     subprocess.run([str(td/'test'),str(td/'test.bg')],check=True)
 print('Actual background reader: exact path, texture bytes, malformed header/size and bounded input passed')

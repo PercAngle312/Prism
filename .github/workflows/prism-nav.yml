@@ -137,6 +137,10 @@ jobs:
         run: python3 tools/test_prism_autoscroll.py
       - name: Verify shelf, details, Systems and Settings controls
         run: python3 tools/test_prism_library_flow.py
+      - name: Verify telemetry strip and real Classic Swiss exit
+        run: python3 tools/test_prism_status_settings.py
+      - name: Verify emulator cover-flow navigation and direct launch
+        run: python3 tools/test_prism_catalog_flow.py
       - name: Verify native theme bounds, GX tiling and desktop parity
         run: python3 tools/test_prism_theme.py
       - name: Verify cover reflections and footer bounds

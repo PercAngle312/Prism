@@ -11,6 +11,7 @@ source=Path('cube/swiss/source/gui/prism_pack_device.c').read_text()
 loader=source[source.index('static int packed_background('):]
 stub=r'''
 #include "prism_pack.h"
+#include "prism_background_light.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,7 +38,7 @@ int main(int argc,char **argv) {
  for(unsigned i=0;i<sizeof(pixels);i+=2) assert(pixels[i]==0xf8 && pixels[i+1]==0);
  struct file_handle initial={"sd:/",0};DEVICEHANDLER_INTERFACE device={&initial,close_file};
  assert(prism_pack_device_background(&device,"GM8E01",pixels,sizeof(pixels)) && closes==1);
- for(unsigned i=0;i<sizeof(pixels);i+=2) assert(pixels[i]==0x30 && pixels[i+1]==0);
+ for(unsigned i=0;i<sizeof(pixels);i+=2) assert(pixels[i]==0x50 && pixels[i+1]==0);
  assert(!prism_pack_device_background(&device,"../BAD",pixels,sizeof(pixels)));
  entry.background_offset=length;assert(!prism_pack_read_background(device_read,NULL,length,&entry,pixels,sizeof(pixels)));
  fclose(file);return 0;
@@ -63,4 +64,4 @@ with tempfile.TemporaryDirectory() as td:
     for bad in variants:
         (td/'bad.prism').write_bytes(bad)
         subprocess.run([str(td/'test'),str(td/'bad.prism'),'invalid'],check=True)
-print('Integrated background/metadata pack: real C lookup, bright texture, bounded reads and native 20-percent dimming passed')
+print('Integrated background/metadata pack: real C lookup, bright texture, bounded reads and native 35-percent background visibility passed')

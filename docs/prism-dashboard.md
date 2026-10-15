@@ -522,3 +522,28 @@ dims the matched bright RGB565 pixels to 20 percent, and then falls back to the
 older optional per-ID `.bg` files. Host tests execute the actual C pack reader
 and native adapter against an exported pack. Native CI remains required before
 shipping the new dashboard.
+
+## Library header, console shelves and Swiss file access
+
+The thin top strip shares the footer colour and shows selected/total games,
+free space only, and `SYS_GetCoreTemperature()` when the SDK supplies it.
+An unavailable reading is shown as `Temp N/A`. Shelves refresh it while idle.
+Console catalogs use the same five-cover composition as the GameCube shelf,
+with only five indexed records resident at once (catalogs can exceed 512 games).
+A opens details, B returns to the same selection, and a second A launches a
+mapped ROM or explicitly opens the emulator browser when no mapping exists.
+
+Systems no longer chainloads an emulator when a `.prism` pack is absent or
+unreadable: it shows the required catalog path instead. Install the matching
+optional catalog ZIP or a Studio-exported project under
+`/swiss/prism/emulators/<system>.prism`.
+
+From the GameCube shelf, START opens Settings. Choose **File browser / Classic
+Swiss** to dispose the PRISM view and return to the real Swiss file list.
+Unsaved PRISM setting changes are discarded, and startup autoload is suppressed
+on this exit so it cannot jump straight back into a program.
+
+Background visibility is now 35% of source brightness instead of 20%.
+Existing full-brightness packed art is adjusted at runtime, and legacy BG1
+screenshots are lifted proportionally without replacing the catalog files.
+System detail views also use their own catalog backgrounds when available.

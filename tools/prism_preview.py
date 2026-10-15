@@ -117,7 +117,7 @@ class PrismPreview(tk.Frame):
             try:
                 with Image.open(Path(workspace)/name) as source:
                     image = ImageOps.fit(ImageOps.exif_transpose(source).convert('RGB'), (WIDTH,HEIGHT), method=Image.Resampling.LANCZOS)
-                    image = image.point(lambda value: int(value * 0.20))
+                    image = image.point(lambda value: int(value * 0.35))
                 self.background_ref = ImageTk.PhotoImage(image)
             except (OSError, ValueError, tk.TclError):
                 pass
