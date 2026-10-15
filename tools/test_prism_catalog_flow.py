@@ -33,7 +33,7 @@ stub=r'''
 #define PATHNAME_MAX 1024
 typedef unsigned u32;
 static u32 tape[32];static unsigned cursor,length;
-static int launches,browser_launches,notices,returned,detail_result,position_result;
+static int launches,browser_launches,notices,returned,detail_result,position_result,resolve_result=1;
 static uint64_t fake_ms;
 static uint64_t gettime(void){return fake_ms;}
 #define ticks_to_millisecs(t) (t)
@@ -44,8 +44,8 @@ static void prism_free_cover_cache(void *p){free(p);}
 typedef int PrismRuntimeCoverCache;
 static struct {int autoBoot;} swissSettings;
 static void prism_show_notice(const char*a,const char*b){(void)a;(void)b;++notices;}
-static int prism_pack_device_rom_path(void*d,const char*p,const char*id,char*out,size_t n){
- (void)d;(void)p;assert(!strcmp(id,"000601"));snprintf(out,n,"sdc:/roms/nes/Game [1].nes");return 1;
+static int prism_resolve_catalog_rom(void*d,const char*p,const char*id,const char*t,const char*e,char*out,size_t n){
+ (void)d;(void)p;(void)t;(void)e;assert(!strcmp(id,"000601"));snprintf(out,n,"sdc:/roms/nes/Game [1].nes");return resolve_result;
 }
 static int find_existing_dol_exact(char*p,int argc,char **argv){
  assert(!strcmp(p,"sdc:/swiss/prism/emulators/nes.dol") && argc==3);
@@ -56,7 +56,8 @@ static int prism_launch_emulator(const char*p){assert(strstr(p,"/nes.dol"));++la
 static void run(int initial_details,const u32 *input,unsigned n){
  memcpy(tape,input,n*sizeof(*tape));length=n;cursor=0;returned=launches=browser_launches=notices=0;
  u32 position=600,count=1200,pressed,held,last=0;
- int details=initial_details,synopsis_scroll=0,synopsis_maximum=2,direct_rom=1;
+ int details=initial_details,synopsis_scroll=0,synopsis_maximum=2,rom_status=1;
+ u32 resolved_position=600; const char *title="Game";
  const char *path="sdc:/swiss/prism/emulators/nes.prism",*emulator_path="sdc:/swiss/prism/emulators/nes.dol";
  void *device=NULL,*screen=NULL;
  struct {char id[7];}entry={"000601"};
@@ -68,14 +69,16 @@ after=r'''
  goto finish;
 done:returned=1;
 finish:detail_result=details;position_result=(int)position;
- assert(swissSettings.autoBoot==7);free(covers);(void)displayed_slots;
+ assert(swissSettings.autoBoot==7);free(covers);(void)displayed_slots;(void)resolved_position;
 }
 int main(void){
  swissSettings.autoBoot=7;
  u32 a[]={BUTTON_A};run(0,a,1);assert(detail_result && !launches && !returned && position_result==600);
  u32 b[]={BUTTON_B};run(1,b,1);assert(!detail_result && !returned && !launches && position_result==600);
  run(0,b,1);assert(returned && !launches);
- u32 play[]={BUTTON_A,0,0};run(1,play,3);assert(launches==1 && !notices);
+ u32 play[]={BUTTON_A,0,0};run(1,play,3);assert(launches==1 && !notices && !browser_launches);
+ resolve_result=0;run(1,play,3);assert(!launches && notices==1);
+ resolve_result=-2;run(1,play,3);assert(!launches && notices==1);resolve_result=1;
  u32 settings[]={BUTTON_Z,0};run(0,settings,2);assert(launches==1 && browser_launches==1 && !detail_result && position_result==600);
  run(1,settings,2);assert(launches==1 && browser_launches==1 && detail_result);
  u32 right[]={BUTTON_RIGHT};run(0,right,1);assert(position_result==601 && !launches);

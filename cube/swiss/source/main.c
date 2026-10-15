@@ -35,6 +35,7 @@
 #include "stub_bin.h"
 #include "gui/FrameBufferMagic.h"
 #include "gui/prism_pack_device.h"
+#include "gui/prism_rom_discovery.h"
 #include "gui/prism_emulator_launch.h"
 #include "gui/prism_installed.h"
 #include "gui/prism_enrich.h"
@@ -904,12 +905,34 @@ static int prism_launch_emulator(const char *path)
     return error;
 }
 
+/* Explicit mappings take precedence, including a mapped file that is missing.
+ * Otherwise resolve one unambiguous title in the standard system ROM folder. */
+static int prism_resolve_catalog_rom(DEVICEHANDLER_INTERFACE *device, const char *pack,
+                                      const char *id, const char *title, const char *emulator,
+                                      char *absolute, size_t capacity)
+{
+    int mapped = prism_pack_device_rom_path(device, pack, id, absolute, capacity);
+    if (mapped != -1) return mapped;
+    if (!device || !device->initial || !emulator) return -3;
+    const char *leaf = strrchr(emulator, '/');
+    if (!leaf) return -3;
+    ++leaf;
+    size_t length = strlen(leaf);
+    char system[16], folder[PATHNAME_MAX];
+    if (length < 5 || length - 4 >= sizeof(system) || strcmp(leaf + length - 4, ".dol")) return -3;
+    memcpy(system, leaf, length - 4); system[length - 4] = 0;
+    if (snprintf(folder, sizeof(folder), "%sroms/%s", device->initial->name, system) >= (int)sizeof(folder)) return -3;
+    return prism_rom_discover(device, folder, system, title, absolute, capacity);
+}
+
 /* Catalog metadata never implies ROM installation. */
 /* Catalog cover flow uses five bounded records, never a full in-memory catalog. */
 static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *path,
                                   u32 count, const char *system_name, const char *emulator_path)
 {
-    u32 position = 0;
+    u32 position = 0, resolved_position = UINT32_MAX;
+    int resolved_status = -1;
+    char resolved_rom[PATHNAME_MAX] = "";
     int details = 0, synopsis_scroll = 0;
     PrismAutoScroll synopsis_auto;
     prism_scroll_begin(&synopsis_auto, ticks_to_millisecs(gettime()));
@@ -997,17 +1020,25 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
         }
         char rom_path[PATHNAME_MAX];
         PrismEmulatorLaunch rom_launch;
-        int rom_status = emulator_path ? prism_pack_device_rom_path(device, path, entry.id, rom_path, sizeof(rom_path)) : -1;
-        int direct_rom = rom_status > 0 && prism_emulator_arguments(emulator_path, rom_path, &rom_launch);
-        const char *status = emulator_path ? (rom_status > 0 ? (direct_rom ? "ROM file found / ready to start" : "ROM file found / choose inside the emulator") :
-            rom_status == 0 ? "Mapped ROM missing on config storage" : "No ROM mapping / choose inside the emulator") : "Offline catalog";
+        if (details && emulator_path && resolved_position != position) {
+            resolved_status = prism_resolve_catalog_rom(device, path, entry.id, title, emulator_path,
+                resolved_rom, sizeof(resolved_rom));
+            resolved_position = position;
+        }
+        int rom_status = resolved_position == position ? resolved_status : -1;
+        snprintf(rom_path, sizeof(rom_path), "%s", rom_status == 1 ? resolved_rom : "");
+        int direct_rom = rom_status == 1 && prism_emulator_arguments(emulator_path, rom_path, &rom_launch);
+        const char *status = !emulator_path ? "Offline catalog" : !details ? "A: Details / Z: Emulator settings" :
+            rom_status == 1 ? (direct_rom ? "ROM file found / ready to start" : "Storage/path not supported for direct launch") :
+            rom_status == -2 ? "Multiple matching ROMs / use a .roms mapping" :
+            rom_status == -3 ? "ROM folder unreadable / check SD card" : "ROM not found / check filename in system ROM folder";
         DrawAddChild(panel, DrawStyledLabel(details ? PRISM_STATUS_X : 320,
             details ? PRISM_STATUS_Y : PRISM_FLOW_STATUS_Y, status, 0.5f,
             details ? ALIGN_LEFT : ALIGN_CENTER, (GXColor){170, 190, 209, 255}));
         prism_draw_hint(panel, 24, PRISM_FOOTER_LABELS_Y, 174,
             details ? "UP/DN: Read" : "LEFT/RIGHT: Browse", (GXColor){220, 230, 240, 255});
         prism_draw_hint(panel, 202, PRISM_FOOTER_LABELS_Y, 100,
-            !details ? "A: Details" : emulator_path ? (direct_rom ? "A: Play" : "A: Emulator") : "LEFT/RIGHT: Browse", (GXColor){165, 245, 211, 255});
+            !details ? "A: Details" : emulator_path ? "A: Play" : "LEFT/RIGHT: Browse", (GXColor){165, 245, 211, 255});
         if (emulator_path) prism_draw_hint(panel, 308, PRISM_FOOTER_LABELS_Y, 178,
             "Z: Emulator settings", (GXColor){134, 184, 245, 255});
         prism_draw_hint(panel, 490, PRISM_FOOTER_LABELS_Y, 126,
@@ -1029,20 +1060,29 @@ static void prism_catalog_browser(DEVICEHANDLER_INTERFACE *device, const char *p
                     prism_scroll_begin(&synopsis_auto, ticks_to_millisecs(gettime())); break;
                 }
                 if (!emulator_path) continue;
+                if (!open_emulator) {
+                    rom_status = prism_resolve_catalog_rom(device, path, entry.id, title, emulator_path,
+                        rom_path, sizeof(rom_path));
+                    if (rom_status != 1 || !prism_emulator_arguments(emulator_path, rom_path, &rom_launch)) {
+                        prism_show_notice("ROM unavailable", rom_status == -2 ?
+                            "More than one ROM matches this cover. Use a Studio .roms mapping to select the version." :
+                            rom_status == -3 ? "The system ROM folder could not be fully read. Check your SD card." :
+                            rom_status == 1 ? "This storage device or ROM path is not supported for direct launch yet." :
+                            "No matching ROM was found. Put it in /roms/<system> with the game title as its filename, or use a Studio .roms mapping. Z opens emulator settings.");
+                        resolved_position = UINT32_MAX;
+                        last = padsButtonsHeld() | BUTTON_A | BUTTON_B | BUTTON_START | BUTTON_Z;
+                        break;
+                    }
+                }
                 DrawDispose(screen); screen = NULL;
                 prism_free_cover_cache(covers); covers = NULL; displayed_slots = 0;
                 int error;
-                if (!open_emulator && direct_rom) {
-                    if (prism_pack_device_rom_path(device, path, entry.id, rom_path, sizeof(rom_path)) != 1 ||
-                        !prism_emulator_arguments(emulator_path, rom_path, &rom_launch)) {
-                        prism_show_notice("ROM unavailable", "The mapped ROM is missing. Check the file on your SD card."); error = 0;
-                    } else {
-                        while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
-                        int saved_auto_boot = swissSettings.autoBoot; swissSettings.autoBoot = 0;
-                        char target[PATHNAME_MAX]; snprintf(target, sizeof(target), "%s", emulator_path);
-                        error = find_existing_dol_exact(target, rom_launch.argc, rom_launch.argv);
-                        swissSettings.autoBoot = saved_auto_boot;
-                    }
+                if (!open_emulator) {
+                    while (padsButtonsHeld() & BUTTON_A) VIDEO_WaitVSync();
+                    int saved_auto_boot = swissSettings.autoBoot; swissSettings.autoBoot = 0;
+                    char target[PATHNAME_MAX]; snprintf(target, sizeof(target), "%s", emulator_path);
+                    error = find_existing_dol_exact(target, rom_launch.argc, rom_launch.argv);
+                    swissSettings.autoBoot = saved_auto_boot;
                 } else error = prism_launch_emulator(emulator_path);
                 if (error) prism_show_notice("Emulator unavailable", "Copy the matching GameCube emulator DOL to /swiss/prism/emulators/.");
                 covers = calloc(1, sizeof(*covers));

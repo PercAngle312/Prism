@@ -139,6 +139,8 @@ jobs:
         run: python3 tools/test_prism_library_flow.py
       - name: Verify telemetry strip and real Classic Swiss exit
         run: python3 tools/test_prism_status_settings.py
+      - name: Verify on-device ROM discovery and matching
+        run: python3 tools/test_prism_rom_discovery.py
       - name: Verify emulator cover-flow navigation and direct launch
         run: python3 tools/test_prism_catalog_flow.py
       - name: Verify native theme bounds, GX tiling and desktop parity

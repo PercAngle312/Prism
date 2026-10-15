@@ -552,3 +552,21 @@ Console cover flow and synopsis screens offer **Z: Emulator settings**. This
 opens the matching emulator without selected-ROM arguments, so its native
 settings are accessible even when a game has an autoboot mapping. A retains
 the existing details/play behavior. The launch waits for A/Z release.
+
+### Direct ROM discovery without a Studio index
+
+When a console catalog has no ID-matched `.roms` entry, its details screen
+scans `/roms/<system>` and one child-folder level on the config SD card.
+A unique filename matching the catalog title enables direct ROM launch.
+Matching ignores case, separators, common Latin accents, moved articles
+(`Legend of Zelda, The`), and known trailing region/language/revision tags.
+It does not use fuzzy matching or launch the first ROM in a folder. Duplicate
+versions, unreadable folders, unsupported archives, and unmatched titles do
+not silently open the emulator. A reports the problem; Z opens the emulator
+menus. An explicit Studio mapping takes precedence, including a missing
+mapped file. Existing packs need no rebuild. The filename check identifies
+paths, not verified ROM contents, and emulator compatibility still varies.
+
+Discovery is cached per selection for synopsis scrolling, then repeated before
+launch. Bounds: 4096 entries per directory, 16384 total and 128 child folders.
+An incomplete scan refuses automatic selection. No ROMs or SD files are modified.
