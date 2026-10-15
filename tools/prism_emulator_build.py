@@ -7,6 +7,44 @@ ROOT=Path(__file__).resolve().parents[1]
 def specifications():
     return json.loads((ROOT/'assets/prism/emulator-builds.json').read_text())
 
+def prepare_storage(root, system):
+    """Centralize native saves and all emulator-owned support directories."""
+    root=Path(root);changes=[]
+    def replace(path,old,new,count=1):
+        target=root/path;data=target.read_text()
+        if data.count(old)!=count:raise ValueError('Upstream storage source changed: '+path)
+        target.write_text(data.replace(old,new));changes.append(path)
+    if system=='n64':
+        replace('fileBrowser/fileBrowser-libfat.c','/wii64/saves','/saves/n64',2)
+        replace('main/savestates_gc.c','"/wii64/saves/"','"/saves/n64/"')
+        replace('main/main_gc-menu2.cpp','char prefix[16];','char prefix[64];')
+        for path,count in [('main/main_gc-menu2.cpp',4),('menu/SettingsFrame.cpp',12),('main/boxart.c',3)]:
+            replace(path,'/wii64/','/swiss/prism/settings/n64/',count)
+    elif system=='megadrive':
+        replace('gx/osd.h','#define DEFAULT_PATH  "/genplus"',
+                '#define DEFAULT_PATH  "/swiss/prism/settings/megadrive"\n#define PRISM_SAVE_PATH "/saves/megadrive"')
+        for path,count in [('gx/main.c',6),('gx/fileio/file_slot.c',10)]:
+            target=root/path;data=target.read_text()
+            pattern=r'"%s/saves([^"\n]*)"\s*,\s*DEFAULT_PATH'
+            data,found=re.subn(pattern,lambda m:'"%s'+m.group(1)+'", PRISM_SAVE_PATH',data)
+            if found!=count:raise ValueError('Upstream Genesis save paths changed: '+path)
+            target.write_text(data);changes.append(path)
+    else:
+        app={'nes':'fceugx','snes':'snes9xgx'}.get(system,'vbagx')
+        header='source/'+app+'.h';data=(root/header).read_text()
+        pattern=r'(#define\s+APPFOLDER\s+)"'+('vbagx/'+system if app=='vbagx' else app)+'"'
+        match=re.search(pattern,data)
+        if not match:raise ValueError('Upstream application folder changed: '+header)
+        replace(header,match.group(),match.group(1)+'"swiss/prism/settings/'+system+'"')
+        path='source/preferences.cpp';data=(root/path).read_text()
+        pattern=r'sprintf\s*\(\s*EmuSettings\.saveFolder,\s*"%s/%s",\s*APPFOLDER,\s*saveFolder\[SAVEFOLDER_SAVES\]\.name\s*\);'
+        matches=list(re.finditer(pattern,data))
+        if len(matches)!=1:raise ValueError('Upstream save folder changed: '+path)
+        replace(path,matches[0].group(),f'strcpy(EmuSettings.saveFolder, "saves/{system}");')
+        replace('source/filebrowser.cpp','    sprintf(folderPath, "%s/%s", APPFOLDER, folderName);',
+                f'    if (!strcmp(folderName, saveFolder[SAVEFOLDER_SAVES].name))\n        strcpy(folderPath, "saves/{system}");\n    else sprintf(folderPath, "%s/%s", APPFOLDER, folderName);')
+    return sorted(set(changes))
+
 def prepare_autoboot(root, system):
     """Enable upstream loaders on GameCube; no preference-file writes."""
     root=Path(root);changes=[]
@@ -125,8 +163,10 @@ def build(root,system,destination):
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
     if commit!=spec['commit']:raise ValueError('Upstream checkout does not match pinned commit')
     note=prepare(root,system)
-    note['modified_files']=sorted(set(note['modified_files']+prepare_autoboot(root,system)))
-    note['scope']='Folder defaults plus native GameCube argv autoboot; exact filename selection. Core unchanged.'
+    note['modified_files']=sorted(set(note['modified_files']+prepare_storage(root,system)+prepare_autoboot(root,system)))
+    note['settings_folder']='swiss/prism/settings/'+system
+    note['storage_layout']='centralized-v1'
+    note['scope']='Centralized saves/settings and native GameCube argv autoboot; exact filename selection. Core unchanged.'
     note['selected_rom_autoboot']='SD2SP2 hardware-test candidate'
     (root/'PRISM-MODIFICATIONS.json').write_text(json.dumps(note,indent=2))
     subprocess.run(['make','-f',spec['makefile'],'-j3'],cwd=root,check=True)

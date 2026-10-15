@@ -5,6 +5,7 @@ on:
     paths:
       - 'assets/prism/emulator-builds.json'
       - 'tools/prism_emulator_build.py'
+      - 'tools/test_prism_storage.py'
       - '.github/workflows/prism-native-emulators.yml'
   workflow_dispatch:
 permissions:
@@ -51,6 +52,8 @@ jobs:
       - name: Exercise exact upstream autoload filename matching
         if: matrix.system != 'n64' && matrix.system != 'megadrive'
         run: python3 tools/test_prism_autoboot.py --source emulator-source
+      - name: Verify centralized native save and settings paths
+        run: python3 tools/test_prism_storage.py --source emulator-source --system ${{ matrix.system }}
       - uses: actions/upload-artifact@v4
         with:
           name: PRISM-Native-Emulator-${{ matrix.system }}

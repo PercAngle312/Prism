@@ -14,10 +14,10 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 SYSTEMS = ("n64", "nes", "snes", "gb", "gbc", "gba", "megadrive")
 ROM_FOLDERS = tuple("roms/" + system + "/" for system in SYSTEMS)
-SAVE_FOLDERS = ('wii64/', 'wii64/saves/', 'fceugx/', 'fceugx/saves/',
-                'snes9xgx/', 'snes9xgx/saves/', 'vbagx/',
-                'vbagx/gb/', 'vbagx/gb/saves/', 'vbagx/gbc/', 'vbagx/gbc/saves/',
-                'vbagx/gba/', 'vbagx/gba/saves/', 'genplus/', 'genplus/saves/')
+SAVE_FOLDERS = ('saves/', 'swiss/prism/settings/',) + tuple(
+    folder for system in SYSTEMS for folder in
+    ('saves/'+system+'/', 'swiss/prism/settings/'+system+'/')) + tuple(
+    'saves/megadrive/'+system+'/' for system in ('md','ms','gg','sg','cd'))
 DOL_ROOT = "swiss/prism/emulators/"
 REQUIRED = SYSTEMS
 
@@ -172,7 +172,8 @@ def build(destination, dashboard, library, emulators, catalogs=None, require_emu
                 "Run PRISM.dol in Swiss; Z opens Systems from the game shelf. A opens the chosen emulator.\n"
                 "Place your own ROMs in /roms/n64, nes, snes, gb, gbc, gba or megadrive as appropriate.\n"
                 "Fresh emulator defaults use these folders; previously saved preferences may override them.\n"
-                "GB/GBC/GBA use independent vbagx/<system>/ saves and settings. Import old saves manually if needed.\n"
+                "Saves use /saves/<system>/; settings/support files use /swiss/prism/settings/<system>/.\n"
+                "This fresh-layout build does not migrate older saves or preferences.\n"
                 "Optional <system>.prism packs add covers/descriptions; absent catalogs do not block launching.\n" +
                 ("Mapped ROMs on SD2SP2: A: Play passes the exact ROM to the rebuilt emulator. Hardware validation pending.\n"
                  "Requires an ID-matched <system>.roms companion from Studio beside <system>.prism.\n"

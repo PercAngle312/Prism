@@ -29,3 +29,17 @@ Native builds, DOL validation and host argv/loader tests are not hardware or
 emulator gameplay validation. Test each core on real SD2SP2 before release.
 No ROM or BIOS is included. Preserve source and licenses on redistribution.
 Genesis Plus GX is noncommercial-only; do not sell the bundle.
+
+## Centralized SD layout
+
+Fresh profile builds store saves and states under `/saves/<system>/` and
+settings/support files under `/swiss/prism/settings/<system>/`. ROMs remain in
+`/roms/<system>/`; emulator DOLs remain in `/swiss/prism/emulators/`.
+GB, GBC and GBA keep independent settings and save folders. Mega Drive keeps
+its native md/ms/gg/sg/cd save subfolders beneath `/saves/megadrive/`.
+
+Older root folders are not removed or migrated automatically. Existing saves
+need manual migration before switching layouts. Empty legacy folders can be
+removed after installing the new DOLs. Keep any ROMs, BIOS or other user files.
+Saved settings in the new settings folders can still override save defaults.
+The release ZIP supplies all parent folders needed on a fresh card.
